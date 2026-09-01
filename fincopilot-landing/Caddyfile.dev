@@ -1,0 +1,32 @@
+# Caddyfile.dev — Local development mirror of production routing
+# Use this to test both the Next.js landing AND the static app together locally.
+# DO NOT use in production. Production uses the root Caddyfile.
+#
+# Usage:
+#   Terminal 1: npm run dev  (or bun run dev)          → Next.js on :3000
+#   Terminal 2: caddy run --config Caddyfile.dev        → Caddy on :80
+#   Open http://localhost/       → Next.js landing
+#   Open http://localhost/app/   → Static HTML app
+
+{
+    auto_https off
+}
+
+:80 {
+    encode gzip
+
+    # Static app at /app/*
+    handle_path /app/* {
+        root * C:/Fincopilot/fincopilot-landing/app-public
+        file_server
+    }
+
+    # Next.js landing (everything else)
+    handle {
+        reverse_proxy localhost:3000 {
+            header_up Host {host}
+            lb_try_duration 5s
+            lb_try_interval 100ms
+        }
+    }
+}

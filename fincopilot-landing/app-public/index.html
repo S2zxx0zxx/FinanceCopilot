@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0A0F0D">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>FinCopilot — AI Financial Life Manager</title>
+
+    <!-- FinCopilot PATCH 1: SEO — noindex app pages (landing is the public face) -->
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="canonical" href="https://fincopilot.ai/app/">
+
+    <!-- FinCopilot PATCH 2: Favicon from app subpath -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230A0A0A'/><text x='50' y='68' text-anchor='middle' font-family='Inter,sans-serif' font-weight='800' font-size='55' fill='white'>F</text></svg>">
+
+    <!-- Inter Font — Premium Variable + Static Weights (UNCHANGED) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Design System CSS (UNCHANGED — app's own tokens.css) -->
+    <link rel="stylesheet" href="/styles/tokens.css">
+    <link rel="stylesheet" href="/styles/base.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <link rel="stylesheet" href="/styles/utilities.css">
+    <link rel="stylesheet" href="/styles/phase7.css">
+    <link rel="stylesheet" href="/styles/ai.css">
+</head>
+<body>
+    <div id="app-root">
+        <!-- Boot Screen -->
+        <div class="boot-screen">
+            <div class="boot-screen__logo">F</div>
+            <div class="boot-screen__bar"></div>
+        </div>
+    </div>
+    
+    <!-- ES Module Entry Point -->
+    <script type="module" src="/app.js"></script>
+</body>
+</html>

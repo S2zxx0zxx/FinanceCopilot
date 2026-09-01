@@ -1,0 +1,25 @@
+{
+  "devFiles": [],
+  "ampDevFiles": [],
+  "polyfillFiles": [],
+  "lowPriorityFiles": [],
+  "rootMainFiles": [],
+  "pages": {
+    "/_error": [
+      "static/chunks/0ody_next_dist_compiled_0yz0t-w._.js",
+      "static/chunks/0ody_next_dist_shared_lib_1zshuz8._.js",
+      "static/chunks/0ody_next_dist_client_0lrrks_._.js",
+      "static/chunks/0ody_next_dist_0jjgwwq._.js",
+      "static/chunks/[next]_entry_page-loader_ts_0sahvzk._.js",
+      "static/chunks/0ody_react-dom_0j48xr5._.js",
+      "static/chunks/0ody_07h0ps4._.js",
+      "static/chunks/[root-of-the-server]__1qygcix._.js",
+      "static/chunks/fincopilot-landing_pages__error_0du2_q-._.js",
+      "static/chunks/turbopack-fincopilot-landing_pages__error_1ngsp1m._.js"
+    ]
+  },
+  "ampFirstPages": [],
+  "rootMainFilesTree": {},
+  "pagesChunkGroupBootstrapParams": {},
+  "chunkLoadingGlobal": "TURBOPACK"
+}

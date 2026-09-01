@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["file:///C:/Fincopilot/fincopilot-landing/node_modules/next/compat/router.js"],"sourcesContent":["module.exports = require('../dist/client/compat/router')\n"],"names":["module","exports"],"mappings":"AAAAA,OAAOC,OAAO","ignoreList":[0]}},
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file:///C:/Fincopilot/fincopilot-landing/node_modules/next/navigation.js"],"sourcesContent":["module.exports = require('./dist/client/components/navigation')\n"],"names":["module","exports"],"mappings":"AAAAA,OAAOC,OAAO","ignoreList":[0]}}]
+}

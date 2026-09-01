@@ -1,0 +1,31 @@
+{
+  "name": "fincopilot",
+  "version": "0.1.0",
+  "description": "AI Financial Life Manager — Modular monolith backend + web frontend",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "node backend/server.js",
+    "worker": "node backend/worker.js",
+    "start:all": "node backend/server.js & node backend/worker.js",
+    "test": "node --test \"backend/tests/**/*.test.js\"",
+    "lint": "eslint backend",
+    "migrate": "node --env-file=.env backend/db/migrations/run.js"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1116.0",
+    "@aws-sdk/s3-request-presigner": "^3.1116.0",
+    "firebase-admin": "^14.3.0",
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.4.5",
+    "pg": "^8.11.5"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["file:///C:/Fincopilot/fincopilot-landing/.next-internal/server/app/page/actions.js%20(server%20actions%20loader)"],"sourcesContent":["export {deleteKeylessAction as '0043667febe205340f9b0fc887bef701076b033a9e'} from 'ACTIONS_MODULE0'\nexport {invalidateCacheAction as '0098b50b89c81c09c8d4212bcbe7b69fcd81da0657'} from 'ACTIONS_MODULE1'\n"],"names":[],"mappings":";AAAA;AACA"}},
+    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":["file:///C:/Fincopilot/fincopilot-landing/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js"],"sourcesContent":["\"use server\";\nimport { cookies } from \"next/headers\";\nasync function invalidateCacheAction() {\n  void (await cookies()).delete(`__clerk_invalidate_cache_cookie_${Date.now()}`);\n}\nexport {\n  invalidateCacheAction\n};\n"],"names":["invalidateCacheAction","delete","Date","now"],"mappings":";;;;;AACA;;;;AACA,eAAeA;IACb,KAAK,CAAC,MAAM,IAAA,mKAAO,GAAE,EAAEC,MAAM,CAAC,CAAC,gCAAgC,EAAEC,KAAKC,GAAG,IAAI;AAC/E;;;;IAFeH;;AAAAA,wQAAAA","ignoreList":[0]}}]
+}

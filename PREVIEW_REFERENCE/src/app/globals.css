@@ -1,0 +1,369 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ============================================================
+   DARK MODE (default) — FinCopilot design system
+   Charcoal canvas + emerald primary + champagne gold premium
+   NEVER pure black, NEVER pure white, NO blue/indigo
+   ============================================================ */
+:root {
+  --radius: 0.875rem;
+
+  /* Canvas & surfaces */
+  --bg: #0A0F0D;
+  --bg-aurora-1: #0E1A14;
+  --surface: #121815;
+  --surface-2: #1A211D;
+  --surface-3: #232B27;
+  --recessed: #070A09;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text (NEVER pure white) */
+  --text: rgba(255, 255, 255, 0.92);
+  --text-secondary: #9BA8A2;
+  --text-muted: #5E6B66;
+
+  /* Accent — EMERALD/MINT */
+  --accent: #34D399;
+  --accent-bright: #6EE7B7;
+  --accent-dim: rgba(52, 211, 153, 0.16);
+  --accent-glow: rgba(52, 211, 153, 0.28);
+
+  /* Premium — CHAMPAGNE GOLD */
+  --gold: #C9A86A;
+  --gold-bright: #EFE2C8;
+  --gold-glow: rgba(201, 168, 106, 0.25);
+
+  /* Semantic data */
+  --success: #34D399;
+  --warning: #FBBF24;
+  --danger: #F87171;
+  --info: #5EEAD4;
+
+  /* Chart palette (5-series, NO blue) */
+  --chart-1: #34D399;
+  --chart-2: #C9A86A;
+  --chart-3: #5EEAD4;
+  --chart-4: #FBBF24;
+  --chart-5: #F472B6;
+
+  /* Radii */
+  --radius-sm: 10px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --shadow-float: 0 24px 60px -12px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border);
+  --shadow-glow: 0 0 40px var(--accent-glow);
+
+  /* Easing */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* === shadcn token mapping (so shadcn components inherit our look) === */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: #0A0F0D;
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-secondary);
+  --accent-foreground: #0A0F0D;
+  --destructive: var(--danger);
+  --input: var(--surface-3);
+  --ring: var(--accent);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: #0A0F0D;
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--accent);
+}
+
+/* ============================================================
+   LIGHT MODE override
+   ============================================================ */
+.light {
+  --bg: #FAFAF7;
+  --bg-aurora-1: #F0F7F3;
+  --surface: #FFFFFF;
+  --surface-2: #F4F7F4;
+  --surface-3: #ECEFEC;
+  --recessed: #F2F5F2;
+  --border: rgba(10, 15, 13, 0.08);
+  --border-strong: rgba(10, 15, 13, 0.16);
+
+  --text: #0A0F0D;
+  --text-secondary: #4A5550;
+  --text-muted: #7A857F;
+
+  --accent: #059669;
+  --accent-bright: #10B981;
+  --accent-dim: rgba(5, 150, 105, 0.12);
+  --accent-glow: rgba(5, 150, 105, 0.18);
+
+  --gold: #A6823F;
+  --gold-bright: #C9A86A;
+  --gold-glow: rgba(166, 130, 63, 0.18);
+
+  --success: #059669;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --info: #0D9488;
+
+  --chart-1: #059669;
+  --chart-2: #A6823F;
+  --chart-3: #0D9488;
+  --chart-4: #D97706;
+  --chart-5: #DB2777;
+
+  --shadow-card: 0 4px 16px rgba(10, 15, 13, 0.06), 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+  --shadow-float: 0 20px 48px -12px rgba(10, 15, 13, 0.18), 0 0 0 1px var(--border);
+
+  --primary-foreground: #FFFFFF;
+  --accent-foreground: #FFFFFF;
+  --sidebar-primary-foreground: #FFFFFF;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-color: var(--bg);
+    color: var(--text);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background-color: var(--accent-dim);
+    color: var(--text);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  h1, h2, h3, h4, h5 {
+    font-family: var(--font-display), var(--font-geist-sans), sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ============================================================
+   Keyframes
+   ============================================================ */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes aurora-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.08); }
+  66% { transform: translate(-20px, 25px) scale(0.96); }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+  40% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 30px var(--accent-glow); }
+  50% { box-shadow: 0 0 50px var(--accent-glow), 0 0 80px var(--accent-glow); }
+}
+@keyframes particle-drift {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-120px) translateX(20px); opacity: 0; }
+}
+
+/* ============================================================
+   Utility classes
+   ============================================================ */
+.font-display {
+  font-family: var(--font-display), var(--font-geist-sans), sans-serif;
+}
+.eyebrow {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.text-gradient-accent {
+  background: linear-gradient(90deg, var(--accent-bright), var(--accent), var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.glass-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.light .glass-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+}
+.glass-card-hover {
+  transition: transform 0.25s var(--ease-out-expo), border-color 0.25s var(--ease-out-expo), box-shadow 0.25s var(--ease-out-expo);
+}
+.glass-card-hover:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-float);
+}
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.5;
+  pointer-events: none;
+  will-change: transform;
+}
+.grid-overlay {
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 8px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  border: none;
+  background: var(--surface-3);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Recharts overrides */
+.recharts-cartesian-axis-tick text,
+.recharts-text {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-geist-mono), monospace;
+}
+.recharts-default-tooltip {
+  background-color: var(--surface-2) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-float) !important;
+}
+.recharts-tooltip-label,
+.recharts-tooltip-item-list,
+.recharts-tooltip-item {
+  color: var(--text) !important;
+  font-family: var(--font-geist-mono), monospace !important;
+  font-size: 12px !important;
+}
+.recharts-cartesian-grid line {
+  stroke: var(--border) !important;
+}

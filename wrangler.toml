@@ -1,0 +1,25 @@
+name = "fincopilot-backend"
+main = "backend/server.js"
+compatibility_date = "2024-03-01"
+
+# Environment Variables
+[vars]
+NODE_ENV = "production"
+
+# Database Connection (Neon/Supabase/PostgreSQL)
+# DATABASE_URL = "postgres://..."
+
+# R2 Bucket Binding for statement uploads
+[[r2_buckets]]
+binding = "FINCOPILOT_RAW_BUCKET"
+bucket_name = "fincopilot-raw-prod"
+
+# Cloudflare Queues for background tasks (Ingestion, Reconciliation)
+[[queues.producers]]
+queue = "fincopilot-ingestion-queue"
+binding = "INGESTION_QUEUE"
+
+[[queues.consumers]]
+queue = "fincopilot-ingestion-queue"
+max_batch_size = 10
+max_batch_timeout = 5

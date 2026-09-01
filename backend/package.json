@@ -1,0 +1,26 @@
+{
+  "name": "fincopilot-backend",
+  "version": "0.1.0",
+  "description": "AI Financial Life Manager Backend API",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test --test-concurrency=1 tests/**/*.test.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1116.0",
+    "@aws-sdk/s3-request-presigner": "^3.1116.0",
+    "@clerk/backend": "^3.17.0",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "firebase-admin": "^12.1.0",
+    "helmet": "^7.1.0",
+    "pg": "^8.12.0",
+    "xlsx": "^0.18.5"
+  }
+}
