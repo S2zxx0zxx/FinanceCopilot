@@ -1,5 +1,23 @@
+# Dependencies
 node_modules/
-.env
-coverage/
+
+# Build outputs
 dist/
+.next/
+out/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+coverage/
+*.log
+
+# Turbopack / Next.js cache
+.next/dev/cache/
