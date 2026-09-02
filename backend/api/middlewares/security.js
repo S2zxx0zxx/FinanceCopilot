@@ -45,7 +45,7 @@ export const requireAuth = async (req, res, next) => {
         }
         
         // Lookup internal user_id based on firebase_uid
-        const result = await dbClient.query('SELECT user_id FROM users WHERE firebase_uid = $1', [decodedToken.uid]);
+        const result = await dbClient.query('SELECT user_id FROM users WHERE clerk_uid = $1 OR firebase_uid = $1', [decodedToken.uid]);
         if (result.rowCount === 0) {
             throw new Error('User not found in database.');
         }

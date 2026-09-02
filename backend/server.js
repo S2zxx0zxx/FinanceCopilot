@@ -37,8 +37,8 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://www.gstatic.com", "https://apis.google.com"],
-            connectSrc: ["'self'", "https://*.googleapis.com", "https://*.firebaseio.com", "wss://*.firebaseio.com", "https://identitytoolkit.googleapis.com", "https://securetoken.googleapis.com", "https://www.gstatic.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://clerk.com", "https://*.clerk.com", "https://*.clerk.accounts.dev"],
+            connectSrc: ["'self'", "https://clerk.com", "https://*.clerk.com", "https://*.clerk.accounts.dev"],
             imgSrc: ["'self'", "data:", "https://*"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
@@ -96,38 +96,26 @@ app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'healthy', env: config.env });
 });
 
-// 6.1 PUBLIC Firebase web config endpoint (no auth required).
-// Returns ONLY the public-safe values needed by the frontend to init Firebase client SDK.
-// These are the same values Firebase exposes in its public config — they're safe to ship
-// to the browser. They do NOT include service-account private keys.
+// 6.1 PUBLIC Clerk config endpoint (no auth required).
+// Returns Clerk publishable key for the frontend to init Clerk client SDK.
 app.get('/api/v1/auth/config', (req, res) => {
-    const apiKey = process.env.FIREBASE_WEB_API_KEY;
-    const authDomain = process.env.FIREBASE_AUTH_DOMAIN;
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const messagingSenderId = process.env.FIREBASE_MESSAGING_SENDER_ID;
-    const appId = process.env.FIREBASE_APP_ID;
+    const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY;
 
-    if (!apiKey || !projectId || !authDomain) {
-        // No Firebase web config available → frontend falls back to dev-mock auth with a warning.
+    if (!publishableKey) {
         return res.status(404).json({
             configured: false,
-            message: "Firebase web config not set. Set FIREBASE_WEB_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID on the backend to enable real auth.",
+            message: "Clerk publishable key not set. Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY to enable real auth.",
         });
     }
     return res.status(200).json({
         configured: true,
-        apiKey,
-        authDomain,
-        projectId,
-        messagingSenderId: messagingSenderId || "",
-        appId: appId || "",
+        publishableKey,
     });
 });
 
 // 6.2 SESSION VERIFICATION — called by the landing's /api/session route.
-// Reads the `session` cookie (contains the Firebase ID token set by the SPA on login),
-// verifies it via FirebaseAuthAdapter, and returns the user's public profile.
-// No auth middleware — this IS the auth check. Fail-closed: invalid/missing token → loggedIn:false.
+// Reads the `session` cookie (contains the Clerk session token),
+// verifies it via ClerkAuthAdapter, and returns the user's public profile.
 app.get('/api/v1/auth/verify', async (req, res) => {
     const sessionCookie = req.cookies?.session || req.headers.authorization?.replace(/^Bearer\s+/i, '');
     if (!sessionCookie) {

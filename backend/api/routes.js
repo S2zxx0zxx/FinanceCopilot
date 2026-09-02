@@ -17,6 +17,11 @@ import * as ForecastController from './controllers/forecast.controller.js';
 import { TrustController } from './controllers/trust.controller.js';
 import { requireFeatureFlag } from './middlewares/feature-flag.js';
 import { DataQualityController } from './controllers/data_quality.controller.js';
+// Phase v988 — New Features
+import { BudgetsController } from './controllers/budgets.controller.js';
+import { NotificationsController } from './controllers/notifications.controller.js';
+import { GamificationController } from './controllers/gamification.controller.js';
+import { InsightsController } from './controllers/insights.controller.js';
 
 // Internal webhook validation — rejects requests without a valid service token
 function validateInternalWebhook(req, res, next) {
@@ -217,6 +222,35 @@ export function setupRoutes(app, dependencies) {
             res.json({ liabilities: rows, total_paise: totalLiabilitiesPaise, currency: 'INR' });
         } catch (err) { next(err); }
     });
+
+    // ── BUDGETS (Phase: v988) ─────────────────────────────────────────────────
+    router.get('/budgets',                 requireAuth, BudgetsController.listBudgets);
+    router.post('/budgets',                requireAuth, BudgetsController.createBudget);
+    router.put('/budgets/:id',             requireAuth, BudgetsController.updateBudget);
+    router.delete('/budgets/:id',           requireAuth, BudgetsController.deleteBudget);
+    router.post('/budgets/recalculate',    requireAuth, BudgetsController.recalculateSpent);
+
+    // ── NOTIFICATIONS (Phase: v988) ───────────────────────────────────────────
+    router.get('/notifications',            requireAuth, NotificationsController.listNotifications);
+    router.put('/notifications/:id/read',   requireAuth, NotificationsController.markRead);
+    router.put('/notifications/read-all',  requireAuth, NotificationsController.markAllRead);
+    router.post('/notifications',           requireAuth, NotificationsController.createNotification);
+    router.delete('/notifications/:id',    requireAuth, NotificationsController.deleteNotification);
+
+    // ── GAMIFICATION (Phase: v988) ─────────────────────────────────────────────
+    router.get('/gamification',                         requireAuth, GamificationController.getGamificationState);
+    router.post('/gamification/streak/tick',            requireAuth, GamificationController.tickStreak);
+    router.post('/gamification/badges/:badgeName/earn', requireAuth, GamificationController.earnBadge);
+    router.post('/gamification/milestones/:id/progress', requireAuth, GamificationController.updateMilestoneProgress);
+
+    // ── INSIGHTS: Peer Comparison, Calendar, Net Worth, Savings Challenges, Preferences ──
+    router.get('/peer-comparison',          requireAuth, InsightsController.getPeerComparison);
+    router.get('/calendar/events',          requireAuth, InsightsController.getCalendarEvents);
+    router.get('/net-worth/history',        requireAuth, InsightsController.getNetWorthHistory);
+    router.get('/savings-challenges',        requireAuth, InsightsController.getSavingsChallenges);
+    router.post('/savings-challenges/:id/contribute', requireAuth, InsightsController.contributeToChallenge);
+    router.get('/preferences',              requireAuth, InsightsController.getPreferences);
+    router.put('/preferences',              requireAuth, InsightsController.updatePreferences);
 
     // ── Mount ─────────────────────────────────────────────────────────────────
     app.use('/api/v1', router);
