@@ -1,4 +1,4 @@
-import { dbClient } from '../db/client.js';
+import { dbClient } from '../../db/client.js';
 
 /**
  * Insights Controller — Peer Comparison, Calendar Events, Net Worth History,

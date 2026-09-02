@@ -1,4 +1,4 @@
-import { dbClient } from '../db/client.js';
+import { dbClient } from '../../db/client.js';
 
 /**
  * Notifications Controller — Full CRUD + mark read + create

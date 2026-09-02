@@ -1,4 +1,4 @@
-import { dbClient } from '../db/client.js';
+import { dbClient } from '../../db/client.js';
 
 /**
  * Gamification Controller — streaks, XP, levels, badges, milestones
