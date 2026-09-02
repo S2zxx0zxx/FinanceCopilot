@@ -8,6 +8,7 @@
   },
   "type": "module",
   "scripts": {
+    "dev:all": "node dev.js",
     "dev": "node backend/server.js",
     "worker": "node backend/worker.js",
     "start:all": "node backend/server.js & node backend/worker.js",
@@ -16,16 +17,17 @@
     "migrate": "node --env-file=.env backend/db/migrations/run.js"
   },
   "devDependencies": {
+    "concurrently": "^10.0.5",
     "eslint": "^9.0.0"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",
     "@aws-sdk/s3-request-presigner": "^3.1116.0",
-    "firebase-admin": "^14.3.0",
-    "express": "^4.19.2",
     "cors": "^2.8.5",
-    "helmet": "^7.1.0",
     "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "firebase-admin": "^14.3.0",
+    "helmet": "^7.1.0",
     "pg": "^8.11.5"
   }
 }
