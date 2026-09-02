@@ -11,6 +11,9 @@ out/
 .env.local
 .env.*.local
 
+# Docs Archive
+.archive/
+
 # OS
 .DS_Store
 Thumbs.db
