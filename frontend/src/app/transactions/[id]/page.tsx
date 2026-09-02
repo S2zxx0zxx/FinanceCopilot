@@ -7,8 +7,9 @@ import { recentTransactions } from "@/lib/data";
 import { formatPaise, formatDate, categoryIcon } from "@/lib/format";
 import { Badge } from "@/components/shared";
 
-export default function TransactionDetailPage({ params }: { params: { id: string } }) {
-  const tx = recentTransactions.find(t => t.transaction_id === params.id) || recentTransactions[0];
+export default function TransactionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
+  const tx = recentTransactions.find(t => t.transaction_id === id) || recentTransactions[0];
   const isIncome = tx.direction === "credit";
   return (
     <div className="flex flex-col gap-6 max-w-4xl">

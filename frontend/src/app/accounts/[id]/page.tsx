@@ -7,8 +7,9 @@ import { accounts } from "@/lib/data";
 import { formatPaise, formatDate } from "@/lib/format";
 import { FreshnessBadge } from "@/components/shared";
 
-export default function AccountDetailPage({ params }: { params: { id: string } }) {
-  const acc = accounts.find(a => a.account_id === params.id) || accounts[0];
+export default function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);
+  const acc = accounts.find(a => a.account_id === id) || accounts[0];
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <div className="flex items-center gap-3">
