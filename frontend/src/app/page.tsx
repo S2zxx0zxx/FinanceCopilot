@@ -3,226 +3,246 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import {
-  Sparkles, ArrowRight, AlertTriangle, Bell, ArrowUpRight, ArrowDownRight,
-} from "lucide-react";
-import {
-  SectionHeader, MetricCard, FreshnessBadge, AttentionItem,
-  Badge, CountUp,
-} from "@/components/shared";
+import { Sparkles, ArrowRight, ArrowUpRight, ArrowDownRight, Flame, TrendingUp, TrendingDown, Wallet, Calendar } from "lucide-react";
+import { CountUp, Badge, SectionHeader, FreshnessBadge } from "@/components/shared";
+import { Card3D, CardChip, ContactlessIcon } from "@/components/shared/card3d";
 import { Sparkline, MiniBarChart } from "@/components/charts/sparkline";
+import { SpendingDonutChart } from "@/components/charts/recharts";
+import { getMerchantStyle } from "@/lib/merchant-data";
 import {
-  financialStateHome, recentTransactions, aiInsights,
-  spendingStory, currentUser,
+  financialStateHome, recentTransactions, aiInsights, spendingStory,
+  gamification, currentUser, calendarEvents,
 } from "@/lib/data";
-import { formatPaise, formatDate, getGreeting, categoryIcon } from "@/lib/format";
+import { formatPaise, formatDate, timeAgo, getGreeting, categoryIcon } from "@/lib/format";
+
+// ── Merchant Avatar (brand-colored square) ────────────────────────────────────
+function MerchantAvatar({ merchantName, size = 40 }: { merchantName: string; size?: number }) {
+  const style = getMerchantStyle(merchantName);
+  return (
+    <div
+      className="rounded-[12px] flex items-center justify-center shrink-0 font-bold"
+      style={{
+        width: size, height: size,
+        background: style.bg,
+        color: style.color,
+        fontSize: size > 36 ? 14 : 12,
+      }}
+    >
+      <span style={{ fontSize: size * 0.45 }}>{style.glyph}</span>
+    </div>
+  );
+}
+
+// ── Transaction Row ────────────────────────────────────────────────────────────
+function TransactionRow({ tx }: { tx: typeof recentTransactions[0] }) {
+  const isIncome = tx.direction === "credit";
+  return (
+    <Link href={`/transactions/${tx.transaction_id}`} className="flex items-center gap-3 p-3.5 hover:bg-[var(--surface-subtle)] transition-colors group">
+      <MerchantAvatar merchantName={tx.merchant_name} size={42} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[14px] font-semibold truncate">{tx.merchant_name}</p>
+        <p className="text-[11px] text-[var(--text-tertiary)] font-mono uppercase tracking-wide">
+          {tx.category} · {formatDate(tx.date, { style: "relative" })}
+          {tx.pending && <span className="ml-1.5 text-[var(--warning)]">· PENDING</span>}
+        </p>
+      </div>
+      <div className="text-right shrink-0">
+        <span className={`text-[15px] font-display font-semibold tabular-nums ${isIncome ? "text-[var(--positive)]" : "text-[var(--foreground)]"}`}>
+          {isIncome ? "+" : ""}{formatPaise(tx.amount_paise)}
+        </span>
+        {tx.source === "ai_inferred" && <span className="block text-[9px] text-[var(--accent)] font-mono">AI</span>}
+      </div>
+    </Link>
+  );
+}
 
 export default function HomePage() {
   const greeting = getGreeting();
   const firstName = currentUser.displayName?.split(" ")[0] || "there";
   const sts = financialStateHome.safe_to_spend_paise;
   const stsStatus = financialStateHome.safe_to_spend_status;
-
-  const stsColor = stsStatus === "safe" ? "var(--positive)" : stsStatus === "moderate" ? "var(--warning)" : "var(--negative)";
+  const stsColor = stsStatus === "safe" ? "#047857" : stsStatus === "moderate" ? "#D97706" : "#DC2626";
+  const donutData = spendingStory.categories.map(c => ({ name: c.category, value: c.amount_paise / 100, color: c.color }));
 
   return (
-    <div className="flex flex-col gap-8 max-w-4xl">
-      {/* ── Greeting ─────────────────────────────────────────── */}
-      <motion.header
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex items-center justify-between"
-      >
+    <div className="flex flex-col gap-6 max-w-4xl">
+      {/* ── Greeting + Streak ─────────────────────────────────── */}
+      <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex items-center justify-between">
         <div>
           <p className="text-[13px] text-[var(--text-tertiary)] font-mono">{greeting},</p>
           <h1 className="font-display font-bold text-[28px] tracking-[-0.02em] mt-0.5">{firstName}</h1>
         </div>
-        <Link
-          href="/ai"
-          className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-[12px] bg-[var(--accent-light)] text-[var(--accent)] text-[13px] font-semibold hover:bg-[var(--accent)] hover:text-white transition-all"
-        >
-          <Sparkles className="w-4 h-4" />
-          Ask AI
+        <Link href="/you" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[var(--accent-light)] to-[var(--gold-light)] text-[12px] font-semibold">
+          <Flame className="w-3.5 h-3.5 text-[var(--accent)]" />
+          {gamification.tracking_streak_days}d
         </Link>
       </motion.header>
 
-      {/* ── Safe-to-Spend Hero ────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="relative overflow-hidden rounded-[var(--radius-xl)] p-6 sm:p-8"
-        style={{
-          background: `linear-gradient(135deg, color-mix(in oklab, ${stsColor} 10%, var(--surface)), var(--surface))`,
-          border: `1px solid color-mix(in oklab, ${stsColor} 25%, var(--border))`,
-          boxShadow: `0 12px 32px color-mix(in oklab, ${stsColor} 8%, transparent)`,
-        }}
-      >
-        {/* glow blob */}
-        <div
-          className="absolute -top-20 -right-20 w-48 h-48 rounded-full opacity-30 pointer-events-none"
-          style={{ background: stsColor, filter: "blur(60px)" }}
-        />
-
-        <div className="relative flex items-start justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span
-              className="w-2 h-2 rounded-full"
-              style={{ background: stsColor, animation: "pulse-dot 2s ease-in-out infinite" }}
-            />
-            <span className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-secondary)]">
-              Safe to Spend
-            </span>
-          </div>
-          <FreshnessBadge status="live" />
-        </div>
-
-        <div className="relative flex items-end gap-3 mb-2">
-          <CountUp
-            value={sts / 100}
-            format={(v) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
-            duration={1500}
-            className="font-display font-bold text-[48px] sm:text-[56px] leading-none tracking-[-0.03em]"
-          />
-        </div>
-        <p className="relative text-[14px] text-[var(--text-secondary)]">
-          {financialStateHome.safe_to_spend_horizon} · synced {financialStateHome.synced_accounts}/{financialStateHome.total_accounts} accounts
-        </p>
-
-        {/* mini stats */}
-        <div className="relative grid grid-cols-3 gap-4 mt-6 pt-6 border-t" style={{ borderColor: "color-mix(in oklab, var(--foreground) 6%, transparent)" }}>
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Balance</span>
-            <p className="text-[15px] font-display font-semibold tabular-nums mt-1">
-              {formatPaise(financialStateHome.available_balance_paise, { style: "compact" })}
-            </p>
-          </div>
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Spending</span>
-            <p className="text-[15px] font-display font-semibold tabular-nums mt-1 flex items-center gap-1">
-              {formatPaise(financialStateHome.this_month_spending_paise, { style: "compact" })}
-              <span className="text-[var(--positive)] text-[11px]">↓8%</span>
-            </p>
-          </div>
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Income</span>
-            <p className="text-[15px] font-display font-semibold tabular-nums mt-1">
-              {formatPaise(financialStateHome.this_month_income_paise, { style: "compact" })}
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* ── Quick Stats Bento ────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-      >
-        <MetricCard
-          label="Total Balance"
-          value={formatPaise(financialStateHome.available_balance_paise)}
-          delta="+3.2%"
-          deltaPositive
-          sparkline={<Sparkline data={[22, 24, 23, 25, 24, 26, 25, 27]} color="var(--accent)" />}
-        />
-        <MetricCard
-          label="This Month Spending"
-          value={formatPaise(financialStateHome.this_month_spending_paise)}
-          delta="↓8% vs last"
-          deltaPositive
-          sparkline={<Sparkline data={[40, 35, 38, 32, 34, 30, 28, 27]} color="var(--negative)" />}
-        />
-        <MetricCard
-          label="This Month Income"
-          value={formatPaise(financialStateHome.this_month_income_paise)}
-          delta="+2.1%"
-          deltaPositive
-          sparkline={<Sparkline data={[80, 82, 81, 83, 82, 84, 85, 85]} color="var(--positive)" />}
-        />
-      </motion.div>
-
-      {/* ── Needs Attention ───────────────────────────────────── */}
-      {financialStateHome.needs_attention.length > 0 && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+      {/* ── Safe-to-Spend Platinum Credit Card 3D ────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }} style={{ perspective: 1200 }}>
+        <Card3D
+          rotateMax={6}
+          className="relative w-full rounded-[24px] overflow-hidden cursor-default"
+          gradient="linear-gradient(135deg, #047857 0%, #065F46 30%, #0A0F0D 60%, #B08D57 100%)"
         >
-          <SectionHeader title="Needs Attention" />
-          <div className="flex flex-col gap-3">
-            {financialStateHome.needs_attention.map((item) => (
-              <AttentionItem
-                key={item.id}
-                title={item.title}
-                description={item.description}
-                severity={item.severity as "warning" | "info" | "positive"}
-                actionHref={item.action_href}
-                actionLabel={item.action_label}
+          <div
+            className="relative p-6 sm:p-8 text-white overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, #047857 0%, #065F46 25%, #0A0F0D 55%, #1A1A1A 80%, #B08D57 100%)",
+              minHeight: 200,
+            }}
+          >
+            {/* Platinum sheen overlay */}
+            <div className="absolute inset-0 pointer-events-none" style={{
+              background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.08) 50%, transparent 60%)",
+              mixBlendMode: "overlay",
+            }} />
+
+            {/* Subtle dot pattern */}
+            <div className="absolute inset-0 pointer-events-none opacity-10" style={{
+              backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.4) 0.5px, transparent 0.5px)",
+              backgroundSize: "20px 20px",
+            }} />
+
+            {/* Top row: chip + contactless + freshness */}
+            <div className="relative flex items-start justify-between mb-6" style={{ transform: "translateZ(40px)" }}>
+              <div className="flex items-center gap-3">
+                <CardChip />
+                <div className="text-white/60"><ContactlessIcon /></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#34D399]" style={{ animation: "pulse-dot 2s infinite" }} />
+                <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-white/60">Safe to Spend</span>
+              </div>
+            </div>
+
+            {/* Big amount */}
+            <div className="relative" style={{ transform: "translateZ(30px)" }}>
+              <CountUp
+                value={sts / 100}
+                format={(v) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+                duration={1800}
+                className="font-display font-bold text-[44px] sm:text-[52px] leading-none tracking-[-0.03em]"
               />
-            ))}
+              <p className="text-[13px] text-white/50 mt-2 font-mono">{financialStateHome.safe_to_spend_horizon} · {financialStateHome.synced_accounts}/{financialStateHome.total_accounts} accounts synced</p>
+            </div>
+
+            {/* Bottom row: mini stats + card number */}
+            <div className="relative flex items-end justify-between mt-8" style={{ transform: "translateZ(20px)" }}>
+              <div className="flex gap-6">
+                <div>
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-white/40">Balance</span>
+                  <p className="text-[15px] font-display font-semibold tabular-nums">{formatPaise(financialStateHome.available_balance_paise, { style: "compact" })}</p>
+                </div>
+                <div>
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-white/40">Spent</span>
+                  <p className="text-[15px] font-display font-semibold tabular-nums flex items-center gap-1">
+                    {formatPaise(financialStateHome.this_month_spending_paise, { style: "compact" })}
+                    <span className="text-[#34D399] text-[10px]">↓8%</span>
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-white/40">Income</span>
+                  <p className="text-[15px] font-display font-semibold tabular-nums">{formatPaise(financialStateHome.this_month_income_paise, { style: "compact" })}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-mono text-[12px] text-white/30 tracking-[0.15em]">•••• 2K8F</p>
+                <p className="text-[10px] font-mono text-white/20 mt-1">FINCOPILOT</p>
+              </div>
+            </div>
+          </div>
+        </Card3D>
+      </motion.div>
+
+      {/* ── Bento Grid: 4 satellite tiles ──────────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Balance */}
+        <Link href="/money" className="premium-card p-4 flex flex-col gap-2 group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Balance</span>
+            <Wallet className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+          </div>
+          <span className="font-display font-bold text-[20px] tabular-nums">{formatPaise(financialStateHome.available_balance_paise, { style: "compact" })}</span>
+          <div className="h-6 -mb-1"><Sparkline data={[22,24,23,25,24,26,25,27]} color="var(--accent)" /></div>
+        </Link>
+
+        {/* Spending */}
+        <Link href="/spending-story" className="premium-card p-4 flex flex-col gap-2 group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Spent</span>
+            <TrendingDown className="w-3.5 h-3.5 text-[var(--positive)]" />
+          </div>
+          <span className="font-display font-bold text-[20px] tabular-nums">{formatPaise(financialStateHome.this_month_spending_paise, { style: "compact" })}</span>
+          <span className="text-[10px] text-[var(--positive)] font-medium">↓8% vs last</span>
+        </Link>
+
+        {/* Income */}
+        <Link href="/income" className="premium-card p-4 flex flex-col gap-2 group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Income</span>
+            <TrendingUp className="w-3.5 h-3.5 text-[var(--positive)]" />
+          </div>
+          <span className="font-display font-bold text-[20px] tabular-nums">{formatPaise(financialStateHome.this_month_income_paise, { style: "compact" })}</span>
+          <span className="text-[10px] text-[var(--positive)] font-medium">↑2.1%</span>
+        </Link>
+
+        {/* Streak */}
+        <Link href="/you" className="premium-card p-4 flex flex-col gap-2 group">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Streak</span>
+            <Flame className="w-3.5 h-3.5 text-[var(--warning)]" />
+          </div>
+          <span className="font-display font-bold text-[20px] tabular-nums">{gamification.tracking_streak_days}d 🔥</span>
+          <span className="text-[10px] text-[var(--text-tertiary)]">Level {gamification.level} · {gamification.level_name}</span>
+        </Link>
+      </motion.div>
+
+      {/* ── Needs Attention (2 per row, attractive borders) ──────── */}
+      {financialStateHome.needs_attention.length > 0 && (
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+          <SectionHeader title="Needs Attention" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {financialStateHome.needs_attention.map((item) => {
+              const color = item.severity === "warning" ? "#D97706" : "#DC2626";
+              return (
+                <Link key={item.id} href={item.action_href} className="premium-card p-4 flex items-center gap-3 group relative overflow-hidden" style={{ borderColor: `color-mix(in oklab, ${color} 20%, var(--border))` }}>
+                  <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: color }} />
+                  <div className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0" style={{ background: `color-mix(in oklab, ${color} 12%, transparent)` }}>
+                    <span className="text-[18px]">{item.type === "unusual_charge" ? "⚠️" : "📋"}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-[14px] font-semibold truncate">{item.title}</h4>
+                    <p className="text-[12px] text-[var(--text-secondary)] leading-[1.4] mt-0.5 truncate">{item.description}</p>
+                  </div>
+                  <div className="shrink-0 text-[12px] font-medium text-[var(--accent)] group-hover:translate-x-0.5 transition-transform">
+                    {item.action_label} →
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         </motion.section>
       )}
 
-      {/* ── Recent Transactions ───────────────────────────────── */}
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
-        <SectionHeader
-          title="Recent Transactions"
-          action={
-            <Link href="/transactions" className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1 transition-colors">
-              View All <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          }
-        />
+      {/* ── Recent Transactions (real merchant avatars) ─────────── */}
+      <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.35 }}>
+        <SectionHeader title="Recent Transactions" action={<Link href="/transactions" className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1 transition-colors">View All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
         <div className="premium-card overflow-hidden">
-          {recentTransactions.slice(0, 5).map((tx, i) => {
-            const isIncome = tx.direction === "credit";
-            return (
-              <Link
-                key={tx.transaction_id}
-                href={`/transactions/${tx.transaction_id}`}
-                className={`flex items-center gap-3 p-4 hover:bg-[var(--surface-subtle)] transition-colors ${
-                  i < 4 ? "border-b border-[var(--border-subtle)]" : ""
-                }`}
-              >
-                <div className="w-10 h-10 rounded-[10px] bg-[var(--surface-subtle)] flex items-center justify-center text-[16px] shrink-0">
-                  {categoryIcon(tx.category)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-medium truncate">{tx.merchant_name}</p>
-                  <p className="text-[12px] text-[var(--text-tertiary)] capitalize">
-                    {tx.category} · {formatDate(tx.date, { style: "relative" })}
-                    {tx.pending && <span className="ml-1.5 text-[var(--warning)]">· Pending</span>}
-                  </p>
-                </div>
-                <span className={`text-[14px] font-semibold tabular-nums shrink-0 ${isIncome ? "text-[var(--positive)]" : "text-[var(--foreground)]"}`}>
-                  {isIncome ? "+" : ""}{formatPaise(tx.amount_paise)}
-                </span>
-              </Link>
-            );
-          })}
+          {recentTransactions.slice(0, 5).map((tx, i) => (
+            <div key={tx.transaction_id} className={i < 4 ? "border-b border-[var(--border-subtle)]" : ""}>
+              <TransactionRow tx={tx} />
+            </div>
+          ))}
         </div>
       </motion.section>
 
       {/* ── AI Insight ────────────────────────────────────────── */}
       {aiInsights[0] && (
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-        >
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
           <SectionHeader title="AI Insight" />
-          <div className="premium-card p-5 border-[var(--accent)]/30 relative overflow-hidden">
-            {/* corner glow */}
-            <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full bg-[var(--accent-glow)] opacity-50 pointer-events-none" style={{ filter: "blur(40px)" }} />
-
+          <div className="premium-card p-5 border-[var(--accent)]/20 relative overflow-hidden">
+            <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full opacity-30 pointer-events-none" style={{ background: "var(--accent-glow)", filter: "blur(40px)" }} />
             <div className="relative flex items-start gap-3">
               <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center shrink-0">
                 <Sparkles className="w-5 h-5 text-white" />
@@ -235,11 +255,7 @@ export default function HomePage() {
                 <p className="text-[13px] text-[var(--text-secondary)] leading-[1.5] mb-3">{aiInsights[0].summary}</p>
                 <div className="flex items-center gap-2">
                   {aiInsights[0].actions.map((action, i) => (
-                    <Link
-                      key={i}
-                      href={action.href}
-                      className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
-                    >
+                    <Link key={i} href={action.href} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors">
                       {action.label} <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   ))}
@@ -250,35 +266,62 @@ export default function HomePage() {
         </motion.section>
       )}
 
-      {/* ── Spending Story Preview ───────────────────────────── */}
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-      >
-        <SectionHeader
-          title="Spending Story"
-          action={
-            <Link href="/spending-story" className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1 transition-colors">
-              See All <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          }
-        />
+      {/* ── Spending Story (Donut + Table combo) ─────────────────── */}
+      <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.45 }}>
+        <SectionHeader title="Spending Story" action={<Link href="/spending-story" className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1 transition-colors">See All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
         <div className="premium-card p-5">
-          <div className="flex items-baseline gap-3 mb-4">
+          {/* Summary */}
+          <div className="flex items-baseline gap-3 mb-5">
             <span className="font-display font-bold text-[24px] tabular-nums">{formatPaise(spendingStory.total_spent_paise)}</span>
-            <span className="text-[13px] text-[var(--positive)] flex items-center gap-1">
+            <span className="text-[12px] text-[var(--positive)] flex items-center gap-1">
               <ArrowDownRight className="w-3.5 h-3.5" /> {formatPaise(Math.abs(spendingStory.change_paise), { style: "compact" })} less than last month
             </span>
           </div>
-          <MiniBarChart
-            data={spendingStory.categories.slice(0, 6).map(c => ({
-              label: c.category.slice(0, 4),
-              value: c.amount_paise / 100,
-              color: c.color,
-            }))}
-            height={80}
-          />
+
+          {/* Donut + Table combo */}
+          <div className="grid sm:grid-cols-2 gap-5 items-center">
+            {/* Donut chart */}
+            <div>
+              <SpendingDonutChart data={donutData} />
+            </div>
+
+            {/* Table */}
+            <div className="flex flex-col gap-2">
+              {spendingStory.categories.slice(0, 6).map((cat, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full shrink-0" style={{ background: cat.color }} />
+                  <span className="text-[13px] font-medium flex-1">{cat.category}</span>
+                  <span className="text-[13px] font-semibold tabular-nums">{formatPaise(cat.amount_paise)}</span>
+                  <span className={`text-[11px] tabular-nums w-10 text-right ${cat.change_pct > 0 ? "text-[var(--negative)]" : "text-[var(--positive)]"}`}>
+                    {cat.change_pct > 0 ? "↑" : "↓"}{Math.abs(cat.change_pct)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.section>
+
+      {/* ── Upcoming Calendar ──────────────────────────────────── */}
+      <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }}>
+        <SectionHeader title="Upcoming" action={<Calendar className="w-4 h-4 text-[var(--text-tertiary)]" />} />
+        <div className="flex flex-col gap-2">
+          {calendarEvents.slice(0, 4).map((event) => {
+            const isIncome = event.type === "income";
+            const sevColor = event.severity === "high" ? "var(--negative)" : event.severity === "positive" ? "var(--positive)" : "var(--text-tertiary)";
+            return (
+              <div key={event.id} className="premium-card p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 text-center" style={{ background: `color-mix(in oklab, ${sevColor} 10%, transparent)` }}>
+                  <span className="text-[14px]">{event.type === "income" ? "💰" : event.type === "bill" ? "📋" : event.type === "investment" ? "📈" : "🔄"}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-medium truncate">{event.title}</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)] font-mono">{formatDate(event.date, { style: "long" })} · {timeAgo(event.date) === "Just now" ? "today" : `in ${Math.ceil((new Date(event.date).getTime() - Date.now()) / 86400000)}d`}</p>
+                </div>
+                <span className={`text-[14px] font-semibold tabular-nums ${isIncome ? "text-[var(--positive)]" : ""}`}>{isIncome ? "+" : ""}{formatPaise(event.amount_paise)}</span>
+              </div>
+            );
+          })}
         </div>
       </motion.section>
     </div>

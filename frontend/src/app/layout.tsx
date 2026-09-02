@@ -37,7 +37,22 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "FinCopilot, Inc." }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "FinCopilot — AI Financial Life Manager",
+    description: "Your AI co-pilot for money. Track spending, budget smarter, forecast cash flow.",
+    type: "website",
+    locale: "en_IN",
+    siteName: "FinCopilot",
+    images: [{ url: "/og-cover.png", width: 1344, height: 768, alt: "FinCopilot — AI Financial Life Manager" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FinCopilot — AI Financial Life Manager",
+    description: "Your AI co-pilot for money.",
+    images: ["/og-cover.png"],
   },
 };
 
@@ -53,7 +68,7 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
+          defaultTheme="dark"
           enableSystem={false}
           disableTransitionOnChange
         >

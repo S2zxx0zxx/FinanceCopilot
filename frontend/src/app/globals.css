@@ -146,65 +146,71 @@
    DARK MODE — Warm Charcoal + Emerald
    ============================================================ */
 .dark {
-  --background: #0A0F0D;           /* warm charcoal, not pure black */
-  --surface: #141A18;              /* cards */
-  --surface-elevated: #1A211E;
-  --surface-subtle: #0F1413;
-  --surface-hover: #1A211E;
-  --surface-active: #232B27;
+  /* Pure black & white monochrome — green ONLY where truly important */
+  --background: #000000;
+  --surface: #0D0D0D;
+  --surface-elevated: #141414;
+  --surface-subtle: #080808;
+  --surface-hover: #1A1A1A;
+  --surface-active: #222222;
 
-  --foreground: rgba(255,255,255,0.94);
-  --text-secondary: #9BA8A2;
-  --text-tertiary: #5E6B66;
-  --text-muted: #3F4A45;
-  --text-inverse: #0A0F0D;
+  --foreground: rgba(255,255,255,0.95);
+  --text-secondary: #888888;
+  --text-tertiary: #555555;
+  --text-muted: #333333;
+  --text-inverse: #000000;
 
-  --border: rgba(255,255,255,0.08);
-  --border-subtle: rgba(255,255,255,0.04);
-  --border-strong: rgba(255,255,255,0.14);
-  --border-focus: #34D399;
+  --border: rgba(255,255,255,0.1);
+  --border-subtle: rgba(255,255,255,0.05);
+  --border-strong: rgba(255,255,255,0.2);
+  --border-focus: #FFFFFF;
 
-  --accent: #34D399;
-  --accent-hover: #6EE7B7;
-  --accent-light: rgba(52, 211, 153, 0.12);
-  --accent-glow: rgba(52, 211, 153, 0.22);
+  /* Accent = WHITE in dark mode (monochrome). Green ONLY for positive amounts */
+  --accent: #FFFFFF;
+  --accent-hover: #E0E0E0;
+  --accent-light: rgba(255,255,255,0.1);
+  --accent-glow: rgba(255,255,255,0.15);
 
+  /* Green reserved for positive amounts ONLY */
+  --positive: #22C55E;
+  --positive-light: rgba(34, 197, 94, 0.15);
+  --negative: #EF4444;
+  --negative-light: rgba(239, 68, 68, 0.15);
+  --warning: #F59E0B;
+  --warning-light: rgba(245, 158, 11, 0.15);
+  --info: #888888;
+
+  /* Gold kept for premium tier badges only */
   --gold: #C9A86A;
   --gold-light: rgba(201, 168, 106, 0.12);
-  --gold-glow: rgba(201, 168, 106, 0.18);
+  --gold-glow: rgba(201, 168, 106, 0.15);
 
-  --positive: #34D399;
-  --positive-light: rgba(52, 211, 153, 0.12);
-  --negative: #F87171;
-  --negative-light: rgba(248, 113, 113, 0.12);
-  --warning: #FBBF24;
-  --warning-light: rgba(251, 191, 36, 0.12);
-  --info: #5EEAD4;
+  /* Chart colors — monochrome with green for positive */
+  --chart-1: #FFFFFF;
+  --chart-2: #888888;
+  --chart-3: #555555;
+  --chart-4: #C9A86A;
+  --chart-5: #EF4444;
+  --chart-positive: #22C55E;
 
-  --chart-1: #34D399;
-  --chart-2: #C9A86A;
-  --chart-3: #5EEAD4;
-  --chart-4: #FBBF24;
-  --chart-5: #F472B6;
-
-  --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
-  --shadow-xl: 0 24px 56px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4);
-  --shadow-glow: 0 0 32px var(--accent-glow);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-xl: 0 24px 56px rgba(0,0,0,0.7), 0 8px 24px rgba(0,0,0,0.4);
+  --shadow-glow: 0 0 32px rgba(255,255,255,0.1);
   --shadow-gold: 0 0 32px var(--gold-glow);
 
   --primary: var(--accent);
-  --primary-foreground: #0A0F0D;
+  --primary-foreground: #000000;
   --secondary: var(--surface-elevated);
   --secondary-foreground: var(--foreground);
   --muted: var(--surface-elevated);
   --muted-foreground: var(--text-secondary);
-  --accent-foreground: #0A0F0D;
+  --accent-foreground: #000000;
   --destructive: var(--negative);
   --input: var(--surface-active);
-  --ring: var(--accent);
+  --ring: #FFFFFF;
   --card: var(--surface);
   --card-foreground: var(--foreground);
   --popover: var(--surface-elevated);

@@ -575,4 +575,136 @@ export const forecastData = {
     { label: "Subscription outflow", impact_paise: -31000, type: "negative" },
     { label: "SIP investment", impact_paise: -100000, type: "neutral" },
   ],
+  // 6 months actual + 3 months projected with upper/lower bands
+  timeline: [
+    { month: "Apr", actual: 2200000, projected: null, upper: null, lower: null },
+    { month: "May", actual: 2280000, projected: null, upper: null, lower: null },
+    { month: "Jun", actual: 2310000, projected: null, upper: null, lower: null },
+    { month: "Jul", actual: 2390000, projected: null, upper: null, lower: null },
+    { month: "Aug", actual: 2450000, projected: null, upper: null, lower: null },
+    { month: "Sep", actual: 2497000, projected: 2497000, upper: 2497000, lower: 2497000 },
+    { month: "Oct", actual: null, projected: 2547000, upper: 2580000, lower: 2510000 },
+    { month: "Nov", actual: null, projected: 2620000, upper: 2680000, lower: 2560000 },
+    { month: "Dec", actual: null, projected: 2710000, upper: 2800000, lower: 2620000 },
+  ],
 };
+
+// ── Budgets (monthly, by category) ───────────────────────────────────────────
+
+export interface Budget {
+  category: string;
+  budgeted_paise: number;
+  spent_paise: number;
+  remaining_paise: number;
+  pct_used: number;
+  status: "on_track" | "warning" | "over" | "under";
+  rollover_paise: number;
+}
+
+export const budgets: Budget[] = [
+  { category: "Groceries", budgeted_paise: 180000, spent_paise: 160000, remaining_paise: 20000, pct_used: 89, status: "warning", rollover_paise: 5000 },
+  { category: "Dining", budgeted_paise: 70000, spent_paise: 84500, remaining_paise: -14500, pct_used: 121, status: "over", rollover_paise: 0 },
+  { category: "Transport", budgeted_paise: 90000, spent_paise: 77500, remaining_paise: 12500, pct_used: 86, status: "on_track", rollover_paise: 2000 },
+  { category: "Shopping", budgeted_paise: 80000, spent_paise: 72000, remaining_paise: 8000, pct_used: 90, status: "warning", rollover_paise: 0 },
+  { category: "Entertainment", budgeted_paise: 50000, spent_paise: 12000, remaining_paise: 38000, pct_used: 24, status: "under", rollover_paise: 12000 },
+  { category: "Subscriptions", budgeted_paise: 35000, spent_paise: 31000, remaining_paise: 4000, pct_used: 89, status: "warning", rollover_paise: 0 },
+];
+
+// ── Gamification: Streaks, Milestones, Badges ───────────────────────────────────
+
+export const gamification = {
+  tracking_streak_days: 47,
+  longest_streak_days: 89,
+  total_actions: 1247,
+  level: 4,
+  level_name: "Money Master",
+  xp: 2450,
+  xp_to_next_level: 3000,
+  milestones: [
+    { id: "m1", title: "First Account Connected", description: "You linked your first bank account", achieved: true, date: "2026-01-15", icon: "🔗" },
+    { id: "m2", title: "7-Day Tracking Streak", description: "Tracked your money for 7 consecutive days", achieved: true, date: "2026-01-22", icon: "🔥" },
+    { id: "m3", title: "First Goal Created", description: "You set your first financial goal", achieved: true, date: "2026-02-01", icon: "🎯" },
+    { id: "m4", title: "Budget Master", description: "Stayed under budget for an entire month", achieved: true, date: "2026-03-31", icon: "📊" },
+    { id: "m5", title: "30-Day Streak", description: "Tracked your money for 30 consecutive days", achieved: true, date: "2026-04-15", icon: "⚡" },
+    { id: "m6", title: "Savings Champion", description: "Saved more than 30% of your income", achieved: true, date: "2026-06-30", icon: "💰" },
+    { id: "m7", title: "AI Conversation", description: "Had your first conversation with FinCopilot AI", achieved: true, date: "2026-02-10", icon: "🤖" },
+    { id: "m8", title: "Emergency Fund: 3 Months", description: "Build a 3-month emergency fund", achieved: true, date: "2026-07-20", icon: "🛡️" },
+    { id: "m9", title: "50-Day Streak", description: "Track your money for 50 consecutive days", achieved: false, progress: 47, target: 50, icon: "🏆" },
+    { id: "m10", title: "Debt-Free", description: "Pay off all credit card debt", achieved: false, progress: 0, target: 45000, icon: "✨" },
+  ],
+  badges: [
+    { id: "b1", name: "Early Adopter", icon: "🚀", earned: true },
+    { id: "b2", name: "Consistent Tracker", icon: "📅", earned: true },
+    { id: "b3", name: "Goal Getter", icon: "🎯", earned: true },
+    { id: "b4", name: "Smart Saver", icon: "💎", earned: true },
+    { id: "b5", name: "AI Explorer", icon: "🧠", earned: true },
+    { id: "b6", name: "Budget Ninja", icon: "🥷", earned: false },
+  ],
+};
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export interface Notification {
+  id: string;
+  type: "alert" | "insight" | "milestone" | "bill" | "goal";
+  title: string;
+  description: string;
+  timestamp: string;
+  read: boolean;
+  action_href?: string;
+  action_label?: string;
+  severity?: "info" | "warning" | "positive";
+}
+
+export const notifications: Notification[] = [
+  { id: "n1", type: "alert", title: "Unusual charge detected", description: "₹1,200 at Uber — 3× your typical ride cost", timestamp: daysAgo(0), read: false, action_href: "/transactions", action_label: "Review", severity: "warning" },
+  { id: "n2", type: "bill", title: "Axis credit card due in 3 days", description: "₹45,000 outstanding. Minimum due ₹2,250.", timestamp: daysAgo(0), read: false, action_href: "/liabilities", action_label: "Pay Now", severity: "warning" },
+  { id: "n3", type: "milestone", title: "47-day tracking streak! 🔥", description: "You're 3 days away from your 50-day milestone badge.", timestamp: daysAgo(1), read: false, action_href: "/you", action_label: "View Badges", severity: "positive" },
+  { id: "n4", type: "insight", title: "Subscription spend rising", description: "Your subscriptions increased 22% this month.", timestamp: daysAgo(1), read: true, action_href: "/ai", action_label: "See Insight", severity: "info" },
+  { id: "n5", type: "goal", title: "Goa Vacation: 70% funded!", description: "₹28,000 of ₹40,000 saved. Target: Oct 15.", timestamp: daysAgo(2), read: true, action_href: "/goals", action_label: "View Goal", severity: "positive" },
+  { id: "n6", type: "bill", title: "Mutual Fund SIP due in 5 days", description: "₹1,000 automatic debit on Sep 6.", timestamp: daysAgo(2), read: true, action_href: "/recurring", action_label: "View", severity: "info" },
+];
+
+export const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
+// ── Net Worth History (12 months) ──────────────────────────────────────────────
+
+export const netWorthHistory = Array.from({ length: 12 }, (_, i) => {
+  const monthDate = new Date(now);
+  monthDate.setMonth(monthDate.getMonth() - (11 - i));
+  const base = 1800000;
+  const growth = i * 60000 + Math.round(Math.sin(i / 2) * 30000);
+  return {
+    month: monthDate.toLocaleString("en-IN", { month: "short" }),
+    value: base + growth,
+  };
+});
+
+// ── Peer Comparison (anonymous, age/income bracket) ─────────────────────────────
+
+export const peerComparison = {
+  your_savings_rate: 32,
+  peer_median_savings_rate: 18,
+  peer_top_10_pct: 35,
+  your_cash_buffer_months: 4.2,
+  peer_median_cash_buffer: 1.8,
+  peer_top_10_pct_buffer: 5.5,
+  your_subscription_count: 6,
+  peer_median_subscriptions: 9,
+  your_dining_spend_pct_of_income: 10,
+  peer_median_dining_pct: 15,
+  bracket: "25-35 age, ₹6-10L income, Metro India",
+  total_peers: 12450,
+};
+
+// ── Calendar Events (upcoming 30 days) ──────────────────────────────────────────
+
+export const calendarEvents = [
+  { id: "cal1", date: daysAhead(3), title: "Axis Credit Card Due", amount_paise: 45000, type: "bill", severity: "high" },
+  { id: "cal2", date: daysAhead(5), title: "Mutual Fund SIP", amount_paise: 100000, type: "investment", severity: "low" },
+  { id: "cal3", date: daysAhead(12), title: "Cult.fit Subscription", amount_paise: 1199, type: "subscription", severity: "low" },
+  { id: "cal4", date: daysAhead(20), title: "Jio Recharge", amount_paise: 399, type: "bill", severity: "low" },
+  { id: "cal5", date: daysAhead(27), title: "Rent Payment", amount_paise: 450000, type: "bill", severity: "high" },
+  { id: "cal6", date: daysAhead(28), title: "Netflix", amount_paise: 649, type: "subscription", severity: "low" },
+  { id: "cal7", date: daysAhead(29), title: "Salary Credit", amount_paise: 8500000, type: "income", severity: "positive" },
+];
