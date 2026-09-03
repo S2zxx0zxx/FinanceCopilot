@@ -17,18 +17,28 @@ const CLERK_PUBLISHABLE_KEY =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
   "pk_test_aGVhbHRoeS1hYXJkdmFyay02Nzg3LmNsZXJrLmFjY291bnRzLmRldiQ";
 
+// Public routes that don't need auth guard
+const PUBLIC_ROUTES = ["/sign-in", "/sign-up"];
+
 // ── Auth Guard: redirect to sign-in if not logged in ──────────────────────────
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
+  // If we're already on a public route, just render children — no redirect needed
+  const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
+
   React.useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      // Redirect to landing page sign-in (or show inline sign-in)
+    if (isLoaded && !isSignedIn && !isPublic) {
       window.location.href = "/sign-in";
     }
-  }, [isLoaded, isSignedIn, pathname, router]);
+  }, [isLoaded, isSignedIn, isPublic, pathname, router]);
+
+  // On public routes, always render (sign-in/sign-up pages themselves)
+  if (isPublic) {
+    return <>{children}</>;
+  }
 
   if (!isLoaded) {
     return (
