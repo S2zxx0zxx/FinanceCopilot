@@ -59,22 +59,22 @@ export function useAppData() {
         setData((prev: any) => ({
           ...prev,
           loading: false,
-          accounts,
-          financialStateMoney,
-          recentTransactions: transactions,
-          goals,
-          budgets,
-          financialHealth,
-          recurringSeries,
-          cashflowData,
-          forecastData,
-          aiHomeFeed,
-          peerComparison,
-          calendarEvents,
-          spendingStory,
-          incomeData,
-          liabilities,
-          notifications
+          accounts: Array.isArray(accounts) ? accounts : accounts?.accounts || fallbackData.accounts || [],
+          financialStateMoney: financialStateMoney?.data || financialStateMoney || fallbackData.financialStateMoney,
+          recentTransactions: Array.isArray(transactions) ? transactions : transactions?.transactions || transactions?.data || fallbackData.recentTransactions || [],
+          goals: Array.isArray(goals) ? goals : goals?.goals || fallbackData.goals || [],
+          budgets: Array.isArray(budgets) ? budgets : budgets?.budgets || fallbackData.budgets || [],
+          financialHealth: financialHealth?.data || financialHealth || fallbackData.financialHealth,
+          recurringSeries: Array.isArray(recurringSeries) ? recurringSeries : recurringSeries?.series || recurringSeries?.data || fallbackData.recurringSeries || [],
+          cashflowData: cashflowData?.data || cashflowData || fallbackData.cashflowData,
+          forecastData: forecastData?.data || forecastData || fallbackData.forecastData,
+          aiHomeFeed: aiHomeFeed?.data || aiHomeFeed || fallbackData.aiHomeFeed,
+          peerComparison: peerComparison?.data || peerComparison || fallbackData.peerComparison,
+          calendarEvents: Array.isArray(calendarEvents) ? calendarEvents : calendarEvents?.events || calendarEvents?.data || fallbackData.calendarEvents || [],
+          spendingStory: spendingStory?.data || spendingStory || fallbackData.spendingStory,
+          incomeData: incomeData?.data || incomeData || fallbackData.incomeData,
+          liabilities: liabilities?.data || liabilities || fallbackData.liabilities,
+          notifications: Array.isArray(notifications) ? notifications : notifications?.notifications || notifications?.data || fallbackData.notifications || []
         }));
       } catch (err) {
         if (!mounted) return;
