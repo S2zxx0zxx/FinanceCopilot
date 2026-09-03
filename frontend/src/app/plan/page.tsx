@@ -86,7 +86,7 @@ function prettifyStatus(s: string): string {
 }
 
 // ── Financial Health Score (0-100) ──────────────────────────────────────────
-function calcHealthScore(): number {
+function calcHealthScore(financialHealth: any): number {
   const cashBufferPct = Math.min(
     100,
     ((financialHealth.cash_buffer_months ?? 0) / 6) * 100,
@@ -131,7 +131,7 @@ const CHALLENGE_TARGET = cumulativeSavedPaise(CHALLENGE_TOTAL_WEEKS);
 const CHALLENGE_THIS_WEEK = weekDepositPaise(CHALLENGE_CURRENT_WEEK);
 
 // ── Recurring summary ─────────────────────────────────────────────────────
-function recurringSummary() {
+function recurringSummary(recurringSeries: any[]) {
   const active = recurringSeries.filter((s) => s.status === "active");
   const outflow = active
     .filter((s) => s.direction === "debit")
@@ -185,6 +185,7 @@ const item = {
 
 // ── Inline Cashflow Chart (12 months, ALIVE) ───────────────────────────────
 function CashflowInlineChart() {
+  const { cashflowData } = useAppData();
   const [hover, setHover] = React.useState<number | null>(null);
   const ref = React.useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
@@ -402,6 +403,7 @@ function CashflowInlineChart() {
 
 // ── Inline Forecast Chart (timeline, ALIVE) ───────────────────────────────
 function ForecastInlineChart() {
+  const { forecastData } = useAppData();
   const ref = React.useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const data = forecastData.timeline;
@@ -641,11 +643,11 @@ export default function PlanPage() {
   );
   const [monthlyPayment, setMonthlyPayment] = React.useState(5000); // in rupees for slider
 
-  const score = calcHealthScore();
+  const score = calcHealthScore(financialHealth);
   const { label: scoreLabelStr, tone: scoreTone } = scoreLabel(score);
   const scoreColor = toneColor(scoreTone);
 
-  const recurring = React.useMemo(() => recurringSummary(), []);
+  const recurring = React.useMemo(() => recurringSummary(recurringSeries), [recurringSeries]);
 
   // Forecast 30-day
   const forecast30 = forecastData.horizons.find((h) => h.days === 30)!;

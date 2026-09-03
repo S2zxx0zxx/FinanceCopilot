@@ -42,7 +42,6 @@ type SettingsRow = {
 
 type SettingsGroup = { title: string; items: SettingsRow[] };
 
-const activeAccounts = accounts.filter((a) => a.is_active).length;
 
 // ── Settings groups (6) ───────────────────────────────────────────────────
 const SETTING_GROUPS: SettingsGroup[] = [
@@ -63,7 +62,7 @@ const SETTING_GROUPS: SettingsGroup[] = [
   {
     title: "Data & Privacy",
     items: [
-      { label: "Connections", desc: `${activeAccounts} accounts linked`, href: "/you/connections", icon: ShieldCheck },
+      { label: "Connections", desc: `Linked accounts`, href: "/you/connections", icon: ShieldCheck },
       { label: "Privacy Center", desc: "Consent, data inventory", href: "/you/privacy", icon: EyeOff },
       { label: "Security", desc: "2FA, sessions, activity", href: "/you/security", icon: Lock },
       { label: "Data & Export", desc: "Export or delete your data", href: "/you/export", icon: Download },

@@ -12,7 +12,7 @@ import { formatPaise, formatDate } from "@/lib/format";
 
 // ── 3D Currency Note Card ─────────────────────────────────────────────────
 function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; posted: number; pending: number }) {
-  const { netWorthHistory } = useAppData();
+  const { netWorthHistory, financialStateMoney } = useAppData();
   const [showDetails, setShowDetails] = React.useState(false);
   return (
     <motion.div
@@ -146,7 +146,7 @@ function BankCard3D({ account }: { account: typeof accounts[0] }) {
 }
 
 export default function MoneyPage() {
-  const { accounts, financialStateMoney } = useAppData();
+  const { accounts, financialStateMoney, netWorthHistory } = useAppData();
   const net = financialStateMoney.net_position;
 
   return (
