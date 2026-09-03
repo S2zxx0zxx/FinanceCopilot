@@ -42,7 +42,7 @@ export default function HomePage() {
   }
 
   const home = data.home || {};
-  const transactions = data.transactions?.transactions || [];
+  const transactions = data.transactions?.data || [];
   const aiInsights = data.aiFeed?.insights || [];
   const spending = data.spendingStory || { total_spent_paise: 0, change_paise: 0, categories: [] };
   const game = data.gamification || { tracking_streak_days: 0, level: 1, level_name: 'Beginner' };
@@ -61,18 +61,18 @@ export default function HomePage() {
       {/* Greeting + Streak */}
       <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex items-center justify-between">
         <div>
-          <p className="text-[13px] text-[var(--text-tertiary)] font-mono">{greeting},</p>
+          <p className="text-[13px] text-(--text-tertiary) font-mono">{greeting},</p>
           <h1 className="font-display font-bold text-[28px] tracking-[-0.02em] mt-0.5">{firstName}</h1>
         </div>
-        <Link href="/you" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-[var(--accent-light)] to-[var(--gold-light)] text-[12px] font-semibold">
-          <Flame className="w-3.5 h-3.5 text-[var(--accent)]" />
+        <Link href="/you" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-linear-to-r from-(--accent-light) to-(--gold-light) text-[12px] font-semibold">
+          <Flame className="w-3.5 h-3.5 text-accent" />
           {game.tracking_streak_days}d
         </Link>
       </motion.header>
 
       {/* Safe-to-Spend Platinum Credit Card 3D */}
       <motion.div initial={{ opacity: 0, y: 20, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }} style={{ perspective: 1200 }}>
-        <Card3D rotateMax={6} className="relative w-full rounded-[24px] overflow-hidden cursor-default" gradient="linear-gradient(135deg, #047857 0%, #065F46 30%, #0A0F0D 60%, #B08D57 100%)">
+        <Card3D rotateMax={6} className="relative w-full rounded-3xl overflow-hidden cursor-default" gradient="linear-gradient(135deg, #047857 0%, #065F46 30%, #0A0F0D 60%, #B08D57 100%)">
           <div className="relative p-6 sm:p-8 text-white overflow-hidden" style={{ background: "linear-gradient(135deg, #047857 0%, #065F46 25%, #0A0F0D 55%, #1A1A1A 80%, #B08D57 100%)", minHeight: 200 }}>
             <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.08) 50%, transparent 60%)", mixBlendMode: "overlay" }} />
             <div className="absolute inset-0 pointer-events-none opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.4) 0.5px, transparent 0.5px)", backgroundSize: "20px 20px" }} />
@@ -102,24 +102,24 @@ export default function HomePage() {
       {/* Bento Grid */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Link href="/money" className="premium-card p-4 flex flex-col gap-2 group">
-          <div className="flex items-center justify-between"><span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Balance</span><Wallet className="w-3.5 h-3.5 text-[var(--text-tertiary)]" /></div>
+          <div className="flex items-center justify-between"><span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">Balance</span><Wallet className="w-3.5 h-3.5 text-(--text-tertiary)" /></div>
           <span className="font-display font-bold text-[20px] tabular-nums">{formatPaise(home.available_balance_paise, { style: "compact" })}</span>
           <div className="h-6 -mb-1"><Sparkline data={[22,24,23,25,24,26,25,27]} color="var(--accent)" /></div>
         </Link>
         <Link href="/spending-story" className="premium-card p-4 flex flex-col gap-2 group">
-          <div className="flex items-center justify-between"><span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Spent</span><TrendingDown className="w-3.5 h-3.5 text-[var(--positive)]" /></div>
+          <div className="flex items-center justify-between"><span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">Spent</span><TrendingDown className="w-3.5 h-3.5 text-(--positive)" /></div>
           <span className="font-display font-bold text-[20px] tabular-nums">{formatPaise(home.this_month_spending_paise, { style: "compact" })}</span>
-          <span className="text-[10px] text-[var(--positive)] font-medium">↓8% vs last</span>
+          <span className="text-[10px] text-(--positive) font-medium">↓8% vs last</span>
         </Link>
         <Link href="/income" className="premium-card p-4 flex flex-col gap-2 group">
-          <div className="flex items-center justify-between"><span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Income</span><TrendingUp className="w-3.5 h-3.5 text-[var(--positive)]" /></div>
+          <div className="flex items-center justify-between"><span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">Income</span><TrendingUp className="w-3.5 h-3.5 text-(--positive)" /></div>
           <span className="font-display font-bold text-[20px] tabular-nums">{formatPaise(home.this_month_income_paise, { style: "compact" })}</span>
-          <span className="text-[10px] text-[var(--positive)] font-medium">↑2.1%</span>
+          <span className="text-[10px] text-(--positive) font-medium">↑2.1%</span>
         </Link>
         <Link href="/you" className="premium-card p-4 flex flex-col gap-2 group">
-          <div className="flex items-center justify-between"><span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Streak</span><Flame className="w-3.5 h-3.5 text-[var(--warning)]" /></div>
+          <div className="flex items-center justify-between"><span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">Streak</span><Flame className="w-3.5 h-3.5 text-(--warning)" /></div>
           <span className="font-display font-bold text-[20px] tabular-nums">{game.tracking_streak_days}d 🔥</span>
-          <span className="text-[10px] text-[var(--text-tertiary)]">Level {game.level} · {game.level_name}</span>
+          <span className="text-[10px] text-(--text-tertiary)">Level {game.level} · {game.level_name}</span>
         </Link>
       </motion.div>
 
@@ -138,9 +138,9 @@ export default function HomePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-[14px] font-semibold truncate">{item.title}</h4>
-                    <p className="text-[12px] text-[var(--text-secondary)] leading-[1.4] mt-0.5 truncate">{item.description}</p>
+                    <p className="text-[12px] text-(--text-secondary) leading-[1.4] mt-0.5 truncate">{item.description}</p>
                   </div>
-                  <div className="shrink-0 text-[12px] font-medium text-[var(--accent)] group-hover:translate-x-0.5 transition-transform">{item.action_label} →</div>
+                  <div className="shrink-0 text-[12px] font-medium text-accent group-hover:translate-x-0.5 transition-transform">{item.action_label} →</div>
                 </Link>
               );
             })}
@@ -150,19 +150,19 @@ export default function HomePage() {
 
       {/* Recent Transactions */}
       <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.35 }}>
-        <SectionHeader title="Recent Transactions" action={<Link href="/transactions" className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1 transition-colors">View All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
+        <SectionHeader title="Recent Transactions" action={<Link href="/transactions" className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1 transition-colors">View All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
         <div className="premium-card overflow-hidden">
           {transactions.slice(0, 5).map((tx: any, i: number) => {
             const isIncome = tx.direction === "credit";
             return (
-              <Link key={tx.transaction_id || i} href={`/transactions/${tx.transaction_id}`} className={`flex items-center gap-3 p-3.5 hover:bg-[var(--surface-subtle)] transition-colors group ${i < 4 ? "border-b border-[var(--border-subtle)]" : ""}`}>
+              <Link key={tx.transaction_id || i} href={`/transactions/${tx.transaction_id}`} className={`flex items-center gap-3 p-3.5 hover:bg-(--surface-subtle) transition-colors group ${i < 4 ? "border-b border-(--border-subtle)" : ""}`}>
                 <MerchantAvatar merchantName={tx.merchant_name} size={42} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-semibold truncate">{tx.merchant_name}</p>
-                  <p className="text-[11px] text-[var(--text-tertiary)] font-mono uppercase tracking-wide">{tx.category} · {formatDate(tx.date || tx.posting_date, { style: "relative" })}{tx.pending && <span className="ml-1.5 text-[var(--warning)]">· PENDING</span>}</p>
+                  <p className="text-[11px] text-(--text-tertiary) font-mono uppercase tracking-wide">{tx.category} · {formatDate(tx.date || tx.posting_date, { style: "relative" })}{tx.pending && <span className="ml-1.5 text-(--warning)">· PENDING</span>}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className={`text-[15px] font-display font-semibold tabular-nums ${isIncome ? "text-[var(--positive)]" : "text-[var(--foreground)]"}`}>{isIncome ? "+" : ""}{formatPaise(tx.amount_paise)}</span>
+                  <span className={`text-[15px] font-display font-semibold tabular-nums ${isIncome ? "text-(--positive)" : "text-foreground"}`}>{isIncome ? "+" : ""}{formatPaise(tx.amount_paise)}</span>
                 </div>
               </Link>
             );
@@ -174,16 +174,16 @@ export default function HomePage() {
       {aiInsights[0] && (
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
           <SectionHeader title="AI Insight" />
-          <div className="premium-card p-5 border-[var(--accent)]/20 relative overflow-hidden">
+          <div className="premium-card p-5 border-(--accent)/20 relative overflow-hidden">
             <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full opacity-30 pointer-events-none" style={{ background: "var(--accent-glow)", filter: "blur(40px)" }} />
             <div className="relative flex items-start gap-3">
-              <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center shrink-0"><Sparkles className="w-5 h-5 text-white" /></div>
+              <div className="w-10 h-10 rounded-[12px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shrink-0"><Sparkles className="w-5 h-5 text-white" /></div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1"><h3 className="font-display font-semibold text-[15px]">{aiInsights[0].title}</h3><Badge label={`${aiInsights[0].confidence}%`} variant="ai" /></div>
-                <p className="text-[13px] text-[var(--text-secondary)] leading-[1.5] mb-3">{aiInsights[0].summary}</p>
+                <p className="text-[13px] text-(--text-secondary) leading-normal mb-3">{aiInsights[0].summary}</p>
                 <div className="flex items-center gap-2">
                   {(aiInsights[0].actions || []).map((action: any, i: number) => (
-                    <Link key={i} href={action.href} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors">{action.label} <ArrowRight className="w-3.5 h-3.5" /></Link>
+                    <Link key={i} href={action.href} className="inline-flex items-center gap-1.5 text-[12px] font-medium text-accent hover:text-(--accent-hover) transition-colors">{action.label} <ArrowRight className="w-3.5 h-3.5" /></Link>
                   ))}
                 </div>
               </div>
@@ -194,21 +194,21 @@ export default function HomePage() {
 
       {/* Spending Story */}
       <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.45 }}>
-        <SectionHeader title="Spending Story" action={<Link href="/spending-story" className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1 transition-colors">See All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
+        <SectionHeader title="Spending Story" action={<Link href="/spending-story" className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1 transition-colors">See All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
         <div className="premium-card p-5">
           <div className="flex items-baseline gap-3 mb-5">
             <span className="font-display font-bold text-[24px] tabular-nums">{formatPaise(spending.total_spent_paise)}</span>
-            <span className="text-[12px] text-[var(--positive)] flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> {formatPaise(Math.abs(spending.change_paise || 0), { style: "compact" })} less than last month</span>
+            <span className="text-[12px] text-(--positive) flex items-center gap-1"><ArrowDownRight className="w-3.5 h-3.5" /> {formatPaise(Math.abs(spending.change_paise || 0), { style: "compact" })} less than last month</span>
           </div>
           <div className="grid sm:grid-cols-2 gap-5 items-center">
-            <div>{donutData.length > 0 ? <SpendingDonutChart data={donutData} /> : <div className="h-[220px] flex items-center justify-center text-[var(--text-tertiary)] text-[13px]">No spending data</div>}</div>
+            <div>{donutData.length > 0 ? <SpendingDonutChart data={donutData} /> : <div className="h-55 flex items-center justify-center text-(--text-tertiary) text-[13px]">No spending data</div>}</div>
             <div className="flex flex-col gap-2">
               {(spending.categories || []).slice(0, 6).map((cat: any, i: number) => (
                 <div key={i} className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ background: cat.color }} />
                   <span className="text-[13px] font-medium flex-1">{cat.category}</span>
                   <span className="text-[13px] font-semibold tabular-nums">{formatPaise(cat.amount_paise)}</span>
-                  <span className={`text-[11px] tabular-nums w-10 text-right ${(cat.change_pct || 0) > 0 ? "text-[var(--negative)]" : "text-[var(--positive)]"}`}>{(cat.change_pct || 0) > 0 ? "↑" : "↓"}{Math.abs(cat.change_pct || 0)}%</span>
+                  <span className={`text-[11px] tabular-nums w-10 text-right ${(cat.change_pct || 0) > 0 ? "text-(--negative)" : "text-(--positive)"}`}>{(cat.change_pct || 0) > 0 ? "↑" : "↓"}{Math.abs(cat.change_pct || 0)}%</span>
                 </div>
               ))}
             </div>
@@ -218,7 +218,7 @@ export default function HomePage() {
 
       {/* Upcoming Calendar */}
       <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }}>
-        <SectionHeader title="Upcoming" action={<Calendar className="w-4 h-4 text-[var(--text-tertiary)]" />} />
+        <SectionHeader title="Upcoming" action={<Calendar className="w-4 h-4 text-(--text-tertiary)" />} />
         <div className="flex flex-col gap-2">
           {calendar.slice(0, 4).map((event: any) => {
             const isIncome = event.type === "income";
@@ -230,9 +230,9 @@ export default function HomePage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-medium truncate">{event.title}</p>
-                  <p className="text-[11px] text-[var(--text-tertiary)] font-mono">{formatDate(event.date, { style: "long" })}</p>
+                  <p className="text-[11px] text-(--text-tertiary) font-mono">{formatDate(event.date, { style: "long" })}</p>
                 </div>
-                <span className={`text-[14px] font-semibold tabular-nums ${isIncome ? "text-[var(--positive)]" : ""}`}>{isIncome ? "+" : ""}{formatPaise(event.amount_paise)}</span>
+                <span className={`text-[14px] font-semibold tabular-nums ${isIncome ? "text-(--positive)" : ""}`}>{isIncome ? "+" : ""}{formatPaise(event.amount_paise)}</span>
               </div>
             );
           })}

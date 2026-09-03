@@ -1,4 +1,5 @@
 import { AppError } from '../../utils/errors.js';
+import { requireAuth } from '../middlewares/security.js';
 
 /**
  * Account Aggregator Routes
@@ -8,11 +9,10 @@ import { AppError } from '../../utils/errors.js';
 export function setupAARoutes(app, aaService) {
     
     // FIU initiates consent request (Called by FinCopilot Frontend)
-    app.post('/api/v1/aa/consent/initiate', async (req, res, next) => {
+    app.post('/api/v1/aa/consent/initiate', requireAuth, async (req, res, next) => {
         try {
             const { vua } = req.body;
-            // Assuming auth middleware sets req.user
-            const userId = req.user ? req.user.id : 'anonymous'; 
+            const userId = req.user.id; 
 
             const result = await aaService.initiateConsent(userId, vua);
             res.status(200).json(result);
@@ -22,7 +22,7 @@ export function setupAARoutes(app, aaService) {
     });
 
     // Webhook called by the AA Network when consent status changes
-    app.post('/api/v1/aa/consent/webhook', async (req, res, next) => {
+    app.post('/api/v1/aa/consent/webhook', requireAuth, async (req, res, next) => {
         try {
             // Verify Webhook Signature here in a real implementation
             await aaService.handleConsentWebhook(req.body);
@@ -33,7 +33,7 @@ export function setupAARoutes(app, aaService) {
     });
 
     // Webhook called by the AA Network when FI data is ready
-    app.post('/api/v1/aa/data/webhook', async (req, res, next) => {
+    app.post('/api/v1/aa/data/webhook', requireAuth, async (req, res, next) => {
         try {
             // Verify Webhook Signature here in a real implementation
             await aaService.handleDataWebhook(req.body);
@@ -44,10 +44,10 @@ export function setupAARoutes(app, aaService) {
     });
 
     // Manually trigger data sync (Called by FinCopilot Frontend or Cron)
-    app.post('/api/v1/aa/data/sync', async (req, res, next) => {
+    app.post('/api/v1/aa/data/sync', requireAuth, async (req, res, next) => {
         try {
             const { consentId } = req.body;
-            const userId = req.user ? req.user.id : 'anonymous'; 
+            const userId = req.user.id; 
             
             await aaService.triggerDataSync(userId, consentId);
             res.status(200).json({ status: 'SYNC_QUEUED' });

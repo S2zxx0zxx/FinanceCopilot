@@ -101,7 +101,7 @@ export class InsightsController {
      */
     static async getCalendarEvents(req, res, next) {
         try {
-            const userId = req.user.userId;
+            const userId = req.user.id;
             const { horizon_days = 30 } = req.query;
             const horizonDate = new Date();
             horizonDate.setDate(horizonDate.getDate() + parseInt(horizon_days, 10));
@@ -118,7 +118,7 @@ export class InsightsController {
             // 2. Generate events from recurring series (next occurrence)
             const recurringEvents = await dbClient.query(
                 `SELECT series_id, series_name, typical_amount_paise, frequency,
-                        next_expected_at, is_income, category
+                        next_expected_at, series_type
                  FROM recurring_series
                  WHERE user_id = $1 AND status = 'active'
                    AND next_expected_at IS NOT NULL
@@ -129,10 +129,10 @@ export class InsightsController {
 
             // 3. Generate events from upcoming commitments
             const commitmentsResult = await dbClient.query(
-                `SELECT commitment_id, description, amount_paise, due_date
+                `SELECT commitment_id, name as description, amount_paise, due_date
                  FROM commitments
                  WHERE user_id = $1 AND due_date >= CURRENT_DATE AND due_date <= $2
-                   AND status = 'pending'
+                   AND status IN ('expected', 'due', 'overdue')
                  ORDER BY due_date ASC`,
                 [userId, horizonDate.toISOString().split('T')[0]]
             );
@@ -153,8 +153,8 @@ export class InsightsController {
                     date: r.next_expected_at,
                     title: r.series_name,
                     amount_paise: parseInt(r.typical_amount_paise, 10),
-                    type: r.is_income ? 'income' : r.category === 'Subscriptions' ? 'subscription' : 'bill',
-                    severity: r.is_income ? 'positive' : parseInt(r.typical_amount_paise, 10) > 100000 ? 'high' : 'low',
+                    type: r.series_type === 'salary' ? 'income' : r.series_type === 'subscription' ? 'subscription' : 'bill',
+                    severity: r.series_type === 'salary' ? 'positive' : parseInt(r.typical_amount_paise, 10) > 100000 ? 'high' : 'low',
                     source: 'recurring',
                 })),
                 ...commitmentsResult.rows.map(c => ({
@@ -201,10 +201,10 @@ export class InsightsController {
             // 2. If not enough stored snapshots, compute from financial_snapshots
             if (snapshotsResult.rowCount < parseInt(months, 10)) {
                 const computedResult = await dbClient.query(
-                    `SELECT snapshot_value_paise as net_worth_paise, created_at::date as snapshot_date
+                    `SELECT result_paise as net_worth_paise, computed_at::date as snapshot_date
                      FROM financial_snapshots
-                     WHERE user_id = $1 AND snapshot_type = 'net_worth'
-                     ORDER BY created_at DESC
+                     WHERE user_id = $1 AND calculation_type = 'net_worth'
+                     ORDER BY computed_at DESC
                      LIMIT $2`,
                     [userId, parseInt(months, 10)]
                 );
@@ -224,7 +224,7 @@ export class InsightsController {
             const balancesResult = await dbClient.query(
                 `SELECT
                     COALESCE(SUM(CASE WHEN direction = 'credit' THEN amount_paise ELSE 0 END), 0) as total_assets,
-                    COALESCE(SUM(CASE WHEN direction = 'debit' AND account_type = 'credit_card' THEN amount_paise ELSE 0 END), 0) as total_liabilities
+                    COALESCE(SUM(CASE WHEN direction = 'debit' AND fa.account_type = 'credit_card' THEN amount_paise ELSE 0 END), 0) as total_liabilities
                  FROM transactions t
                  JOIN financial_accounts fa ON t.account_id = fa.account_id
                  WHERE t.user_id = $1
@@ -274,7 +274,7 @@ export class InsightsController {
      */
     static async getSavingsChallenges(req, res, next) {
         try {
-            const userId = req.user.userId;
+            const userId = req.user.id;
             const result = await dbClient.query(
                 `SELECT * FROM savings_challenges WHERE user_id = $1 ORDER BY created_at DESC`,
                 [userId]
@@ -283,8 +283,8 @@ export class InsightsController {
             // If no challenges exist, seed a default 52-week challenge
             if (result.rowCount === 0) {
                 await dbClient.query(
-                    `INSERT INTO savings_challenges (user_id, challenge_type, title, target_paise, weeks_total)
-                     VALUES ($1, '52_week', '52-Week Savings Challenge', 13780000, 52)`,
+                    `INSERT INTO savings_challenges (user_id, challenge_type, title, target_paise, weeks_total, start_date)
+                     VALUES ($1, '52_week', '52-Week Savings Challenge', 13780000, 52, CURRENT_DATE)`,
                     [userId]
                 );
                 const newResult = await dbClient.query(
@@ -305,7 +305,7 @@ export class InsightsController {
      */
     static async contributeToChallenge(req, res, next) {
         try {
-            const userId = req.user.userId;
+            const userId = req.user.id;
             const { id } = req.params;
             const { amount_paise } = req.body;
             if (!amount_paise) {

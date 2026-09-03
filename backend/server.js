@@ -21,7 +21,7 @@ import { IngestionRepo, ConsentRepo, AuditRepo } from './db/repositories.js';
 import { AccountAggregatorAdapter } from './adapters/account-aggregator/account-aggregator.adapter.js';
 import { AccountAggregatorService } from './domains/ingestion/aa.service.js';
 import { ConsentService } from './domains/consent/consent.service.js';
-import { setupAARoutes } from './api/routes/aa.routes.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,14 +132,19 @@ app.get('/api/v1/auth/verify', async (req, res) => {
                 emailVerified: !!user.emailVerified,
             },
         });
-    } catch (err) {
+    } catch {
         // Invalid/expired token — not logged in. Don't leak error details.
         return res.status(200).json({ loggedIn: false });
     }
 });
 
 // Dependency Injection
-const storageAdapter = new R2StorageAdapter();
+let storageAdapter = null;
+try {
+    storageAdapter = new R2StorageAdapter(process.env);
+} catch (e) {
+    console.warn('[BOOT] R2 storage disabled — file uploads will not work:', e.message);
+}
 const queueAdapter = new CloudflareQueuesAdapter();
 const ingestionService = new IngestionService(storageAdapter, queueAdapter, IngestionRepo);
 
@@ -154,7 +159,7 @@ const dependencies = { ingestionService, aaService };
 // Mount Canonical Routes
 setupRoutes(app, dependencies);
 setupAIRoutes(app, dbClient);
-setupAARoutes(app, aaService);
+// setupAARoutes(app, aaService); // AA disabled for V1 launch
 
 // 6. Serve Frontend Static Files
 const frontendPath = path.join(__dirname, '../frontend/public');

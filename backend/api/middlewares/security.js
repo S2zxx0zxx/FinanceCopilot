@@ -24,40 +24,35 @@ export const apiRateLimiter = rateLimit({
     }
 });
 
-export const requireAuth = async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-        logger.warn('Unauthorized access attempt: Missing or invalid token format', { path: req.path });
-        return next(new UnauthorizedError('Missing or invalid authentication token.'));
-    }
+import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
 
-    const token = authHeader.split(' ')[1];
-    
-    // Strict Mode: No universal mock identity.
-    if (!req.authAdapter) {
-        return next(new UnauthorizedError('Auth validation strict mode: AuthAdapter is missing from request context.'));
-    }
-
-    try {
-        const decodedToken = await req.authAdapter.verifyToken(token);
-        if (!decodedToken || !decodedToken.uid) {
-            throw new Error('Token verification failed to return valid identity.');
+export const requireAuth = [
+    ClerkExpressRequireAuth({}),
+    async (req, res, next) => {
+        if (req.auth && req.auth.userId) {
+            try {
+                const result = await dbClient.query(
+                    'SELECT user_id FROM users WHERE clerk_uid = $1 OR firebase_uid = $1',
+                    [req.auth.userId]
+                );
+                if (result.rows.length > 0) {
+                    req.user = { id: result.rows[0].user_id, userId: result.rows[0].user_id, clerkId: req.auth.userId };
+                } else {
+                    // Create user if they don't exist
+                    const insertResult = await dbClient.query(
+                        'INSERT INTO users (clerk_uid, firebase_uid) VALUES ($1, $1) RETURNING user_id',
+                        [req.auth.userId]
+                    );
+                    req.user = { id: insertResult.rows[0].user_id, userId: insertResult.rows[0].user_id, clerkId: req.auth.userId };
+                }
+            } catch (err) {
+                console.error("Auth middleware DB error:", err);
+                return res.status(500).json({ error: 'Auth failed' });
+            }
         }
-        
-        // Lookup internal user_id based on firebase_uid
-        const result = await dbClient.query('SELECT user_id FROM users WHERE clerk_uid = $1 OR firebase_uid = $1', [decodedToken.uid]);
-        if (result.rowCount === 0) {
-            throw new Error('User not found in database.');
-        }
-        
-        // Strictly assign the verified internal database identity
-        req.user = { id: decodedToken.uid, userId: result.rows[0].user_id };
         next();
-    } catch (error) {
-        logger.warn('Token verification failed', { error: error.message, path: req.path });
-        return next(new UnauthorizedError('Invalid or expired token.'));
     }
-};
+];
 
 export const requireOwnership = (req, res, next) => {
     const requestedResourceId = req.params.userId || req.params.id;

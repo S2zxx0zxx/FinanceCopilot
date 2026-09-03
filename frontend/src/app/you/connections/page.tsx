@@ -12,7 +12,9 @@ import {
   AlertTriangle,
   ShieldCheck,
 } from "lucide-react";
-import { accounts, type Account } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+import { type Account } from "@/lib/data";
+
 import { formatPaise, timeAgo } from "@/lib/format";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -64,6 +66,7 @@ const SYNC_STATUS_CONFIG: Record<
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function ConnectionsPage() {
+  const { accounts } = useAppData();
   const [accountList, setAccountList] = React.useState<Account[]>(accounts);
   const [syncing, setSyncing] = React.useState<Set<string>>(new Set());
   const [disconnecting, setDisconnecting] = React.useState<string | null>(null);
@@ -116,7 +119,7 @@ export default function ConnectionsPage() {
         <Link
           href="/you"
           aria-label="Back to You"
-          className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-[var(--surface-subtle)] transition-colors"
+          className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-(--surface-subtle) transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
@@ -124,12 +127,12 @@ export default function ConnectionsPage() {
           <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">
             Connections
           </h1>
-          <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
+          <p className="text-[13px] text-(--text-secondary) mt-0.5">
             Manage your linked bank accounts and institutions
           </p>
         </div>
         <button
-          className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[10px] bg-[var(--accent)] text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+          className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[10px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
           onClick={() => {}}
         >
           <Plus className="w-4 h-4" />
@@ -145,13 +148,13 @@ export default function ConnectionsPage() {
         className="premium-card p-4 flex items-center gap-3"
       >
         <div className="w-10 h-10 rounded-[12px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-5 h-5 text-[var(--accent)]" />
+          <ShieldCheck className="w-5 h-5 text-accent" />
         </div>
         <div className="flex-1">
           <p className="text-[13px] font-semibold">
             {accountList.filter((a) => a.is_active).length} active connections
           </p>
-          <p className="text-[12px] text-[var(--text-tertiary)]">
+          <p className="text-[12px] text-(--text-tertiary)">
             {liveCount} live · bank-grade encryption · re-auth required every 90
             days
           </p>
@@ -160,7 +163,7 @@ export default function ConnectionsPage() {
 
       {/* Mobile Add button */}
       <button
-        className="sm:hidden inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-[12px] bg-[var(--accent)] text-white text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+        className="sm:hidden inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-[12px] bg-accent text-white text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
         onClick={() => {}}
       >
         <Plus className="w-4 h-4" />
@@ -190,7 +193,7 @@ export default function ConnectionsPage() {
             >
               {/* Top row */}
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-[14px] bg-gradient-to-br from-[var(--surface-subtle)] to-[var(--surface-active)] flex items-center justify-center text-[22px] shrink-0">
+                <div className="w-12 h-12 rounded-[14px] bg-linear-to-br from-[var(--surface-subtle)] to-[var(--surface-active)] flex items-center justify-center text-[22px] shrink-0">
                   {getInstitutionEmoji(account)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -199,12 +202,12 @@ export default function ConnectionsPage() {
                       {account.institution_name}
                     </h3>
                     {!account.is_active && (
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] px-1.5 py-0.5 rounded bg-[var(--surface-subtle)]">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary) px-1.5 py-0.5 rounded bg-[var(--surface-subtle)]">
                         Disconnected
                       </span>
                     )}
                   </div>
-                  <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
+                  <p className="text-[12px] text-(--text-secondary) mt-0.5">
                     {getAccountTypeLabel(account.account_type)} · {maskedNumber}
                   </p>
                 </div>
@@ -214,7 +217,7 @@ export default function ConnectionsPage() {
               {/* Balance */}
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+                  <p className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
                     {isCreditCard ? "Outstanding" : "Available balance"}
                   </p>
                   <p
@@ -230,21 +233,21 @@ export default function ConnectionsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+                  <p className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
                     Last synced
                   </p>
-                  <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">
+                  <p className="text-[12px] text-(--text-secondary) mt-0.5">
                     {isSyncing ? "Syncing now…" : timeAgo(account.last_synced_at)}
                   </p>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-2 pt-1 border-t border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2 pt-1 border-t border-(--border-subtle)">
                 <button
                   disabled={!account.is_active || isSyncing}
                   onClick={() => handleSync(account.account_id)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[13px] font-medium text-[var(--accent)] hover:bg-[var(--accent-light)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[13px] font-medium text-accent hover:bg-[var(--accent-light)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <RefreshCw
                     className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`}
@@ -254,7 +257,7 @@ export default function ConnectionsPage() {
                 <div className="flex-1" />
                 {showConfirm ? (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[12px] text-[var(--text-tertiary)]">
+                    <span className="text-[12px] text-(--text-tertiary)">
                       Sure?
                     </span>
                     <button
@@ -266,7 +269,7 @@ export default function ConnectionsPage() {
                     </button>
                     <button
                       onClick={() => setConfirmDisconnect(null)}
-                      className="px-2.5 py-2 rounded-[10px] text-[12px] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] transition-colors"
+                      className="px-2.5 py-2 rounded-[10px] text-[12px] font-medium text-(--text-secondary) hover:bg-(--surface-subtle) transition-colors"
                     >
                       Cancel
                     </button>
@@ -275,7 +278,7 @@ export default function ConnectionsPage() {
                   <button
                     disabled={!account.is_active || isDisconnecting}
                     onClick={() => setConfirmDisconnect(account.account_id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[13px] font-medium text-[var(--text-tertiary)] hover:text-[var(--negative)] hover:bg-[var(--negative-light)] transition-colors disabled:opacity-40"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[13px] font-medium text-(--text-tertiary) hover:text-(--negative) hover:bg-(--negative-light) transition-colors disabled:opacity-40"
                   >
                     <Unlink className="w-3.5 h-3.5" />
                     Disconnect
@@ -296,11 +299,11 @@ export default function ConnectionsPage() {
         style={{ borderColor: "var(--border-subtle)" }}
       >
         <div className="w-8 h-8 rounded-[10px] bg-[var(--warning-light)] flex items-center justify-center shrink-0">
-          <AlertTriangle className="w-4 h-4 text-[var(--warning)]" />
+          <AlertTriangle className="w-4 h-4 text-(--warning)" />
         </div>
         <div className="flex-1">
           <p className="text-[13px] font-semibold">Re-authentication reminder</p>
-          <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5 leading-[1.5]">
+          <p className="text-[12px] text-(--text-tertiary) mt-0.5 leading-normal">
             Banks require re-authentication every 90 days per RBI guidelines.
             We'll notify you before any connection expires.
           </p>
@@ -318,10 +321,10 @@ function SyncStatusBadge({ status }: { status: SyncStatus }) {
     <span
       className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold ${
         config.variant === "positive"
-          ? "bg-[var(--positive-light)] text-[var(--positive)]"
+          ? "bg-[var(--positive-light)] text-(--positive)"
           : config.variant === "warning"
-            ? "bg-[var(--warning-light)] text-[var(--warning)]"
-            : "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+            ? "bg-[var(--warning-light)] text-(--warning)"
+            : "bg-[var(--surface-subtle)] text-(--text-secondary)"
       }`}
     >
       <span

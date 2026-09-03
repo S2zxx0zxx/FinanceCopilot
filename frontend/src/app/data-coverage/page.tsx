@@ -11,9 +11,8 @@ import {
 import {
   SectionHeader, Badge, CountUp,
 } from "@/components/shared";
-import {
-  dataCoverage, privacyData,
-} from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { timeAgo } from "@/lib/format";
 
 // Map account type to icon
@@ -83,6 +82,7 @@ function dataIcon(category: string) {
 }
 
 export default function DataCoveragePage() {
+  const { dataCoverage, privacyData } = useAppData();
   const coveragePct = Math.round(dataCoverage.coverage_pct * 100);
   const accountsData = dataCoverage.accounts;
   const lastSync = accountsData
@@ -119,16 +119,16 @@ export default function DataCoveragePage() {
       >
         <div className="flex items-center gap-2 mb-2">
           <div className="w-7 h-7 rounded-[8px] bg-[var(--accent-light)] flex items-center justify-center">
-            <Database className="w-4 h-4 text-[var(--accent)]" />
+            <Database className="w-4 h-4 text-accent" />
           </div>
-          <span className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+          <span className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
             Data Coverage · Trust Center
           </span>
         </div>
         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
           How complete is your data?
         </h1>
-        <p className="text-[14px] text-[var(--text-secondary)] mt-1 max-w-md">
+        <p className="text-[14px] text-(--text-secondary) mt-1 max-w-md">
           A healthy financial picture starts with complete data. See what's
           synced, what's stale, and how we protect it all.
         </p>
@@ -197,7 +197,7 @@ export default function DataCoveragePage() {
                 duration={1500}
                 className="font-display font-bold text-[40px] leading-none tracking-[-0.02em]"
               />
-              <span className="text-[10px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)] mt-1.5">
+              <span className="text-[10px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary) mt-1.5">
                 Coverage
               </span>
             </div>
@@ -207,15 +207,15 @@ export default function DataCoveragePage() {
           <div className="flex-1 grid grid-cols-3 sm:grid-cols-1 gap-4 sm:gap-3 w-full">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-5 h-5 text-[var(--positive)]" />
+                <CheckCircle2 className="w-5 h-5 text-(--positive)" />
               </div>
               <div>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                   Synced Accounts
                 </p>
                 <p className="text-[18px] font-display font-bold tabular-nums">
                   <CountUp value={dataCoverage.synced_accounts} duration={1000} />
-                  <span className="text-[14px] text-[var(--text-tertiary)] font-medium">
+                  <span className="text-[14px] text-(--text-tertiary) font-medium">
                     {" "}/ {dataCoverage.total_accounts}
                   </span>
                 </p>
@@ -224,10 +224,10 @@ export default function DataCoveragePage() {
 
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center shrink-0">
-                <RefreshCw className="w-5 h-5 text-[var(--accent)]" />
+                <RefreshCw className="w-5 h-5 text-accent" />
               </div>
               <div>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                   Last sync
                 </p>
                 <p className="text-[15px] font-semibold tabular-nums">
@@ -241,7 +241,7 @@ export default function DataCoveragePage() {
                 <Database className="w-5 h-5 text-[var(--gold)]" />
               </div>
               <div>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                   Records tracked
                 </p>
                 <p className="text-[18px] font-display font-bold tabular-nums">
@@ -258,17 +258,17 @@ export default function DataCoveragePage() {
 
         {/* Hint about stale account */}
         {dataCoverage.synced_accounts < dataCoverage.total_accounts && (
-          <div className="relative mt-5 pt-4 border-t flex items-center gap-2 text-[12px] text-[var(--text-secondary)]" style={{ borderColor: "color-mix(in oklab, var(--foreground) 6%, transparent)" }}>
-            <AlertCircle className="w-3.5 h-3.5 text-[var(--warning)] shrink-0" />
+          <div className="relative mt-5 pt-4 border-t flex items-center gap-2 text-[12px] text-(--text-secondary)" style={{ borderColor: "color-mix(in oklab, var(--foreground) 6%, transparent)" }}>
+            <AlertCircle className="w-3.5 h-3.5 text-(--warning) shrink-0" />
             <span>
-              <span className="font-semibold text-[var(--foreground)]">
+              <span className="font-semibold text-foreground">
                 1 account needs attention
               </span>{" "}
               — Axis Bank is stale. Reconnect to bring coverage to 100%.
             </span>
             <Link
               href="/accounts"
-              className="ml-auto inline-flex items-center gap-1 text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors shrink-0"
+              className="ml-auto inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:text-(--accent-hover) transition-colors shrink-0"
             >
               Fix now
               <ArrowRight className="w-3.5 h-3.5" />
@@ -288,7 +288,7 @@ export default function DataCoveragePage() {
           action={
             <Link
               href="/accounts"
-              className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1 transition-colors"
+              className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1 transition-colors"
             >
               Manage <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -302,7 +302,7 @@ export default function DataCoveragePage() {
             return (
               <div
                 key={acc.account_id}
-                className={`p-4 flex items-center gap-3 ${i < accountsData.length - 1 ? "border-b border-[var(--border-subtle)]" : ""}`}
+                className={`p-4 flex items-center gap-3 ${i < accountsData.length - 1 ? "border-b border-(--border-subtle)" : ""}`}
               >
                 <div
                   className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0"
@@ -320,7 +320,7 @@ export default function DataCoveragePage() {
                       variant="neutral"
                     />
                   </div>
-                  <p className="text-[12px] text-[var(--text-tertiary)]">
+                  <p className="text-[12px] text-(--text-tertiary)">
                     ····{acc.account_number_last4} · synced {timeAgo(acc.last_synced_at)}
                   </p>
                 </div>
@@ -352,7 +352,7 @@ export default function DataCoveragePage() {
         <SectionHeader
           title="Data we track"
           action={
-            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               {totalRecords.toLocaleString("en-IN")} records
             </span>
           }
@@ -369,12 +369,12 @@ export default function DataCoveragePage() {
                 className="premium-card p-4 flex flex-col gap-2"
               >
                 <div className="w-9 h-9 rounded-[10px] bg-[var(--surface-subtle)] flex items-center justify-center">
-                  <Icon className="w-4 h-4 text-[var(--accent)]" />
+                  <Icon className="w-4 h-4 text-accent" />
                 </div>
                 <p className="text-[13px] font-semibold leading-[1.3]">
                   {item.category}
                 </p>
-                <p className="text-[11px] text-[var(--text-tertiary)] leading-[1.4]">
+                <p className="text-[11px] text-(--text-tertiary) leading-[1.4]">
                   {item.description}
                 </p>
                 <p className="text-[16px] font-display font-bold tabular-nums mt-auto pt-1">
@@ -399,7 +399,7 @@ export default function DataCoveragePage() {
         <SectionHeader
           title="Your data is encrypted end-to-end"
           action={
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--positive)]">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-(--positive)">
               <ShieldCheck className="w-3 h-3" />
               Verified
             </span>
@@ -422,14 +422,14 @@ export default function DataCoveragePage() {
 
           <div className="relative flex flex-col gap-5">
             <div className="flex items-start gap-3">
-              <div className="w-12 h-12 rounded-[14px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-[14px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h3 className="font-display font-bold text-[18px] tracking-[-0.01em]">
                   Bank-grade security, by default
                 </h3>
-                <p className="text-[13px] text-[var(--text-secondary)] mt-1 leading-[1.5] max-w-lg">
+                <p className="text-[13px] text-(--text-secondary) mt-1 leading-normal max-w-lg">
                   Every byte of your financial data is encrypted in transit and at
                   rest. We never sell your data, and you can delete it anytime.
                 </p>
@@ -449,11 +449,11 @@ export default function DataCoveragePage() {
                     className="premium-card p-3 flex flex-col items-start gap-2"
                   >
                     <div className="w-8 h-8 rounded-[8px] bg-[var(--surface-subtle)] flex items-center justify-center">
-                      <Icon className="w-4 h-4 text-[var(--accent)]" />
+                      <Icon className="w-4 h-4 text-accent" />
                     </div>
                     <div>
                       <p className="text-[12px] font-semibold leading-[1.2]">{badge.label}</p>
-                      <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{badge.sub}</p>
+                      <p className="text-[10px] text-(--text-tertiary) mt-0.5">{badge.sub}</p>
                     </div>
                   </motion.div>
                 );
@@ -461,18 +461,18 @@ export default function DataCoveragePage() {
             </div>
 
             {/* Privacy + retention info */}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] text-[var(--text-secondary)] pt-4 border-t" style={{ borderColor: "color-mix(in oklab, var(--foreground) 6%, transparent)" }}>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] text-(--text-secondary) pt-4 border-t" style={{ borderColor: "color-mix(in oklab, var(--foreground) 6%, transparent)" }}>
               <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                Data retained: <span className="font-semibold text-[var(--foreground)]">{privacyData.data_retention_days} days</span>
+                <Clock className="w-3.5 h-3.5 text-(--text-tertiary)" />
+                Data retained: <span className="font-semibold text-foreground">{privacyData.data_retention_days} days</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                <span className="font-semibold text-[var(--foreground)]">Zero-knowledge</span> architecture
+                <Key className="w-3.5 h-3.5 text-(--text-tertiary)" />
+                <span className="font-semibold text-foreground">Zero-knowledge</span> architecture
               </span>
               <Link
                 href="/you/privacy"
-                className="inline-flex items-center gap-1 text-[var(--accent)] font-medium hover:text-[var(--accent-hover)] transition-colors ml-auto"
+                className="inline-flex items-center gap-1 text-accent font-medium hover:text-(--accent-hover) transition-colors ml-auto"
               >
                 Read privacy policy
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -491,34 +491,34 @@ export default function DataCoveragePage() {
       >
         <Link
           href="/you/privacy"
-          className="premium-card p-4 flex items-center gap-3 group hover:border-[var(--accent)] transition-colors"
+          className="premium-card p-4 flex items-center gap-3 group hover:border-accent transition-colors"
         >
           <div className="w-10 h-10 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5 text-[var(--accent)]" />
+            <ShieldCheck className="w-5 h-5 text-accent" />
           </div>
           <div className="flex-1">
             <p className="text-[14px] font-semibold">Privacy Center</p>
-            <p className="text-[12px] text-[var(--text-secondary)]">
+            <p className="text-[12px] text-(--text-secondary)">
               Manage consent, retention, and exports
             </p>
           </div>
-          <ArrowRight className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-[var(--accent)] transition-colors" />
+          <ArrowRight className="w-4 h-4 text-(--text-tertiary) group-hover:text-accent transition-colors" />
         </Link>
 
         <Link
           href="/accounts"
-          className="premium-card p-4 flex items-center gap-3 group hover:border-[var(--accent)] transition-colors"
+          className="premium-card p-4 flex items-center gap-3 group hover:border-accent transition-colors"
         >
           <div className="w-10 h-10 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center shrink-0">
-            <RefreshCw className="w-5 h-5 text-[var(--accent)]" />
+            <RefreshCw className="w-5 h-5 text-accent" />
           </div>
           <div className="flex-1">
             <p className="text-[14px] font-semibold">Reconnect accounts</p>
-            <p className="text-[12px] text-[var(--text-secondary)]">
+            <p className="text-[12px] text-(--text-secondary)">
               Refresh tokens or add a new bank
             </p>
           </div>
-          <ArrowRight className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-[var(--accent)] transition-colors" />
+          <ArrowRight className="w-4 h-4 text-(--text-tertiary) group-hover:text-accent transition-colors" />
         </Link>
       </motion.div>
     </div>

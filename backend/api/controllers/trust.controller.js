@@ -45,7 +45,22 @@ export class TrustController {
             const db = dbClient;
             const inventory = Object.values(PrivacyPolicies);
             const { rows: consentOptions } = await db.query('SELECT consent_type as policy_id, consented as granted FROM consent_records WHERE user_id = $1', [req.user.userId]);
-            res.json({ inventory, consentOptions });
+            
+            // Count rows for the user to return a true inventory of data footprint.
+            const userId = req.user.userId;
+            const txCount = (await db.query('SELECT COUNT(*) FROM transactions WHERE user_id = $1', [userId])).rows[0].count;
+            const accountCount = (await db.query('SELECT COUNT(*) FROM financial_accounts WHERE user_id = $1', [userId])).rows[0].count;
+            const statementsCount = (await db.query('SELECT COUNT(*) FROM statements WHERE user_id = $1', [userId])).rows[0].count;
+            const commitmentsCount = (await db.query('SELECT COUNT(*) FROM financial_commitments WHERE user_id = $1', [userId])).rows[0].count;
+            
+            const dataFootprint = [
+                { category: 'Transaction data', description: 'Your bank transactions, categorized', record_count: parseInt(txCount, 10) },
+                { category: 'Account balances', description: 'Current and historical balances', record_count: parseInt(accountCount, 10) },
+                { category: 'Statements', description: 'Uploaded bank statements', record_count: parseInt(statementsCount, 10) },
+                { category: 'Financial commitments', description: 'Recurring bills and EMIs', record_count: parseInt(commitmentsCount, 10) }
+            ];
+
+            res.json({ inventory, consentOptions, data_inventory: dataFootprint });
         } catch (err) { next(err); }
     }
 
@@ -133,12 +148,15 @@ export class TrustController {
     }
 
     static async requestDeletion(req, res, next) {
-        // deletion_jobs table doesn't exist in migrations; return a job stub + audit.
         try {
+            const db = dbClient;
+            const userId = req.user.userId;
+            
+            // Delete user, which will cascade to everything because of migration 017
+            await db.query('DELETE FROM users WHERE user_id = $1', [userId]);
+            
             const jobId = `del_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            const { AuditRepo } = await import('../../db/repositories.js');
-            await AuditRepo.logEvent('DELETION_REQUESTED', 'user', req.user.userId, req.user.userId, { job_id: jobId });
-            res.json({ status: 'PROCESSING', jobId });
+            res.json({ status: 'COMPLETED', jobId });
         } catch (err) { next(err); }
     }
 

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <h2 className="font-display font-semibold text-[16px] tracking-[-0.01em] text-[var(--foreground)]">{title}</h2>
+      <h2 className="font-display font-semibold text-[16px] tracking-[-0.01em] text-foreground">{title}</h2>
       {action}
     </div>
   );
@@ -34,16 +34,16 @@ export function MetricCard({
 }) {
   return (
     <div className="premium-card p-4 flex flex-col gap-2">
-      <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">{label}</span>
+      <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">{label}</span>
       <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em]">{value}</span>
       {delta && (
         <div className="flex items-center gap-1 text-[12px]">
           {deltaPositive ? (
-            <TrendingUp className="w-3.5 h-3.5 text-[var(--positive)]" />
+            <TrendingUp className="w-3.5 h-3.5 text-(--positive)" />
           ) : (
-            <TrendingDown className="w-3.5 h-3.5 text-[var(--negative)]" />
+            <TrendingDown className="w-3.5 h-3.5 text-(--negative)" />
           )}
-          <span className={deltaPositive ? "text-[var(--positive)]" : "text-[var(--negative)]"}>{delta}</span>
+          <span className={deltaPositive ? "text-(--positive)" : "text-(--negative)"}>{delta}</span>
         </div>
       )}
       {sparkline && <div className="h-8 mt-1">{sparkline}</div>}
@@ -62,7 +62,7 @@ export function FreshnessBadge({ status }: { status: "live" | "recent" | "stale"
   }[status];
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-[var(--text-tertiary)]">
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-(--text-tertiary)">
       {config.dot && (
         <span
           className="w-1.5 h-1.5 rounded-full"
@@ -89,9 +89,9 @@ export function EmptyState({
 }) {
   return (
     <div className="premium-card p-8 flex flex-col items-center text-center gap-3">
-      {icon && <div className="text-[var(--text-tertiary)]">{icon}</div>}
+      {icon && <div className="text-(--text-tertiary)">{icon}</div>}
       <h3 className="font-display font-semibold text-[16px]">{title}</h3>
-      {description && <p className="text-[14px] text-[var(--text-secondary)] max-w-sm">{description}</p>}
+      {description && <p className="text-[14px] text-(--text-secondary) max-w-sm">{description}</p>}
       {action}
     </div>
   );
@@ -110,15 +110,15 @@ export function ErrorState({
 }) {
   return (
     <div className="premium-card p-8 flex flex-col items-center text-center gap-3 border-[var(--negative)]/30">
-      <div className="w-10 h-10 rounded-full bg-[var(--negative-light)] flex items-center justify-center">
-        <AlertTriangle className="w-5 h-5 text-[var(--negative)]" />
+      <div className="w-10 h-10 rounded-full bg-(--negative-light) flex items-center justify-center">
+        <AlertTriangle className="w-5 h-5 text-(--negative)" />
       </div>
       <h3 className="font-display font-semibold text-[16px]">{title}</h3>
-      {description && <p className="text-[14px] text-[var(--text-secondary)] max-w-sm">{description}</p>}
+      {description && <p className="text-[14px] text-(--text-secondary) max-w-sm">{description}</p>}
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-2 px-4 py-2 rounded-[10px] bg-[var(--accent)] text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+          className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
         >
           Retry
         </button>
@@ -130,7 +130,7 @@ export function ErrorState({
 // ── Skeleton ───────────────────────────────────────────────────────────────────
 
 export function SkeletonCard({ className }: { className?: string }) {
-  return <div className={cn("skeleton h-[120px] rounded-[var(--radius-lg)]", className)} />;
+  return <div className={cn("skeleton h-30 rounded-[var(--radius-lg)]", className)} />;
 }
 
 export function SkeletonText({ width = "100%", className }: { width?: string; className?: string }) {
@@ -176,9 +176,9 @@ export function AttentionItem({
       </div>
       <div className="flex-1 min-w-0">
         <h4 className="text-[14px] font-semibold">{title}</h4>
-        <p className="text-[13px] text-[var(--text-secondary)] leading-[1.5] mt-0.5">{description}</p>
+        <p className="text-[13px] text-(--text-secondary) leading-normal mt-0.5">{description}</p>
       </div>
-      <span className="text-[12px] font-medium text-[var(--accent)] group-hover:text-[var(--accent-hover)] transition-colors shrink-0">
+      <span className="text-[12px] font-medium text-accent group-hover:text-(--accent-hover) transition-colors shrink-0">
         {actionLabel} →
       </span>
     </motion.a>
@@ -231,11 +231,11 @@ export function Badge({
   variant?: "positive" | "warning" | "negative" | "neutral" | "ai" | "gold";
 }) {
   const variantMap = {
-    positive: "bg-[var(--positive-light)] text-[var(--positive)]",
-    warning: "bg-[var(--warning-light)] text-[var(--warning)]",
-    negative: "bg-[var(--negative-light)] text-[var(--negative)]",
-    neutral: "bg-[var(--surface-subtle)] text-[var(--text-secondary)]",
-    ai: "bg-[var(--accent-light)] text-[var(--accent)]",
+    positive: "bg-[var(--positive-light)] text-(--positive)",
+    warning: "bg-[var(--warning-light)] text-(--warning)",
+    negative: "bg-(--negative-light) text-(--negative)",
+    neutral: "bg-[var(--surface-subtle)] text-(--text-secondary)",
+    ai: "bg-[var(--accent-light)] text-accent",
     gold: "bg-[var(--gold-light)] text-[var(--gold)]",
   };
   return (

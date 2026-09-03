@@ -6,12 +6,13 @@ import Link from "next/link";
 import { ArrowRight, TrendingUp, TrendingDown, Shield, Sparkles, Eye, EyeOff } from "lucide-react";
 import { SectionHeader, Badge, FreshnessBadge, CountUp } from "@/components/shared";
 import { Sparkline } from "@/components/charts/sparkline";
-import { accounts, financialStateMoney, netWorthHistory } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
 import { bankCardGradients } from "@/lib/merchant-data";
 import { formatPaise, formatDate } from "@/lib/format";
 
 // ── 3D Currency Note Card ─────────────────────────────────────────────────
 function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; posted: number; pending: number }) {
+  const { netWorthHistory } = useAppData();
   const [showDetails, setShowDetails] = React.useState(false);
   return (
     <motion.div
@@ -19,7 +20,7 @@ function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; pos
       animate={{ opacity: 1, y: 0, rotateX: 0 }}
       transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
       style={{ perspective: 1000 }}
-      className="relative w-full rounded-[16px] overflow-hidden cursor-pointer"
+      className="relative w-full rounded-2xl overflow-hidden cursor-pointer"
       onClick={() => setShowDetails(!showDetails)}
     >
       {/* Note background — emerald gradient with lathework pattern */}
@@ -114,7 +115,7 @@ function BankCard3D({ account }: { account: typeof accounts[0] }) {
         onMouseMove={handleMove}
         onMouseLeave={() => setTilt({ x: 0, y: 0 })}
         style={{ transform: `perspective(800px) rotateY(${tilt.x}deg) rotateX(${tilt.y}deg)`, transition: "transform 0.2s ease-out" }}
-        className="relative rounded-[16px] overflow-hidden cursor-pointer h-[140px]"
+        className="relative rounded-2xl overflow-hidden cursor-pointer h-35"
       >
         <div className="absolute inset-0" style={{ background: gradient }} />
         {/* Sheen */}
@@ -145,13 +146,14 @@ function BankCard3D({ account }: { account: typeof accounts[0] }) {
 }
 
 export default function MoneyPage() {
+  const { accounts, financialStateMoney } = useAppData();
   const net = financialStateMoney.net_position;
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">Money</h1>
-        <p className="text-[14px] text-[var(--text-secondary)] mt-1">Your complete financial picture</p>
+        <p className="text-[14px] text-(--text-secondary) mt-1">Your complete financial picture</p>
       </motion.header>
 
       {/* 3D Currency Note Card */}
@@ -160,8 +162,8 @@ export default function MoneyPage() {
       {/* Net Worth Trend mini chart */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }} className="premium-card p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">Net Worth Trend · 12 months</span>
-          <span className="text-[12px] text-[var(--positive)] flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +38% YoY</span>
+          <span className="text-[11px] font-mono uppercase tracking-wider text-(--text-tertiary)">Net Worth Trend · 12 months</span>
+          <span className="text-[12px] text-(--positive) flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +38% YoY</span>
         </div>
         <div className="h-20">
           <Sparkline data={netWorthHistory.map(d => d.value / 100)} color="var(--accent)" fill height={80} />
@@ -170,7 +172,7 @@ export default function MoneyPage() {
 
       {/* Connected Accounts — 3 per row with 3D bank cards */}
       <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-        <SectionHeader title="Connected Accounts" action={<Link href="/accounts" className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1 transition-colors">View All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
+        <SectionHeader title="Connected Accounts" action={<Link href="/accounts" className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1 transition-colors">View All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {accounts.map((acc) => <BankCard3D key={acc.account_id} account={acc} />)}
         </div>
@@ -184,10 +186,10 @@ export default function MoneyPage() {
           { label: "Spending Story", href: "/spending-story", icon: "📊", desc: "By category" },
           { label: "Transactions", href: "/transactions", icon: "🔍", desc: "All activity" },
         ].map((item) => (
-          <Link key={item.href} href={item.href} className="premium-card p-4 flex flex-col gap-1.5 group hover:border-[var(--accent)] transition-colors">
+          <Link key={item.href} href={item.href} className="premium-card p-4 flex flex-col gap-1.5 group hover:border-accent transition-colors">
             <span className="text-[22px]">{item.icon}</span>
             <span className="text-[13px] font-semibold">{item.label}</span>
-            <span className="text-[11px] text-[var(--text-tertiary)]">{item.desc}</span>
+            <span className="text-[11px] text-(--text-tertiary)">{item.desc}</span>
           </Link>
         ))}
       </motion.section>

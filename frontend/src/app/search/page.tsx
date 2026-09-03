@@ -7,7 +7,8 @@ import {
   Search, ArrowLeft, X, TrendingUp, Wallet, Target,
   Clock, Sparkles, ArrowUpRight,
 } from "lucide-react";
-import { recentTransactions, accounts, goals } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatPaise, formatDate, timeAgo, categoryIcon } from "@/lib/format";
 import { Badge, EmptyState } from "@/components/shared";
 
@@ -23,6 +24,7 @@ const SUGGESTED_SEARCHES = [
 ];
 
 export default function SearchPage() {
+  const { recentTransactions, accounts, goals } = useAppData();
   const [query, setQuery] = React.useState("");
   const [recent, setRecent] = React.useState<string[]>([
     "Netflix",
@@ -102,13 +104,13 @@ export default function SearchPage() {
         <Link
           href="/"
           aria-label="Back home"
-          className="w-9 h-9 rounded-[10px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--surface-subtle)] transition-colors shrink-0"
+          className="w-9 h-9 rounded-[10px] flex items-center justify-center text-(--text-secondary) hover:text-foreground hover:bg-(--surface-subtle) transition-colors shrink-0"
         >
           <ArrowLeft className="w-[18px] h-[18px]" />
         </Link>
         <div className="flex-1 min-w-0">
           <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">Search</h1>
-          <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
+          <p className="text-[13px] text-(--text-secondary) mt-0.5">
             Transactions, accounts, and goals
           </p>
         </div>
@@ -120,7 +122,7 @@ export default function SearchPage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.05 }}
-        className={`relative flex items-center gap-3 rounded-[16px] border bg-[var(--surface)] transition-all duration-300`}
+        className={`relative flex items-center gap-3 rounded-2xl border bg-[var(--surface)] transition-all duration-300`}
         style={{
           borderColor: focused
             ? "var(--accent)"
@@ -130,7 +132,7 @@ export default function SearchPage() {
             : "var(--shadow-sm)",
         }}
       >
-        <div className="pl-4 flex items-center justify-center text-[var(--text-tertiary)]">
+        <div className="pl-4 flex items-center justify-center text-(--text-tertiary)">
           <Search className="w-[18px] h-[18px]" />
         </div>
         <input
@@ -149,18 +151,18 @@ export default function SearchPage() {
             type="button"
             onClick={() => setQuery("")}
             aria-label="Clear search"
-            className="mr-2 w-7 h-7 rounded-full flex items-center justify-center text-[var(--text-tertiary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] transition-colors"
+            className="mr-2 w-7 h-7 rounded-full flex items-center justify-center text-(--text-tertiary) hover:bg-(--surface-subtle) hover:text-foreground transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         )}
-        <kbd className="hidden sm:flex items-center mr-3 px-1.5 h-5 rounded-[6px] bg-[var(--surface-subtle)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+        <kbd className="hidden sm:flex items-center mr-3 px-1.5 h-5 rounded-[6px] bg-[var(--surface-subtle)] text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
           ⌘K
         </kbd>
       </motion.form>
 
       {/* ── Body ──────────────────────────────────────────── */}
-      <div className="min-h-[200px]">
+      <div className="min-h-50">
         <AnimatePresence mode="wait">
           {/* Empty query → suggested + recent */}
           {!hasQuery && (
@@ -176,8 +178,8 @@ export default function SearchPage() {
               {recent.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <Clock className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                    <Clock className="w-3.5 h-3.5 text-(--text-tertiary)" />
+                    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
                       Recent searches
                     </h2>
                   </div>
@@ -189,9 +191,9 @@ export default function SearchPage() {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.3, delay: i * 0.04 }}
                         onClick={() => quickSearch(term)}
-                        className="premium-card px-3.5 py-2 text-[13px] font-medium hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors flex items-center gap-2"
+                        className="premium-card px-3.5 py-2 text-[13px] font-medium hover:border-accent hover:text-accent transition-colors flex items-center gap-2"
                       >
-                        <span className="text-[var(--text-tertiary)]">↺</span>
+                        <span className="text-(--text-tertiary)">↺</span>
                         {term}
                       </motion.button>
                     ))}
@@ -202,8 +204,8 @@ export default function SearchPage() {
               {/* Suggested searches */}
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-3.5 h-3.5 text-[var(--accent)]" />
-                  <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                  <Sparkles className="w-3.5 h-3.5 text-accent" />
+                  <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
                     Try searching for
                   </h2>
                 </div>
@@ -215,7 +217,7 @@ export default function SearchPage() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.3, delay: 0.1 + i * 0.04 }}
                       onClick={() => quickSearch(term)}
-                      className="px-3.5 py-2 rounded-[10px] bg-[var(--accent-light)] text-[var(--accent)] text-[13px] font-medium hover:bg-[var(--accent)] hover:text-white transition-colors"
+                      className="px-3.5 py-2 rounded-[10px] bg-[var(--accent-light)] text-accent text-[13px] font-medium hover:bg-accent hover:text-white transition-colors"
                     >
                       {term}
                     </motion.button>
@@ -240,9 +242,9 @@ export default function SearchPage() {
                     >
                       <Link
                         href={item.href}
-                        className="premium-card p-4 flex flex-col items-start gap-2 group hover:border-[var(--accent)] transition-colors h-full"
+                        className="premium-card p-4 flex flex-col items-start gap-2 group hover:border-accent transition-colors h-full"
                       >
-                        <div className="w-9 h-9 rounded-[10px] bg-[var(--surface-subtle)] flex items-center justify-center text-[var(--text-secondary)] group-hover:bg-[var(--accent-light)] group-hover:text-[var(--accent)] transition-colors">
+                        <div className="w-9 h-9 rounded-[10px] bg-[var(--surface-subtle)] flex items-center justify-center text-(--text-secondary) group-hover:bg-[var(--accent-light)] group-hover:text-accent transition-colors">
                           <Icon className="w-4 h-4" />
                         </div>
                         <span className="text-[13px] font-medium">{item.label}</span>
@@ -281,20 +283,20 @@ export default function SearchPage() {
               transition={{ duration: 0.3 }}
               className="flex flex-col gap-6"
             >
-              <p className="text-[12px] text-[var(--text-tertiary)] font-mono">
+              <p className="text-[12px] text-(--text-tertiary) font-mono">
                 {results.total} {results.total === 1 ? "result" : "results"} for
-                <span className="text-[var(--foreground)] font-medium"> "{query.trim()}"</span>
+                <span className="text-foreground font-medium"> "{query.trim()}"</span>
               </p>
 
               {/* Transactions group */}
               {results.transactions.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                    <TrendingUp className="w-3.5 h-3.5 text-(--text-tertiary)" />
+                    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
                       Transactions
                     </h2>
-                    <span className="text-[11px] font-mono text-[var(--text-tertiary)]">
+                    <span className="text-[11px] font-mono text-(--text-tertiary)">
                       {results.transactions.length}
                     </span>
                   </div>
@@ -310,7 +312,7 @@ export default function SearchPage() {
                         >
                           <Link
                             href={`/transactions/${tx.transaction_id}`}
-                            className="premium-card p-3.5 flex items-center gap-3 group hover:border-[var(--accent)] transition-colors"
+                            className="premium-card p-3.5 flex items-center gap-3 group hover:border-accent transition-colors"
                           >
                             <div className="w-10 h-10 rounded-[10px] bg-[var(--surface-subtle)] flex items-center justify-center text-[16px] shrink-0">
                               {categoryIcon(tx.category)}
@@ -319,23 +321,23 @@ export default function SearchPage() {
                               <p className="text-[14px] font-medium truncate">
                                 {tx.merchant_name}
                               </p>
-                              <p className="text-[12px] text-[var(--text-tertiary)] truncate">
+                              <p className="text-[12px] text-(--text-tertiary) truncate">
                                 {tx.category} · {formatDate(tx.date, { style: "relative" })}
                                 {tx.pending && (
-                                  <span className="text-[var(--warning)]"> · Pending</span>
+                                  <span className="text-(--warning)"> · Pending</span>
                                 )}
                               </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span
                                 className={`text-[14px] font-semibold tabular-nums ${
-                                  isIncome ? "text-[var(--positive)]" : "text-[var(--foreground)]"
+                                  isIncome ? "text-(--positive)" : "text-foreground"
                                 }`}
                               >
                                 {isIncome ? "+" : ""}
                                 {formatPaise(tx.amount_paise)}
                               </span>
-                              <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--accent)] transition-colors" />
+                              <ArrowUpRight className="w-3.5 h-3.5 text-(--text-tertiary) group-hover:text-accent transition-colors" />
                             </div>
                           </Link>
                         </motion.div>
@@ -349,11 +351,11 @@ export default function SearchPage() {
               {results.accounts.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <Wallet className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                    <Wallet className="w-3.5 h-3.5 text-(--text-tertiary)" />
+                    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
                       Accounts
                     </h2>
-                    <span className="text-[11px] font-mono text-[var(--text-tertiary)]">
+                    <span className="text-[11px] font-mono text-(--text-tertiary)">
                       {results.accounts.length}
                     </span>
                   </div>
@@ -367,16 +369,16 @@ export default function SearchPage() {
                       >
                         <Link
                           href={`/accounts/${acc.account_id}`}
-                          className="premium-card p-3.5 flex items-center gap-3 group hover:border-[var(--accent)] transition-colors"
+                          className="premium-card p-3.5 flex items-center gap-3 group hover:border-accent transition-colors"
                         >
-                          <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[var(--accent-light)] to-[var(--gold-light)] flex items-center justify-center shrink-0">
-                            <Wallet className="w-[18px] h-[18px] text-[var(--accent)]" />
+                          <div className="w-10 h-10 rounded-[10px] bg-linear-to-br from-(--accent-light) to-(--gold-light) flex items-center justify-center shrink-0">
+                            <Wallet className="w-[18px] h-[18px] text-accent" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[14px] font-medium truncate">
                               {acc.institution_name}
                             </p>
-                            <p className="text-[12px] text-[var(--text-tertiary)] truncate">
+                            <p className="text-[12px] text-(--text-tertiary) truncate">
                               {acc.account_type.replace("_", " ")} ····{acc.account_number_last4}
                               <span className="ml-1.5">· synced {timeAgo(acc.last_synced_at)}</span>
                             </p>
@@ -385,7 +387,7 @@ export default function SearchPage() {
                             <span className="text-[14px] font-semibold tabular-nums">
                               {formatPaise(acc.balances.available_balance_paise, { style: "compact" })}
                             </span>
-                            <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--accent)] transition-colors" />
+                            <ArrowUpRight className="w-3.5 h-3.5 text-(--text-tertiary) group-hover:text-accent transition-colors" />
                           </div>
                         </Link>
                       </motion.div>
@@ -398,11 +400,11 @@ export default function SearchPage() {
               {results.goals.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <Target className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                    <Target className="w-3.5 h-3.5 text-(--text-tertiary)" />
+                    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
                       Goals
                     </h2>
-                    <span className="text-[11px] font-mono text-[var(--text-tertiary)]">
+                    <span className="text-[11px] font-mono text-(--text-tertiary)">
                       {results.goals.length}
                     </span>
                   </div>
@@ -416,17 +418,17 @@ export default function SearchPage() {
                       >
                         <Link
                           href={`/goals/${goal.goal_id}`}
-                          className="premium-card p-3.5 flex items-center gap-3 group hover:border-[var(--accent)] transition-colors"
+                          className="premium-card p-3.5 flex items-center gap-3 group hover:border-accent transition-colors"
                         >
                           <div className="w-10 h-10 rounded-[10px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
-                            <Target className="w-[18px] h-[18px] text-[var(--accent)]" />
+                            <Target className="w-[18px] h-[18px] text-accent" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
                               <p className="text-[14px] font-medium truncate">{goal.name}</p>
                               <Badge label={goal.goal_type.replace(/_/g, " ")} variant="neutral" />
                             </div>
-                            <p className="text-[12px] text-[var(--text-tertiary)] truncate">
+                            <p className="text-[12px] text-(--text-tertiary) truncate">
                               {formatPaise(goal.current_amount_paise)} of {formatPaise(goal.target_amount_paise)}
                             </p>
                           </div>
@@ -434,7 +436,7 @@ export default function SearchPage() {
                             <span className="text-[14px] font-semibold tabular-nums">
                               {goal.pace.progress_pct}%
                             </span>
-                            <ArrowUpRight className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--accent)] transition-colors" />
+                            <ArrowUpRight className="w-3.5 h-3.5 text-(--text-tertiary) group-hover:text-accent transition-colors" />
                           </div>
                         </Link>
                       </motion.div>

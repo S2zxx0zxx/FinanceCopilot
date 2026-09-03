@@ -65,7 +65,7 @@ export function MiniBarChart({
               animation: `slide-up 0.5s var(--ease-out-expo) ${i * 50}ms both`,
             }}
           />
-          <span className="text-[9px] font-mono text-[var(--text-tertiary)] truncate w-full text-center">
+          <span className="text-[9px] font-mono text-(--text-tertiary) truncate w-full text-center">
             {d.label}
           </span>
         </div>

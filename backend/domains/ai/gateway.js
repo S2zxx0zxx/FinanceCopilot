@@ -17,7 +17,7 @@ export class AIGateway {
         this.dbClient = dbClient;
         this.contextPlanner = new ContextPlanner(dbClient);
         this.toolExecutor = new ToolExecutor(dbClient);
-        this.provider = providerRegistry.getProvider('omnirouter'); // V1 default
+        this.provider = providerRegistry.getProvider('zai'); // V1 default
         
         // Kill Switch: Should be driven by environment variable or config DB in prod
         this.isAIEnabled = process.env.AI_KILL_SWITCH !== 'ENGAGED';
@@ -67,6 +67,15 @@ export class AIGateway {
         const estimatedCostPaise = Math.ceil(estimatedTokensIn * 2); 
         
         try {
+            // Check if budget row exists, if not, create it
+            const checkExists = await this.dbClient.query('SELECT 1 FROM ai_user_budgets WHERE user_id = $1', [userId]);
+            if (checkExists.rows.length === 0) {
+                await this.dbClient.query(
+                    'INSERT INTO ai_user_budgets (user_id, budget_limit_paise, consumed_paise) VALUES ($1, 500000, 0) ON CONFLICT DO NOTHING',
+                    [userId]
+                );
+            }
+
             const budgetCheckQuery = `
                 UPDATE ai_user_budgets 
                 SET consumed_paise = consumed_paise + $1, last_updated = NOW() 
@@ -75,7 +84,7 @@ export class AIGateway {
             `;
             const budgetRes = await this.dbClient.query(budgetCheckQuery, [estimatedCostPaise, userId]);
             if (budgetRes.rows.length === 0) {
-                // If 0 rows returned, either budget exceeded or user budget row missing
+                // If 0 rows returned after ensuring it exists, budget truly exceeded
                 return this._buildErrorResponse('Request blocked by cost governor', 'TOKEN_BUDGET_EXCEEDED');
             }
         } catch (err) {

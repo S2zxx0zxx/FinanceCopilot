@@ -36,9 +36,11 @@ async function startWorkers() {
     logger.info('Reconciliation worker scheduled (Simulated Cron).');
     setInterval(async () => {
         try {
-            // Ideally we'd loop over active users. We'll run for a 'system' tenant for now.
-            // In a monolith, this should ideally be triggered by the normalization worker or a real cron.
-            await ReconciliationWorker.startRun('system_tenant');
+            // Loop over all active users in the system and run reconciliation for each tenant.
+            const { rows: users } = await dbClient.query('SELECT user_id FROM users WHERE is_deleted = FALSE');
+            for (const user of users) {
+                await ReconciliationWorker.startRun(user.user_id);
+            }
         } catch (err) {
             logger.error('[RECONCILIATION_CRON] Failed run:', err);
         }

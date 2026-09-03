@@ -3,7 +3,8 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { Sparkles, ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react";
-import { recurringSeries } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatPaise, formatDate, categoryIcon } from "@/lib/format";
 import { Badge, SectionHeader } from "@/components/shared";
 
@@ -33,6 +34,7 @@ function confidenceColor(c: number): string {
 }
 
 export default function RecurringPage() {
+  const { recurringSeries } = useAppData();
   const active = recurringSeries.filter((s) => s.status === "active");
   const debits = active.filter((s) => s.direction === "debit");
   const credits = active.filter((s) => s.direction === "credit");
@@ -62,14 +64,14 @@ export default function RecurringPage() {
           <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
             Recurring
           </h1>
-          <p className="text-[14px] text-[var(--text-secondary)] mt-1">
+          <p className="text-[14px] text-(--text-secondary) mt-1">
             {active.length} active series · {formatPaise(totalDebit)} monthly
             outflow
           </p>
         </div>
         <button
           type="button"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-[var(--accent)] text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-sm shrink-0"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-sm shrink-0"
         >
           <Sparkles className="w-4 h-4" />
           Detect New
@@ -85,17 +87,17 @@ export default function RecurringPage() {
           className="premium-card p-5 flex flex-col gap-2"
         >
           <div className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded-[8px] bg-[var(--negative-light)] flex items-center justify-center">
-              <ArrowDownLeft className="w-3.5 h-3.5 text-[var(--negative)]" />
+            <span className="w-7 h-7 rounded-[8px] bg-(--negative-light) flex items-center justify-center">
+              <ArrowDownLeft className="w-3.5 h-3.5 text-(--negative)" />
             </span>
-            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               Monthly Recurring
             </span>
           </div>
-          <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-[var(--negative)]">
+          <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-(--negative)">
             −{formatPaise(totalDebit)}
           </span>
-          <span className="text-[12px] text-[var(--text-tertiary)]">
+          <span className="text-[12px] text-(--text-tertiary)">
             {debits.length} debit series
           </span>
         </motion.div>
@@ -108,16 +110,16 @@ export default function RecurringPage() {
         >
           <div className="flex items-center gap-2">
             <span className="w-7 h-7 rounded-[8px] bg-[var(--positive-light)] flex items-center justify-center">
-              <ArrowUpRight className="w-3.5 h-3.5 text-[var(--positive)]" />
+              <ArrowUpRight className="w-3.5 h-3.5 text-(--positive)" />
             </span>
-            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               Monthly Income
             </span>
           </div>
-          <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-[var(--positive)]">
+          <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-(--positive)">
             +{formatPaise(totalCredit)}
           </span>
-          <span className="text-[12px] text-[var(--text-tertiary)]">
+          <span className="text-[12px] text-(--text-tertiary)">
             {credits.length} credit series
           </span>
         </motion.div>
@@ -130,16 +132,16 @@ export default function RecurringPage() {
         >
           <div className="flex items-center gap-2">
             <span className="w-7 h-7 rounded-[8px] bg-[var(--accent-light)] flex items-center justify-center">
-              <Scale className="w-3.5 h-3.5 text-[var(--accent)]" />
+              <Scale className="w-3.5 h-3.5 text-accent" />
             </span>
-            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               Net Recurring Flow
             </span>
           </div>
           <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em]">
             +{formatPaise(netFlow)}
           </span>
-          <span className="text-[12px] text-[var(--text-tertiary)]">
+          <span className="text-[12px] text-(--text-tertiary)">
             per month after fixed items
           </span>
         </motion.div>
@@ -150,7 +152,7 @@ export default function RecurringPage() {
         <SectionHeader
           title="All Series"
           action={
-            <span className="text-[12px] font-mono text-[var(--text-tertiary)]">
+            <span className="text-[12px] font-mono text-(--text-tertiary)">
               {recurringSeries.length} total
             </span>
           }
@@ -180,7 +182,7 @@ export default function RecurringPage() {
                         <h3 className="text-[15px] font-semibold truncate">
                           {s.merchant_name}
                         </h3>
-                        <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+                        <p className="text-[12px] text-(--text-tertiary) mt-0.5">
                           Next {formatDate(s.next_date)} · {s.occurrences_count}{" "}
                           occurrences
                         </p>
@@ -188,13 +190,13 @@ export default function RecurringPage() {
                       <div className="text-right shrink-0">
                         <p
                           className={`text-[16px] font-semibold tabular-nums ${
-                            isCredit ? "text-[var(--positive)]" : ""
+                            isCredit ? "text-(--positive)" : ""
                           }`}
                         >
                           {isCredit ? "+" : "−"}
                           {formatPaise(s.amount_paise)}
                         </p>
-                        <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 capitalize">
+                        <p className="text-[11px] text-(--text-tertiary) mt-0.5 capitalize">
                           {s.frequency}
                         </p>
                       </div>
@@ -202,7 +204,7 @@ export default function RecurringPage() {
 
                     {/* Confidence bar */}
                     <div className="mt-3 flex items-center gap-2">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] shrink-0">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary) shrink-0">
                         Confidence
                       </span>
                       <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
@@ -217,7 +219,7 @@ export default function RecurringPage() {
                           style={{ background: confidenceColor(s.confidence) }}
                         />
                       </div>
-                      <span className="text-[11px] font-mono tabular-nums text-[var(--text-secondary)] shrink-0 w-9 text-right">
+                      <span className="text-[11px] font-mono tabular-nums text-(--text-secondary) shrink-0 w-9 text-right">
                         {Math.round(s.confidence * 100)}%
                       </span>
                     </div>

@@ -36,17 +36,8 @@ import {
   ProgressRing,
   CountUp,
 } from "@/components/shared";
-import {
-  goals,
-  budgets,
-  financialHealth,
-  recurringSeries,
-  calendarEvents,
-  peerComparison,
-  cashflowData,
-  forecastData,
-  gamification,
-} from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatPaise, formatDate } from "@/lib/format";
 import type { Budget } from "@/lib/data";
 
@@ -352,7 +343,7 @@ function CashflowInlineChart() {
               top: 0,
             }}
           >
-            <p className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-1.5">
+            <p className="text-[11px] font-mono uppercase tracking-wider text-(--text-tertiary) mb-1.5">
               {cashflowData[hover].month}
             </p>
             <div className="flex items-center justify-between gap-3 text-[12px]">
@@ -373,8 +364,8 @@ function CashflowInlineChart() {
                 {formatPaise(cashflowData[hover].expense * 100)}
               </span>
             </div>
-            <div className="flex items-center justify-between gap-3 text-[12px] mt-1 pt-1 border-t border-[var(--border-subtle)]">
-              <span className="text-[var(--text-tertiary)]">Net</span>
+            <div className="flex items-center justify-between gap-3 text-[12px] mt-1 pt-1 border-t border-(--border-subtle)">
+              <span className="text-(--text-tertiary)">Net</span>
               <span
                 className="font-semibold tabular-nums"
                 style={{
@@ -396,11 +387,11 @@ function CashflowInlineChart() {
 
       {/* Legend */}
       <div className="flex items-center justify-center gap-5 mt-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--text-tertiary)]">
+        <span className="flex items-center gap-1.5 text-[11px] font-mono text-(--text-tertiary)">
           <span className="w-2.5 h-2.5 rounded-[3px] bg-[var(--positive)]" />
           Income
         </span>
-        <span className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--text-tertiary)]">
+        <span className="flex items-center gap-1.5 text-[11px] font-mono text-(--text-tertiary)">
           <span className="w-2.5 h-2.5 rounded-[3px] bg-[var(--text-tertiary)]" />
           Expense
         </span>
@@ -584,16 +575,16 @@ function ForecastInlineChart() {
         })()}
       </svg>
       <div className="flex items-center justify-center gap-5 mt-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--text-tertiary)]">
-          <span className="w-3 h-0.5 bg-[var(--accent)]" />
+        <span className="flex items-center gap-1.5 text-[11px] font-mono text-(--text-tertiary)">
+          <span className="w-3 h-0.5 bg-accent" />
           Actual
         </span>
-        <span className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--text-tertiary)]">
+        <span className="flex items-center gap-1.5 text-[11px] font-mono text-(--text-tertiary)">
           <span className="w-3 h-0.5 border-t border-dashed border-[var(--gold)]" />
           Projected
         </span>
-        <span className="flex items-center gap-1.5 text-[11px] font-mono text-[var(--text-tertiary)]">
-          <span className="w-3 h-2 bg-[var(--accent)] opacity-30 rounded-sm" />
+        <span className="flex items-center gap-1.5 text-[11px] font-mono text-(--text-tertiary)">
+          <span className="w-3 h-2 bg-accent opacity-30 rounded-sm" />
           Confidence
         </span>
       </div>
@@ -643,6 +634,7 @@ function SavingsHeatmap() {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function PlanPage() {
+  const { goals, budgets, financialHealth, recurringSeries, calendarEvents, peerComparison, cashflowData, forecastData, gamification } = useAppData();
   const [expandedBudget, setExpandedBudget] = React.useState<string | null>(null);
   const [debtStrategy, setDebtStrategy] = React.useState<"snowball" | "avalanche">(
     "avalanche",
@@ -816,23 +808,23 @@ export default function PlanPage() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="w-7 h-7 rounded-[8px] bg-[var(--accent-light)] flex items-center justify-center">
-              <Target className="w-4 h-4 text-[var(--accent)]" />
+              <Target className="w-4 h-4 text-accent" />
             </div>
-            <span className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
               Plan
             </span>
           </div>
           <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
             Your financial plan
           </h1>
-          <p className="text-[14px] text-[var(--text-secondary)] mt-1 max-w-md">
+          <p className="text-[14px] text-(--text-secondary) mt-1 max-w-md">
             Health, goals, budgets, bills, forecasts and challenges — your
             complete money roadmap.
           </p>
         </div>
         <Link
           href="/goals"
-          className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-[var(--accent)] text-[var(--accent-foreground)] text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shrink-0"
+          className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-accent text-[var(--accent-foreground)] text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shrink-0"
         >
           <Plus className="w-4 h-4" /> New Goal
         </Link>
@@ -849,7 +841,7 @@ export default function PlanPage() {
           action={
             <Link
               href="/financial-health"
-              className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1"
+              className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1"
             >
               Details <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -889,7 +881,7 @@ export default function PlanPage() {
                 <h3 className="text-[15px] font-semibold">
                   Your money is in {scoreLabelStr.toLowerCase()} shape
                 </h3>
-                <p className="text-[13px] text-[var(--text-secondary)] leading-[1.5] mt-1">
+                <p className="text-[13px] text-(--text-secondary) leading-normal mt-1">
                   A weighted blend of cash buffer, commitment load, savings
                   rate and emergency fund. Tap to see the breakdown and
                   recommendations.
@@ -957,13 +949,13 @@ export default function PlanPage() {
             <div className="flex items-center gap-3">
               <Link
                 href="/goals"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-[var(--accent)] text-[var(--accent-foreground)] text-[12px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] bg-accent text-[var(--accent-foreground)] text-[12px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> New Goal
               </Link>
               <Link
                 href="/goals"
-                className="hidden sm:flex text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] items-center gap-1"
+                className="hidden sm:flex text-[12px] font-medium text-accent hover:text-(--accent-hover) items-center gap-1"
               >
                 View All <ArrowRight className="w-3.5 h-3.5" />
               </Link>
@@ -992,7 +984,7 @@ export default function PlanPage() {
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-9 h-9 rounded-[10px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
-                        <Target className="w-4 h-4 text-[var(--accent)]" />
+                        <Target className="w-4 h-4 text-accent" />
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-[15px] font-semibold truncate">
@@ -1021,7 +1013,7 @@ export default function PlanPage() {
                         duration={1500}
                         className="text-[22px] font-display font-bold tabular-nums tracking-[-0.02em] block leading-none"
                       />
-                      <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] mt-1">
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary) mt-1">
                         Funded
                       </p>
                     </div>
@@ -1050,14 +1042,14 @@ export default function PlanPage() {
                     <span className="font-semibold tabular-nums">
                       {formatPaise(goal.current_amount_paise)}
                     </span>
-                    <span className="text-[var(--text-tertiary)]">
+                    <span className="text-(--text-tertiary)">
                       of {formatPaise(goal.target_amount_paise)}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-[var(--border-subtle)]">
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-(--border-subtle)">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                      <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                         Monthly
                       </span>
                       <span className="text-[12px] font-semibold tabular-nums">
@@ -1065,7 +1057,7 @@ export default function PlanPage() {
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                      <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                         Target
                       </span>
                       <span className="text-[12px] font-semibold">
@@ -1073,7 +1065,7 @@ export default function PlanPage() {
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                      <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                         Time Left
                       </span>
                       <span className="text-[12px] font-semibold tabular-nums">
@@ -1145,7 +1137,7 @@ export default function PlanPage() {
                       )}
                     </div>
                     <ChevronDown
-                      className={`w-4 h-4 text-[var(--text-tertiary)] transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}
+                      className={`w-4 h-4 text-(--text-tertiary) transition-transform shrink-0 ${isExpanded ? "rotate-180" : ""}`}
                     />
                   </div>
 
@@ -1156,7 +1148,7 @@ export default function PlanPage() {
                     >
                       {formatPaise(b.spent_paise, { style: "compact" })}
                     </span>
-                    <span className="text-[12px] text-[var(--text-tertiary)] font-mono">
+                    <span className="text-[12px] text-(--text-tertiary) font-mono">
                       of {formatPaise(b.budgeted_paise, { style: "compact" })}
                     </span>
                   </div>
@@ -1180,7 +1172,7 @@ export default function PlanPage() {
                   </div>
 
                   <div className="flex items-center justify-between mt-2 text-[11px]">
-                    <span className="font-mono text-[var(--text-tertiary)] tabular-nums">
+                    <span className="font-mono text-(--text-tertiary) tabular-nums">
                       {b.pct_used}% used
                     </span>
                     <span
@@ -1205,19 +1197,19 @@ export default function PlanPage() {
                         transition={{ duration: 0.35, ease: EASE }}
                         className="overflow-hidden"
                       >
-                        <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex flex-col gap-3">
+                        <div className="mt-3 pt-3 border-t border-(--border-subtle) flex flex-col gap-3">
                           <div className="flex items-start gap-2">
                             <Lightbulb
                               className="w-4 h-4 mt-0.5 shrink-0"
                               style={{ color: "var(--gold)" }}
                             />
-                            <p className="text-[12px] leading-[1.5] text-[var(--text-secondary)]">
+                            <p className="text-[12px] leading-normal text-(--text-secondary)">
                               {advice}
                             </p>
                           </div>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="rounded-[10px] bg-[var(--surface-subtle)] p-2 flex flex-col gap-0.5">
-                              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                              <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                                 Budget
                               </span>
                               <span className="text-[12px] font-semibold tabular-nums">
@@ -1225,7 +1217,7 @@ export default function PlanPage() {
                               </span>
                             </div>
                             <div className="rounded-[10px] bg-[var(--surface-subtle)] p-2 flex flex-col gap-0.5">
-                              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                              <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                                 Spent
                               </span>
                               <span className="text-[12px] font-semibold tabular-nums">
@@ -1233,7 +1225,7 @@ export default function PlanPage() {
                               </span>
                             </div>
                             <div className="rounded-[10px] bg-[var(--surface-subtle)] p-2 flex flex-col gap-0.5">
-                              <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                              <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                                 Rollover
                               </span>
                               <span className="text-[12px] font-semibold tabular-nums">
@@ -1243,7 +1235,7 @@ export default function PlanPage() {
                           </div>
                           <Link
                             href="/transactions"
-                            className="text-[12px] font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1"
+                            className="text-[12px] font-semibold text-accent hover:text-(--accent-hover) flex items-center gap-1"
                           >
                             View Transactions <ArrowRight className="w-3.5 h-3.5" />
                           </Link>
@@ -1269,7 +1261,7 @@ export default function PlanPage() {
           action={
             <Link
               href="/recurring"
-              className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1"
+              className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1"
             >
               All Recurring <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -1290,7 +1282,7 @@ export default function PlanPage() {
                     : "Later";
               return (
                 <div key={group} className="mb-4 last:mb-0">
-                  <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-2 ml-12">
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary) mb-2 ml-12">
                     {label}
                   </p>
                   <motion.div
@@ -1334,7 +1326,7 @@ export default function PlanPage() {
                                 <Badge label="Income" variant="positive" />
                               )}
                             </div>
-                            <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                            <p className="text-[11px] text-(--text-tertiary) mt-0.5">
                               {formatDate(e.date, { style: "long" })} · in{" "}
                               {days} day{days !== 1 ? "s" : ""}
                             </p>
@@ -1369,19 +1361,19 @@ export default function PlanPage() {
         <Link href="/recurring" className="premium-card p-5 block group">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 rounded-[10px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
-              <Repeat2 className="w-4 h-4 text-[var(--accent)]" />
+              <Repeat2 className="w-4 h-4 text-accent" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-[14px] font-semibold">Monthly Recurring</h3>
-              <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+              <p className="text-[12px] text-(--text-tertiary) mt-0.5">
                 {recurring.count} active series · all confirmed & scheduled
               </p>
             </div>
-            <ChevronDown className="w-4 h-4 text-[var(--text-tertiary)] -rotate-90" />
+            <ChevronDown className="w-4 h-4 text-(--text-tertiary) -rotate-90" />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 <ArrowDownRight className="w-3 h-3" style={{ color: "var(--negative)" }} />
                 Outflow
               </div>
@@ -1390,7 +1382,7 @@ export default function PlanPage() {
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 <ArrowUpRight className="w-3 h-3" style={{ color: "var(--positive)" }} />
                 Inflow
               </div>
@@ -1399,7 +1391,7 @@ export default function PlanPage() {
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 Net / month
               </div>
               <span
@@ -1426,7 +1418,7 @@ export default function PlanPage() {
           action={
             <Link
               href="/financial-health"
-              className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1"
+              className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1"
             >
               Full Comparison <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -1441,11 +1433,11 @@ export default function PlanPage() {
                 "linear-gradient(90deg, var(--accent-light), color-mix(in oklab, var(--gold) 8%, var(--surface)))",
             }}
           >
-            <Users className="w-4 h-4 text-[var(--accent)] shrink-0" />
-            <p className="text-[12px] font-mono text-[var(--text-secondary)] flex-1">
+            <Users className="w-4 h-4 text-accent shrink-0" />
+            <p className="text-[12px] font-mono text-(--text-secondary) flex-1">
               {peerComparison.bracket}
             </p>
-            <span className="text-[11px] font-mono font-semibold text-[var(--accent)]">
+            <span className="text-[11px] font-mono font-semibold text-accent">
               {peerComparison.total_peers.toLocaleString("en-IN")} peers
             </span>
           </div>
@@ -1521,7 +1513,7 @@ export default function PlanPage() {
                       />
                     )}
                   </div>
-                  <div className="flex items-center justify-between text-[10px] font-mono text-[var(--text-tertiary)]">
+                  <div className="flex items-center justify-between text-[10px] font-mono text-(--text-tertiary)">
                     <span>Peer median · {row.format(row.peerMedian)}</span>
                     {top10Pct != null && (
                       <span className="text-[var(--gold)]">
@@ -1534,7 +1526,7 @@ export default function PlanPage() {
             })}
           </div>
 
-          <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-[var(--border-subtle)] text-[10px] font-mono text-[var(--text-tertiary)]">
+          <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-(--border-subtle) text-[10px] font-mono text-(--text-tertiary)">
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-1.5 rounded-[2px] bg-[var(--positive)]" />
               You
@@ -1562,7 +1554,7 @@ export default function PlanPage() {
           action={
             <Link
               href="/cashflow"
-              className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1"
+              className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1"
             >
               Full Cashflow <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -1571,9 +1563,9 @@ export default function PlanPage() {
         <div className="premium-card p-5">
           <CashflowInlineChart />
           {/* Net flow summary */}
-          <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-[var(--border-subtle)]">
+          <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-(--border-subtle)">
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 <ArrowUpRight className="w-3 h-3" style={{ color: "var(--positive)" }} />
                 Total Income
               </div>
@@ -1582,7 +1574,7 @@ export default function PlanPage() {
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 <ArrowDownRight className="w-3 h-3" style={{ color: "var(--negative)" }} />
                 Total Expense
               </div>
@@ -1591,7 +1583,7 @@ export default function PlanPage() {
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 Net Flow
               </div>
               <span
@@ -1618,7 +1610,7 @@ export default function PlanPage() {
           action={
             <Link
               href="/forecast"
-              className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1"
+              className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1"
             >
               Full Forecast <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -1631,7 +1623,7 @@ export default function PlanPage() {
                 <TrendingUp className="w-4 h-4 text-[var(--gold)]" />
               </div>
               <div>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                   30-Day Projected Balance
                 </p>
                 <CountUp
@@ -1643,7 +1635,7 @@ export default function PlanPage() {
               </div>
             </div>
             <div className="text-right shrink-0">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 Confidence
               </span>
               <div className="flex items-center gap-1.5 mt-1">
@@ -1675,7 +1667,7 @@ export default function PlanPage() {
           <ForecastInlineChart />
 
           {/* Horizon chips */}
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-[var(--border-subtle)]">
+          <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-(--border-subtle)">
             {forecastData.horizons.map((h) => {
               const hpct = Math.round(h.confidence * 100);
               const hc: Tone =
@@ -1685,7 +1677,7 @@ export default function PlanPage() {
                   key={h.days}
                   className="rounded-[10px] bg-[var(--surface-subtle)] p-2.5 flex flex-col gap-1"
                 >
-                  <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                     {h.label}
                   </span>
                   <span className="text-[12px] font-semibold tabular-nums">
@@ -1717,11 +1709,11 @@ export default function PlanPage() {
         <div className="premium-card p-5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 rounded-[10px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
-              <PiggyBank className="w-4 h-4 text-[var(--accent)]" />
+              <PiggyBank className="w-4 h-4 text-accent" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-[14px] font-semibold">Save a little more every week</h3>
-              <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+              <p className="text-[12px] text-(--text-tertiary) mt-0.5">
                 Week {CHALLENGE_CURRENT_WEEK} · {formatPaise(CHALLENGE_THIS_WEEK)} this week
               </p>
             </div>
@@ -1730,7 +1722,7 @@ export default function PlanPage() {
           {/* Stats strip */}
           <div className="grid grid-cols-3 gap-3 mb-5">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 Current Week
               </span>
               <span className="text-[18px] font-display font-bold tabular-nums">
@@ -1738,7 +1730,7 @@ export default function PlanPage() {
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 This Week
               </span>
               <span
@@ -1749,7 +1741,7 @@ export default function PlanPage() {
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 Total Saved
               </span>
               <span
@@ -1765,7 +1757,7 @@ export default function PlanPage() {
           <SavingsHeatmap />
 
           {/* Legend */}
-          <div className="flex items-center justify-between mt-4 text-[10px] font-mono text-[var(--text-tertiary)]">
+          <div className="flex items-center justify-between mt-4 text-[10px] font-mono text-(--text-tertiary)">
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-[3px] bg-[var(--surface-subtle)]" />
               Pending
@@ -1781,9 +1773,9 @@ export default function PlanPage() {
           </div>
 
           {/* Progress to target */}
-          <div className="mt-5 pt-4 border-t border-[var(--border-subtle)]">
+          <div className="mt-5 pt-4 border-t border-(--border-subtle)">
             <div className="flex items-center justify-between mb-2 text-[12px]">
-              <span className="text-[var(--text-secondary)]">
+              <span className="text-(--text-secondary)">
                 Progress to{" "}
                 <span className="font-semibold">
                   {formatPaise(CHALLENGE_TARGET, { style: "compact" })}
@@ -1808,7 +1800,7 @@ export default function PlanPage() {
                 }}
               />
             </div>
-            <div className="flex items-center justify-between mt-1.5 text-[10px] font-mono text-[var(--text-tertiary)]">
+            <div className="flex items-center justify-between mt-1.5 text-[10px] font-mono text-(--text-tertiary)">
               <span>Week 1 · {formatPaise(weekDepositPaise(1))}</span>
               <span>Week 52 · {formatPaise(weekDepositPaise(52))}</span>
             </div>
@@ -1829,16 +1821,16 @@ export default function PlanPage() {
         <div className="premium-card p-5">
           {/* Current debt */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-[12px] bg-[var(--negative-light)] flex items-center justify-center shrink-0">
-              <CreditCard className="w-5 h-5 text-[var(--negative)]" />
+            <div className="w-10 h-10 rounded-[12px] bg-(--negative-light) flex items-center justify-center shrink-0">
+              <CreditCard className="w-5 h-5 text-(--negative)" />
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-[14px] font-semibold">Axis Bank Credit Card</h3>
-              <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+              <p className="text-[12px] text-(--text-tertiary) mt-0.5">
                 Outstanding · 36% APR · Min due {formatPaise(225000)}
               </p>
             </div>
-            <span className="text-[20px] font-display font-bold tabular-nums text-[var(--negative)]">
+            <span className="text-[20px] font-display font-bold tabular-nums text-(--negative)">
               {formatPaise(DEBT_Paise)}
             </span>
           </div>
@@ -1850,15 +1842,15 @@ export default function PlanPage() {
               className={`flex-1 rounded-[12px] p-3 flex items-center gap-2.5 border transition-all ${
                 debtStrategy === "snowball"
                   ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                  : "border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:border-[var(--border-strong)]"
+                  : "border-(--border-subtle) bg-[var(--surface-subtle)] hover:border-[var(--border-strong)]"
               }`}
             >
               <Snowflake
-                className={`w-4 h-4 shrink-0 ${debtStrategy === "snowball" ? "text-[var(--accent)]" : "text-[var(--text-tertiary)]"}`}
+                className={`w-4 h-4 shrink-0 ${debtStrategy === "snowball" ? "text-accent" : "text-(--text-tertiary)"}`}
               />
               <div className="text-left min-w-0">
                 <p className="text-[12px] font-semibold">Snowball</p>
-                <p className="text-[10px] font-mono text-[var(--text-tertiary)]">
+                <p className="text-[10px] font-mono text-(--text-tertiary)">
                   Smallest first
                 </p>
               </div>
@@ -1868,15 +1860,15 @@ export default function PlanPage() {
               className={`flex-1 rounded-[12px] p-3 flex items-center gap-2.5 border transition-all ${
                 debtStrategy === "avalanche"
                   ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                  : "border-[var(--border-subtle)] bg-[var(--surface-subtle)] hover:border-[var(--border-strong)]"
+                  : "border-(--border-subtle) bg-[var(--surface-subtle)] hover:border-[var(--border-strong)]"
               }`}
             >
               <Mountain
-                className={`w-4 h-4 shrink-0 ${debtStrategy === "avalanche" ? "text-[var(--accent)]" : "text-[var(--text-tertiary)]"}`}
+                className={`w-4 h-4 shrink-0 ${debtStrategy === "avalanche" ? "text-accent" : "text-(--text-tertiary)"}`}
               />
               <div className="text-left min-w-0">
                 <p className="text-[12px] font-semibold">Avalanche</p>
-                <p className="text-[10px] font-mono text-[var(--text-tertiary)]">
+                <p className="text-[10px] font-mono text-(--text-tertiary)">
                   Highest interest
                 </p>
               </div>
@@ -1903,7 +1895,7 @@ export default function PlanPage() {
                 background: `linear-gradient(90deg, var(--accent) 0%, var(--accent) ${((monthlyPayment - 2500) / (15000 - 2500)) * 100}%, var(--surface-subtle) ${((monthlyPayment - 2500) / (15000 - 2500)) * 100}%, var(--surface-subtle) 100%)`,
               }}
             />
-            <div className="flex items-center justify-between mt-1 text-[10px] font-mono text-[var(--text-tertiary)]">
+            <div className="flex items-center justify-between mt-1 text-[10px] font-mono text-(--text-tertiary)">
               <span>Min {formatPaise(250000)}</span>
               <span>Max {formatPaise(1500000)}</span>
             </div>
@@ -1912,26 +1904,26 @@ export default function PlanPage() {
           {/* Payoff projection */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="rounded-[12px] bg-[var(--surface-subtle)] p-3 flex flex-col gap-1">
-              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 <Calendar className="w-3 h-3" />
                 Payoff
               </div>
               <span className="text-[14px] font-semibold">
                 {formatDate(activePayoffDate.toISOString(), { style: "short" })}
               </span>
-              <span className="text-[10px] font-mono text-[var(--text-tertiary)] tabular-nums">
+              <span className="text-[10px] font-mono text-(--text-tertiary) tabular-nums">
                 in {activeMonths} months
               </span>
             </div>
             <div className="rounded-[12px] bg-[var(--surface-subtle)] p-3 flex flex-col gap-1">
-              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 <TrendingUp className="w-3 h-3" style={{ color: "var(--negative)" }} />
                 Total Interest
               </div>
               <span className="text-[14px] font-semibold tabular-nums">
                 {formatPaise(totalInterestPaise, { style: "compact" })}
               </span>
-              <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-mono text-(--text-tertiary)">
                 @ 36% APR
               </span>
             </div>
@@ -1949,7 +1941,7 @@ export default function PlanPage() {
               >
                 {formatPaise(interestSavedPaise, { style: "compact" })}
               </span>
-              <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-mono text-(--text-tertiary)">
                 vs min payment
               </span>
             </div>
@@ -1958,7 +1950,7 @@ export default function PlanPage() {
           {/* Mini progress visual */}
           <div>
             <div className="flex items-center justify-between text-[11px] mb-1.5">
-              <span className="text-[var(--text-secondary)] font-mono">
+              <span className="text-(--text-secondary) font-mono">
                 Debt cleared
               </span>
               <span className="font-mono font-semibold tabular-nums">
@@ -1993,7 +1985,7 @@ export default function PlanPage() {
           action={
             <Link
               href="/you"
-              className="text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] flex items-center gap-1"
+              className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1"
             >
               Full Profile <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -2016,7 +2008,7 @@ export default function PlanPage() {
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                   Level
                 </p>
                 <p className="text-[18px] font-display font-bold leading-none mt-0.5">
@@ -2030,11 +2022,11 @@ export default function PlanPage() {
             {/* Streak */}
             <div className="flex flex-col justify-center">
               <div className="flex items-center gap-1 mb-1.5">
-                <Flame className="w-4 h-4 text-[var(--warning)]" />
+                <Flame className="w-4 h-4 text-(--warning)" />
                 <span className="text-[18px] font-display font-bold tabular-nums">
                   {gamification.tracking_streak_days}
                 </span>
-                <span className="text-[11px] text-[var(--text-tertiary)]">
+                <span className="text-[11px] text-(--text-tertiary)">
                   day streak
                 </span>
               </div>
@@ -2066,10 +2058,10 @@ export default function PlanPage() {
           {/* XP Bar */}
           <div className="mb-5">
             <div className="flex items-center justify-between text-[11px] mb-1.5">
-              <span className="font-mono text-[var(--text-tertiary)]">
+              <span className="font-mono text-(--text-tertiary)">
                 {gamification.xp.toLocaleString("en-IN")} / {gamification.xp_to_next_level.toLocaleString("en-IN")} XP
               </span>
-              <span className="font-mono text-[var(--text-tertiary)]">
+              <span className="font-mono text-(--text-tertiary)">
                 {xpRemaining.toLocaleString("en-IN")} to Level 5
               </span>
             </div>
@@ -2090,7 +2082,7 @@ export default function PlanPage() {
           {/* Badges */}
           <div className="mb-5">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                 Badges
               </span>
               <span className="text-[10px] font-mono text-[var(--gold)] font-semibold tabular-nums">
@@ -2115,7 +2107,7 @@ export default function PlanPage() {
                 >
                   <span className="text-[16px]">{b.icon}</span>
                   {!b.earned && (
-                    <Lock className="absolute -top-1 -right-1 w-3 h-3 text-[var(--text-tertiary)] bg-[var(--surface)] rounded-full p-0.5" />
+                    <Lock className="absolute -top-1 -right-1 w-3 h-3 text-(--text-tertiary) bg-[var(--surface)] rounded-full p-0.5" />
                   )}
                 </motion.div>
               ))}
@@ -2123,8 +2115,8 @@ export default function PlanPage() {
           </div>
 
           {/* Milestones preview */}
-          <div className="pt-4 border-t border-[var(--border-subtle)]">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
+          <div className="pt-4 border-t border-(--border-subtle)">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary) mb-3">
               Next Milestones
             </p>
             <div className="flex flex-col gap-3">
@@ -2147,7 +2139,7 @@ export default function PlanPage() {
                         <p className="text-[12px] font-semibold truncate">
                           {m.title}
                         </p>
-                        <span className="text-[10px] font-mono text-[var(--text-tertiary)] tabular-nums shrink-0 ml-2">
+                        <span className="text-[10px] font-mono text-(--text-tertiary) tabular-nums shrink-0 ml-2">
                           {progressLabel}
                         </span>
                       </div>
@@ -2193,11 +2185,11 @@ export default function PlanPage() {
             <h3 className="text-[15px] font-semibold">
               Ask FinCopilot about your plan
             </h3>
-            <p className="text-[12px] text-[var(--text-secondary)] mt-0.5 truncate">
+            <p className="text-[12px] text-(--text-secondary) mt-0.5 truncate">
               &ldquo;Can I afford to increase my SIP this month?&rdquo;
             </p>
           </div>
-          <ArrowRight className="w-5 h-5 text-[var(--accent)] shrink-0 group-hover:translate-x-1 transition-transform" />
+          <ArrowRight className="w-5 h-5 text-accent shrink-0 group-hover:translate-x-1 transition-transform" />
         </Link>
       </motion.section>
     </div>

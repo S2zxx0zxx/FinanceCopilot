@@ -19,16 +19,16 @@ export class ForecastFeatures {
 
         // 1. Get current liquid balance as of cutoff
         const balanceRes = await this.dbClient.query(
-            `SELECT current_balance_paise FROM financial_snapshots 
-             WHERE user_id = $1 AND as_of <= $2 
-             ORDER BY as_of DESC LIMIT 1`,
+            `SELECT result_paise FROM financial_snapshots 
+             WHERE user_id = $1 AND computed_at <= $2 
+             ORDER BY computed_at DESC LIMIT 1`,
             [userId, isoCutoff]
         );
-        const liquidBalancePaise = balanceRes.rows[0]?.current_balance_paise || 0;
+        const liquidBalancePaise = balanceRes.rows[0]?.result_paise || 0;
 
         // 2. Get deterministic confirmed commitments due AFTER cutoff (Future deterministic events)
         const commitmentsRes = await this.dbClient.query(
-            `SELECT expected_amount_paise, due_date 
+            `SELECT amount_paise, due_date 
              FROM commitments 
              WHERE user_id = $1 
                AND due_date > $2 
@@ -39,12 +39,13 @@ export class ForecastFeatures {
 
         // 3. Extract historical daily spending (for residuals & volatility) up to cutoff
         const spendingRes = await this.dbClient.query(
-            `SELECT DATE(transaction_date) as t_date, SUM(amount_paise) as daily_spend
+            `SELECT DATE(observed_at) as t_date, SUM(amount_paise) as daily_spend
              FROM transactions 
              WHERE user_id = $1 
-               AND transaction_date <= $2 
-               AND is_transfer = FALSE
-             GROUP BY DATE(transaction_date)
+               AND observed_at <= $2 
+               AND transaction_type NOT IN ('transfer_out', 'transfer_in')
+               AND transfer_role IS NULL
+             GROUP BY DATE(observed_at)
              ORDER BY t_date ASC`,
             [userId, isoCutoff]
         );
@@ -63,7 +64,7 @@ export class ForecastFeatures {
             cutoffDate: isoCutoff,
             liquidBalancePaise: Number(liquidBalancePaise),
             upcomingCommitments: upcomingCommitments.map(c => ({
-                amountPaise: Number(c.expected_amount_paise),
+                amountPaise: Number(c.amount_paise),
                 dueDate: c.due_date
             })),
             historicalDailySpending: historicalDailySpending.map(r => ({

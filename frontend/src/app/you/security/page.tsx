@@ -15,7 +15,8 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
-import { securityData } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { ProgressRing } from "@/components/shared";
 import { timeAgo, formatDate } from "@/lib/format";
 
@@ -58,6 +59,7 @@ function getDeviceIcon(device: string): React.ReactNode {
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function SecurityPage() {
+  const { securityData } = useAppData();
   const [twoFA, setTwoFA] = React.useState(securityData.two_factor_enabled);
   const [sessions, setSessions] = React.useState(securityData.active_sessions);
   const [revoking, setRevoking] = React.useState<string | null>(null);
@@ -87,7 +89,7 @@ export default function SecurityPage() {
         <Link
           href="/you"
           aria-label="Back to You"
-          className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-[var(--surface-subtle)] transition-colors"
+          className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-(--surface-subtle) transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
@@ -95,7 +97,7 @@ export default function SecurityPage() {
           <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">
             Security
           </h1>
-          <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
+          <p className="text-[13px] text-(--text-secondary) mt-0.5">
             Protect your account and review activity
           </p>
         </div>
@@ -122,7 +124,7 @@ export default function SecurityPage() {
             >
               {score}
             </span>
-            <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+            <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
               / 100
             </span>
           </div>
@@ -139,7 +141,7 @@ export default function SecurityPage() {
               {scoreLabel}
             </span>
           </div>
-          <p className="text-[12px] text-[var(--text-secondary)] mt-1.5 leading-[1.5]">
+          <p className="text-[12px] text-(--text-secondary) mt-1.5 leading-normal">
             {score >= 80
               ? "Your account is well-protected. Keep it up."
               : score >= 50
@@ -181,7 +183,7 @@ export default function SecurityPage() {
             <p className="text-[14px] font-semibold">
               {twoFA ? "Authenticator app" : "2FA not enabled"}
             </p>
-            <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+            <p className="text-[12px] text-(--text-tertiary) mt-0.5">
               {twoFA
                 ? "Verified via Google Authenticator · last verified 2h ago"
                 : "Protect your account with a second verification step"}
@@ -204,7 +206,7 @@ export default function SecurityPage() {
           </button>
         </div>
         <div className="mt-2 flex justify-end">
-          <button className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-[var(--accent)] hover:bg-[var(--accent-light)] rounded-[8px] transition-colors">
+          <button className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-accent hover:bg-[var(--accent-light)] rounded-[8px] transition-colors">
             Manage
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -223,7 +225,7 @@ export default function SecurityPage() {
         <div className="premium-card overflow-hidden">
           {sessions.length === 0 && (
             <div className="p-6 text-center">
-              <p className="text-[13px] text-[var(--text-tertiary)]">
+              <p className="text-[13px] text-(--text-tertiary)">
                 No active sessions.
               </p>
             </div>
@@ -235,11 +237,11 @@ export default function SecurityPage() {
                 key={sess.id}
                 className={`flex items-center gap-3 p-4 ${
                   i < sessions.length - 1
-                    ? "border-b border-[var(--border-subtle)]"
+                    ? "border-b border-(--border-subtle)"
                     : ""
                 }`}
               >
-                <div className="w-10 h-10 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center shrink-0 text-[var(--text-secondary)]">
+                <div className="w-10 h-10 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center shrink-0 text-(--text-secondary)">
                   {getDeviceIcon(sess.device)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -248,24 +250,24 @@ export default function SecurityPage() {
                       {sess.device}
                     </p>
                     {sess.current && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold bg-[var(--accent-light)] text-[var(--accent)]">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold bg-[var(--accent-light)] text-accent">
                         Current
                       </span>
                     )}
                   </div>
-                  <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+                  <p className="text-[12px] text-(--text-tertiary) mt-0.5">
                     {sess.location} · active {timeAgo(sess.last_active)}
                   </p>
                 </div>
                 {sess.current ? (
-                  <span className="text-[12px] font-medium text-[var(--text-tertiary)] px-2">
+                  <span className="text-[12px] font-medium text-(--text-tertiary) px-2">
                     This device
                   </span>
                 ) : (
                   <button
                     disabled={isRevoking}
                     onClick={() => handleRevoke(sess.id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[12px] font-medium text-[var(--text-tertiary)] hover:text-[var(--negative)] hover:bg-[var(--negative-light)] transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[12px] font-medium text-(--text-tertiary) hover:text-(--negative) hover:bg-(--negative-light) transition-colors disabled:opacity-50"
                   >
                     {isRevoking ? (
                       <>
@@ -302,7 +304,7 @@ export default function SecurityPage() {
               return (
                 <li key={i} className="flex gap-3">
                   <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-[var(--surface-subtle)] flex items-center justify-center text-[var(--text-secondary)]">
+                    <div className="w-8 h-8 rounded-full bg-[var(--surface-subtle)] flex items-center justify-center text-(--text-secondary)">
                       {ACTIVITY_ICON[entry.type] || <Activity className="w-4 h-4" />}
                     </div>
                     {!isLast && (
@@ -310,10 +312,10 @@ export default function SecurityPage() {
                     )}
                   </div>
                   <div className="flex-1 pb-5">
-                    <p className="text-[13px] font-medium leading-[1.5]">
+                    <p className="text-[13px] font-medium leading-normal">
                       {entry.description}
                     </p>
-                    <p className="text-[11px] font-mono text-[var(--text-tertiary)] mt-0.5">
+                    <p className="text-[11px] font-mono text-(--text-tertiary) mt-0.5">
                       {formatDate(entry.timestamp, { style: "long" })} ·{" "}
                       {timeAgo(entry.timestamp)}
                     </p>
@@ -333,15 +335,15 @@ export default function SecurityPage() {
       >
         <button className="premium-card w-full p-5 flex items-center gap-3 hover:border-[var(--border-strong)] transition-colors text-left">
           <div className="w-10 h-10 rounded-[12px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
-            <KeyRound className="w-5 h-5 text-[var(--accent)]" />
+            <KeyRound className="w-5 h-5 text-accent" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-semibold">Change Password</p>
-            <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+            <p className="text-[12px] text-(--text-tertiary) mt-0.5">
               Last updated {timeAgo(securityData.recent_activity.find((a) => a.type === "password_change")?.timestamp || "")}
             </p>
           </div>
-          <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+          <ChevronRight className="w-4 h-4 text-(--text-tertiary) shrink-0" />
         </button>
       </motion.section>
     </div>
@@ -353,8 +355,8 @@ function ScoreChip({ label, ok }: { label: string; ok: boolean }) {
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold ${
         ok
-          ? "bg-[var(--positive-light)] text-[var(--positive)]"
-          : "bg-[var(--warning-light)] text-[var(--warning)]"
+          ? "bg-[var(--positive-light)] text-(--positive)"
+          : "bg-[var(--warning-light)] text-(--warning)"
       }`}
     >
       <span
@@ -374,7 +376,7 @@ function SectionLabel({
   icon?: React.ReactNode;
 }) {
   return (
-    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)] mb-3 px-1 flex items-center gap-1.5">
+    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary) mb-3 px-1 flex items-center gap-1.5">
       {icon}
       {children}
     </h2>

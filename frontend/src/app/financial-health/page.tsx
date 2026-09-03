@@ -11,9 +11,8 @@ import {
 import {
   SectionHeader, Badge, ProgressRing, CountUp,
 } from "@/components/shared";
-import {
-  financialHealth, peerComparison,
-} from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatPct } from "@/lib/format";
 
 // ── Helpers ──────────────────────────────────────────────
@@ -68,6 +67,7 @@ function prettifyStatus(status: string): string {
 // ── Page ──────────────────────────────────────────────────
 
 export default function FinancialHealthPage() {
+  const { financialHealth, peerComparison } = useAppData();
   const metrics = [
     {
       key: "cash_buffer",
@@ -217,16 +217,16 @@ export default function FinancialHealthPage() {
       >
         <div className="flex items-center gap-2 mb-2">
           <div className="w-7 h-7 rounded-[8px] bg-[var(--accent-light)] flex items-center justify-center">
-            <Activity className="w-4 h-4 text-[var(--accent)]" />
+            <Activity className="w-4 h-4 text-accent" />
           </div>
-          <span className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+          <span className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
             Financial Health
           </span>
         </div>
         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
           How healthy is your money?
         </h1>
-        <p className="text-[14px] text-[var(--text-secondary)] mt-1 max-w-md">
+        <p className="text-[14px] text-(--text-secondary) mt-1 max-w-md">
           A snapshot across four key metrics — plus tailored recommendations
           and an anonymous peer comparison.
         </p>
@@ -256,10 +256,10 @@ export default function FinancialHealthPage() {
                       <Icon className="w-4 h-4" style={{ color }} />
                     </div>
                     <div>
-                      <p className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+                      <p className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
                         {metric.label}
                       </p>
-                      <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                      <p className="text-[11px] text-(--text-tertiary) mt-0.5">
                         {metric.target}
                       </p>
                     </div>
@@ -304,7 +304,7 @@ export default function FinancialHealthPage() {
                       duration={1200}
                       className="font-display font-bold text-[28px] tracking-[-0.02em] block leading-none"
                     />
-                    <p className="text-[12px] text-[var(--text-secondary)] mt-1 leading-[1.5]">
+                    <p className="text-[12px] text-(--text-secondary) mt-1 leading-normal">
                       {metric.driver}
                     </p>
                   </div>
@@ -324,8 +324,8 @@ export default function FinancialHealthPage() {
         <SectionHeader
           title="Recommendations"
           action={
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
-              <Sparkles className="w-3 h-3 text-[var(--accent)]" />
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
+              <Sparkles className="w-3 h-3 text-accent" />
               AI Generated
             </span>
           }
@@ -343,7 +343,7 @@ export default function FinancialHealthPage() {
               >
                 <Link
                   href={rec.href}
-                  className="premium-card p-4 flex items-start gap-3 group hover:border-[var(--accent)] transition-colors"
+                  className="premium-card p-4 flex items-start gap-3 group hover:border-accent transition-colors"
                 >
                   <div
                     className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0"
@@ -353,10 +353,10 @@ export default function FinancialHealthPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-[14px] font-semibold">{rec.title}</h3>
-                    <p className="text-[13px] text-[var(--text-secondary)] leading-[1.5] mt-1">
+                    <p className="text-[13px] text-(--text-secondary) leading-normal mt-1">
                       {rec.description}
                     </p>
-                    <span className="inline-flex items-center gap-1 mt-2.5 text-[12px] font-medium text-[var(--accent)] group-hover:text-[var(--accent-hover)] transition-colors">
+                    <span className="inline-flex items-center gap-1 mt-2.5 text-[12px] font-medium text-accent group-hover:text-(--accent-hover) transition-colors">
                       {rec.cta}
                       <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                     </span>
@@ -378,7 +378,7 @@ export default function FinancialHealthPage() {
         <SectionHeader
           title="How you compare"
           action={
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               <Users className="w-3 h-3" />
               Anonymous peers
             </span>
@@ -386,17 +386,17 @@ export default function FinancialHealthPage() {
         />
 
         {/* Bracket banner */}
-        <div className="premium-card p-4 mb-3 flex items-center gap-3 bg-gradient-to-br from-[var(--accent-light)] to-[var(--gold-light)]">
+        <div className="premium-card p-4 mb-3 flex items-center gap-3 bg-linear-to-br from-(--accent-light) to-(--gold-light)">
           <div className="w-10 h-10 rounded-[12px] bg-[var(--surface)] flex items-center justify-center shadow-sm shrink-0">
-            <Users className="w-5 h-5 text-[var(--accent)]" />
+            <Users className="w-5 h-5 text-accent" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold">Your peer bracket</p>
-            <p className="text-[12px] text-[var(--text-secondary)] truncate">
+            <p className="text-[12px] text-(--text-secondary) truncate">
               {peerComparison.bracket}
             </p>
           </div>
-          <span className="text-[12px] font-mono tabular-nums text-[var(--text-tertiary)] shrink-0">
+          <span className="text-[12px] font-mono tabular-nums text-(--text-tertiary) shrink-0">
             {peerComparison.total_peers.toLocaleString("en-IN")} peers
           </span>
         </div>
@@ -431,7 +431,7 @@ export default function FinancialHealthPage() {
             return (
               <div
                 key={row.label}
-                className={`p-4 ${i < peerRows.length - 1 ? "border-b border-[var(--border-subtle)]" : ""}`}
+                className={`p-4 ${i < peerRows.length - 1 ? "border-b border-(--border-subtle)" : ""}`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[13px] font-medium">{row.label}</span>
@@ -480,9 +480,9 @@ export default function FinancialHealthPage() {
                 </div>
 
                 {/* Legend */}
-                <div className="flex items-center justify-between mt-2 text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                <div className="flex items-center justify-between mt-2 text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                   <span>
-                    Peer median: <span className="text-[var(--foreground)] font-semibold">{row.format(row.peerMedian)}</span>
+                    Peer median: <span className="text-foreground font-semibold">{row.format(row.peerMedian)}</span>
                   </span>
                   {row.top10 != null && (
                     <span>
@@ -504,18 +504,18 @@ export default function FinancialHealthPage() {
       >
         <Link
           href="/plan"
-          className="premium-card p-4 flex items-center gap-3 group hover:border-[var(--accent)] transition-colors"
+          className="premium-card p-4 flex items-center gap-3 group hover:border-accent transition-colors"
         >
-          <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-[12px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shrink-0">
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
             <p className="text-[14px] font-semibold">Track your progress monthly</p>
-            <p className="text-[12px] text-[var(--text-secondary)]">
+            <p className="text-[12px] text-(--text-secondary)">
               See your goals, budgets, and upcoming commitments in one place.
             </p>
           </div>
-          <ArrowRight className="w-4 h-4 text-[var(--text-tertiary)] group-hover:text-[var(--accent)] transition-colors" />
+          <ArrowRight className="w-4 h-4 text-(--text-tertiary) group-hover:text-accent transition-colors" />
         </Link>
       </motion.div>
     </div>

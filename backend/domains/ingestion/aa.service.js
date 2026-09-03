@@ -58,7 +58,7 @@ export class AccountAggregatorService {
                 // Automatically trigger first data pull
                 await this.triggerDataSync(consentRecord.user_id, consentId);
             } else if (status === 'REVOKED') {
-                await this.consentService.revokeConsent(consentRecord.id);
+                await this.consentService.revokeConsentById(consentRecord.id);
                 await AuditRepo.logEvent('AA_CONSENT_REVOKED', 'consent', consentId, consentRecord.user_id, {});
             }
         } catch (error) {
@@ -84,7 +84,7 @@ export class AccountAggregatorService {
             content_type: 'application/json'
         });
 
-        await this.dbRepository.updateImportJobStatus(importJob.job_id, 'pending_data');
+        await this.dbRepository.updateImportJobStatus(importJob.job_id, 'processing');
     }
 
     /**

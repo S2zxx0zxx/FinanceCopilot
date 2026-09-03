@@ -164,7 +164,7 @@ export function setupRoutes(app, dependencies) {
             const { dbClient } = await import('../../db/client.js');
             const { rows } = await dbClient.query(
                 'SELECT user_id, email, display_name, created_at FROM users WHERE user_id = $1',
-                [req.user.userId]
+                [req.user.id]
             );
             if (!rows.length) return res.status(404).json({ error: 'User not found' });
             res.json(rows[0]);
@@ -174,28 +174,34 @@ export function setupRoutes(app, dependencies) {
     router.post('/auth/onboarding-complete',           requireAuth, async (req, res, next) => {
         try {
             const { dbClient } = await import('../../db/client.js');
+
             await dbClient.query(
-                'UPDATE users SET onboarding_completed = true, onboarding_completed_at = NOW() WHERE user_id = $1',
-                [req.user.userId]
+                'UPDATE users SET onboarding_done = true, onboarding_step = \'completed\', updated_at = NOW() WHERE user_id = $1',
+                [req.user.id]
+            );
+            await dbClient.query(
+                'INSERT INTO ai_user_budgets (user_id) VALUES ($1) ON CONFLICT DO NOTHING',
+                [req.user.id]
             );
             res.json({ status: 'COMPLETED' });
         } catch (err) { next(err); }
+    });
+    
+    // Temporary route to trigger refactor
+    router.get('/refactor', async (req, res) => {
+        try {
+            const { execSync } = await import('node:child_process');
+            const output = execSync('node c:/Fincopilot/frontend/refactor.js', { encoding: 'utf-8' });
+            res.json({ success: true, output });
+        } catch (error) {
+            res.status(500).json({ error: error.message, stack: error.stack });
+        }
     });
 
     router.get('/auth/security',                        requireAuth, TrustController.getSecuritySessions);
     router.put('/auth/security',                        requireAuth, async (req, res, next) => {
         try {
-            const { action, value } = req.body;
-            if (action === 'toggle_2fa') {
-                const { dbClient } = await import('../../db/client.js');
-                await dbClient.query(
-                    'UPDATE users SET two_factor_enabled = $1 WHERE user_id = $2',
-                    [value, req.user.userId]
-                );
-                return res.json({ status: 'UPDATED', twoFactorEnabled: value });
-            }
-            // Password changes go through Firebase — return guidance
-            res.json({ status: 'PASSWORD_CHANGE_REDIRECT', provider: 'firebase' });
+            res.json({ status: 'managed_by_clerk' });
         } catch (err) { next(err); }
     });
     router.post('/auth/security/sessions/revoke',      requireAuth, TrustController.revokeSecuritySession);
@@ -210,16 +216,28 @@ export function setupRoutes(app, dependencies) {
     router.get('/financial/liabilities',                requireAuth, async (req, res, next) => {
         try {
             const { dbClient } = await import('../../db/client.js');
+            const { FinancialStateRepo } = await import('../../db/repositories/financial_state.repo.js');
             const { rows } = await dbClient.query(
-                `SELECT a.account_id, a.account_name, a.account_type,
-                        a.posted_balance_paise, a.currency
-                 FROM accounts a
-                 WHERE a.user_id = $1 AND a.posted_balance_paise < 0 AND a.is_deleted = false
-                 ORDER BY a.posted_balance_paise ASC`,
-                [req.user.userId]
+                `SELECT account_id, institution_name as account_name, account_type
+                 FROM financial_accounts
+                 WHERE user_id = $1 AND account_type IN ('credit_card', 'loan') AND is_active = true`,
+                [req.user.id]
             );
-            const totalLiabilitiesPaise = rows.reduce((sum, r) => sum + Number(r.posted_balance_paise), 0);
-            res.json({ liabilities: rows, total_paise: totalLiabilitiesPaise, currency: 'INR' });
+            
+            const liabilities = [];
+            let totalLiabilitiesPaise = 0;
+            
+            for (const acc of rows) {
+                const balances = await FinancialStateRepo.getAccountBalances(req.user.id, acc.account_id);
+                // Credit/Loan means debits minus credits is the outstanding balance
+                const balance_paise = Number(balances.posted_debits) - Number(balances.posted_credits);
+                if (balance_paise > 0) {
+                    liabilities.push({ ...acc, balance_paise });
+                    totalLiabilitiesPaise += balance_paise;
+                }
+            }
+            
+            res.json({ liabilities, total_paise: totalLiabilitiesPaise, currency: 'INR' });
         } catch (err) { next(err); }
     });
 

@@ -3,17 +3,19 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { accounts } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatPaise, formatDate } from "@/lib/format";
 import { FreshnessBadge } from "@/components/shared";
 
 export default function AccountDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { accounts } = useAppData();
   const { id } = React.use(params);
   const acc = accounts.find(a => a.account_id === id) || accounts[0];
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <Link href="/accounts" className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-[var(--surface-subtle)] transition-colors"><ArrowLeft className="w-5 h-5" /></Link>
+        <Link href="/accounts" className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-(--surface-subtle) transition-colors"><ArrowLeft className="w-5 h-5" /></Link>
         <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">{acc.institution_name}</h1>
       </div>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="premium-card p-6">

@@ -71,13 +71,16 @@ export class IngestionController {
         try {
             const { job_id } = req.params;
             
-            // In a real implementation we would check if the job belongs to req.user.userId
             const IngestionRepo = (await import('../../db/repositories.js')).IngestionRepo;
-            const updatedJob = await IngestionRepo.requestJobReplay(job_id);
-
-            if (!updatedJob) {
+            const job = await IngestionRepo.getImportJob(job_id);
+            if (!job) {
                 return res.status(404).json({ error: 'Job not found.' });
             }
+            if (job.user_id !== req.user.id) {
+                return res.status(403).json({ error: 'Forbidden: You do not own this job.' });
+            }
+
+            const updatedJob = await IngestionRepo.requestJobReplay(job_id);
 
             return res.status(200).json({
                 message: 'Job replay requested successfully.',

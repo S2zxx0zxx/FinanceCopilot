@@ -1,9 +1,11 @@
 import { OmniRouterAdapter } from './omnirouter.adapter.js';
+import { ZAIAdapter } from './zai.adapter.js';
 
 class ProviderRegistry {
     constructor() {
         this.providers = new Map();
         this.register('omnirouter', new OmniRouterAdapter());
+        this.register('zai', new ZAIAdapter());
     }
 
     register(id, adapter) {

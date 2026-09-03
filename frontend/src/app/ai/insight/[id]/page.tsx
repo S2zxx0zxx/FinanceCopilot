@@ -4,11 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import { aiInsights } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { Badge } from "@/components/shared";
 import { timeAgo } from "@/lib/format";
 
 export default function InsightDetailPage() {
+  const { aiInsights } = useAppData();
   const params = useParams<{ id: string }>();
   const insight = aiInsights.find((i) => i.insight_id === params.id) ?? aiInsights[0];
 
@@ -19,7 +21,7 @@ export default function InsightDetailPage() {
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-[10px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-[#0A0F0D]" />
           </div>
           <div>
@@ -36,7 +38,7 @@ export default function InsightDetailPage() {
           <h2 className="font-display font-semibold text-[20px] leading-tight">{insight.title}</h2>
           <Badge label={`${insight.confidence}% conf`} variant="ai" />
         </div>
-        <p className="text-[15px] text-[var(--text-secondary)] leading-[1.6]">{insight.summary}</p>
+        <p className="text-[15px] text-(--text-secondary) leading-[1.6]">{insight.summary}</p>
         {insight.tags && insight.tags.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {insight.tags.map((tag) => (
@@ -48,7 +50,7 @@ export default function InsightDetailPage() {
 
       <section className="premium-card p-6 flex flex-col gap-3">
         <h3 className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)]">Evidence</h3>
-        <p className="text-[14px] text-[var(--text-secondary)] leading-[1.6]">{insight.evidence}</p>
+        <p className="text-[14px] text-(--text-secondary) leading-[1.6]">{insight.evidence}</p>
       </section>
 
       {insight.actions && insight.actions.length > 0 && (
@@ -61,7 +63,7 @@ export default function InsightDetailPage() {
               className="premium-card p-4 flex items-center justify-between group hover:border-[var(--border-strong)] transition-colors"
             >
               <span className="text-[14px] font-medium">{action.label}</span>
-              <span className="text-[12px] text-[var(--accent)] group-hover:translate-x-0.5 transition-transform">→</span>
+              <span className="text-[12px] text-accent group-hover:translate-x-0.5 transition-transform">→</span>
             </Link>
           ))}
         </section>

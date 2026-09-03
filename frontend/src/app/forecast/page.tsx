@@ -10,7 +10,8 @@ import {
   Minus,
   ShieldCheck,
 } from "lucide-react";
-import { forecastData } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatPaise, formatPct } from "@/lib/format";
 import { ForecastComboChart } from "@/components/charts/recharts";
 import {
@@ -48,6 +49,7 @@ const ASSUMPTIONS = [
 ];
 
 export default function ForecastPage() {
+  const { forecastData } = useAppData();
   const [horizonIdx, setHorizonIdx] = React.useState(1); // default 30 days
   const [showAssumptions, setShowAssumptions] = React.useState(false);
 
@@ -86,7 +88,7 @@ export default function ForecastPage() {
           <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
             Forecast
           </h1>
-          <p className="text-[14px] text-[var(--text-secondary)] mt-1">
+          <p className="text-[14px] text-(--text-secondary) mt-1">
             Your financial future, predicted
           </p>
         </div>
@@ -103,13 +105,13 @@ export default function ForecastPage() {
             className={`relative px-4 py-1.5 rounded-full text-[12px] font-medium transition-colors ${
               horizonIdx === i
                 ? "text-white"
-                : "text-[var(--text-secondary)] hover:text-[var(--foreground)]"
+                : "text-(--text-secondary) hover:text-foreground"
             }`}
           >
             {horizonIdx === i && (
               <motion.div
                 layoutId="forecast-horizon-pill"
-                className="absolute inset-0 rounded-full bg-[var(--accent)]"
+                className="absolute inset-0 rounded-full bg-accent"
                 transition={{ type: "spring", stiffness: 400, damping: 32 }}
               />
             )}
@@ -126,7 +128,7 @@ export default function ForecastPage() {
           transition={{ duration: 0.5, delay: 0.05 }}
           className="premium-card p-6 flex flex-col gap-1"
         >
-          <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+          <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
             Current Balance
           </span>
           <CountUp
@@ -135,7 +137,7 @@ export default function ForecastPage() {
             duration={1500}
             className="font-display font-bold text-[32px] tabular-nums tracking-[-0.02em]"
           />
-          <span className="text-[12px] text-[var(--text-tertiary)] mt-1">
+          <span className="text-[12px] text-(--text-tertiary) mt-1">
             As of latest sync
           </span>
         </motion.div>
@@ -147,7 +149,7 @@ export default function ForecastPage() {
           className="premium-card-glow p-6 flex flex-col gap-2"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               Projected in {horizon.label}
             </span>
             <Badge
@@ -164,8 +166,8 @@ export default function ForecastPage() {
           <span
             className={`text-[12px] font-medium tabular-nums ${
               projectedDelta >= 0
-                ? "text-[var(--positive)]"
-                : "text-[var(--negative)]"
+                ? "text-(--positive)"
+                : "text-(--negative)"
             }`}
           >
             {projectedDelta >= 0 ? "↑" : "↓"}{" "}
@@ -187,7 +189,7 @@ export default function ForecastPage() {
             className="w-4 h-4"
             style={{ color: "var(--accent)" }}
           />
-          <span className="text-[12px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+          <span className="text-[12px] font-mono uppercase tracking-wider text-(--text-tertiary)">
             Forecast confidence
           </span>
         </div>
@@ -217,7 +219,7 @@ export default function ForecastPage() {
         <SectionHeader
           title="Balance Trajectory"
           action={
-            <span className="text-[12px] font-mono text-[var(--text-tertiary)]">
+            <span className="text-[12px] font-mono text-(--text-tertiary)">
               6 months actual · 3 months projected
             </span>
           }
@@ -230,18 +232,18 @@ export default function ForecastPage() {
           className="premium-card p-5"
         >
           <ForecastComboChart data={forecastData.timeline} />
-          <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-[var(--border-subtle)] flex-wrap">
-            <span className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-secondary)]">
+          <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-(--border-subtle) flex-wrap">
+            <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
               <span className="w-3 h-0.5 bg-[#047857]" /> Actual
             </span>
-            <span className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-secondary)]">
+            <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
               <span
                 className="w-3 h-0.5 bg-[#B08D57]"
                 style={{ borderTop: "1px dashed #B08D57" }}
               />{" "}
               Projected
             </span>
-            <span className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-secondary)]">
+            <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
               <span className="w-3 h-2 rounded-sm bg-[#047857]/20" /> Confidence
               band
             </span>
@@ -254,7 +256,7 @@ export default function ForecastPage() {
         <SectionHeader
           title="Forecast Drivers"
           action={
-            <span className="text-[12px] font-mono text-[var(--text-tertiary)]">
+            <span className="text-[12px] font-mono text-(--text-tertiary)">
               net {formatPaise(totalDriversImpact, { style: "signed" })}/mo
             </span>
           }
@@ -273,7 +275,7 @@ export default function ForecastPage() {
                 transition={{ duration: 0.35, delay: i * 0.06 }}
                 className={`p-4 flex items-center gap-3 ${
                   i < arr.length - 1
-                    ? "border-b border-[var(--border-subtle)]"
+                    ? "border-b border-(--border-subtle)"
                     : ""
                 }`}
               >
@@ -305,7 +307,7 @@ export default function ForecastPage() {
           type="button"
           onClick={() => setShowAssumptions((v) => !v)}
           aria-expanded={showAssumptions}
-          className="w-full p-4 flex items-center justify-between gap-3 hover:bg-[var(--surface-subtle)] transition-colors"
+          className="w-full p-4 flex items-center justify-between gap-3 hover:bg-(--surface-subtle) transition-colors"
         >
           <span className="text-[14px] font-semibold">Assumptions</span>
           <motion.span
@@ -313,7 +315,7 @@ export default function ForecastPage() {
             transition={{ duration: 0.25 }}
             className="shrink-0"
           >
-            <ChevronDown className="w-4 h-4 text-[var(--text-tertiary)]" />
+            <ChevronDown className="w-4 h-4 text-(--text-tertiary)" />
           </motion.span>
         </button>
         <AnimatePresence initial={false}>
@@ -329,9 +331,9 @@ export default function ForecastPage() {
                 {ASSUMPTIONS.map((a, i) => (
                   <li
                     key={i}
-                    className="flex items-start gap-2.5 text-[13px] text-[var(--text-secondary)] leading-[1.55]"
+                    className="flex items-start gap-2.5 text-[13px] text-(--text-secondary) leading-[1.55]"
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] mt-[7px] shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent mt-[7px] shrink-0" />
                     <span>{a}</span>
                   </li>
                 ))}
@@ -344,8 +346,8 @@ export default function ForecastPage() {
       {/* Coverage / freshness */}
       <section className="premium-card p-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <ShieldCheck className="w-4 h-4 text-[var(--accent)] shrink-0" />
-          <span className="text-[13px] text-[var(--text-secondary)] truncate">
+          <ShieldCheck className="w-4 h-4 text-accent shrink-0" />
+          <span className="text-[13px] text-(--text-secondary) truncate">
             Based on 12 months of synced transactions
           </span>
         </div>
@@ -363,9 +365,9 @@ export default function ForecastPage() {
           borderColor: "color-mix(in oklab, var(--warning) 25%, transparent)",
         }}
       >
-        <AlertTriangle className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" />
-        <p className="text-[13px] text-[var(--text-secondary)] leading-[1.55]">
-          <span className="font-semibold text-[var(--foreground)]">
+        <AlertTriangle className="w-5 h-5 text-(--warning) shrink-0 mt-0.5" />
+        <p className="text-[13px] text-(--text-secondary) leading-[1.55]">
+          <span className="font-semibold text-foreground">
             Forecasts are estimates
           </span>{" "}
           based on your patterns. Actual results may vary due to unexpected

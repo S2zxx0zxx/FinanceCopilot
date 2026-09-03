@@ -3,7 +3,8 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { ArrowDownLeft, ArrowUpRight, Scale, Lightbulb } from "lucide-react";
-import { cashflowData } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatPaise } from "@/lib/format";
 import { CashflowBarChart } from "@/components/charts/recharts";
 import { SectionHeader } from "@/components/shared";
@@ -18,6 +19,7 @@ const PERIODS: { id: PeriodId; label: string; months: number; note: string }[] =
 ];
 
 export default function CashflowPage() {
+  const { cashflowData } = useAppData();
   const [period, setPeriod] = React.useState<PeriodId>("12mo");
   const selected = PERIODS.find((p) => p.id === period)!;
 
@@ -58,7 +60,7 @@ export default function CashflowPage() {
         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
           Cashflow
         </h1>
-        <p className="text-[14px] text-[var(--text-secondary)] mt-1">
+        <p className="text-[14px] text-(--text-secondary) mt-1">
           Income vs Expenses · {selected.note}
         </p>
       </motion.header>
@@ -73,13 +75,13 @@ export default function CashflowPage() {
             className={`relative px-4 py-1.5 rounded-full text-[12px] font-medium transition-colors ${
               period === p.id
                 ? "text-white"
-                : "text-[var(--text-secondary)] hover:text-[var(--foreground)]"
+                : "text-(--text-secondary) hover:text-foreground"
             }`}
           >
             {period === p.id && (
               <motion.div
                 layoutId="cashflow-period-pill"
-                className="absolute inset-0 rounded-full bg-[var(--accent)]"
+                className="absolute inset-0 rounded-full bg-accent"
                 transition={{ type: "spring", stiffness: 400, damping: 32 }}
               />
             )}
@@ -98,16 +100,16 @@ export default function CashflowPage() {
         >
           <div className="flex items-center gap-2">
             <span className="w-7 h-7 rounded-[8px] bg-[var(--positive-light)] flex items-center justify-center">
-              <ArrowUpRight className="w-3.5 h-3.5 text-[var(--positive)]" />
+              <ArrowUpRight className="w-3.5 h-3.5 text-(--positive)" />
             </span>
-            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               Total Income
             </span>
           </div>
-          <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-[var(--positive)]">
+          <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-(--positive)">
             +{formatPaise(totalIncome * 100)}
           </span>
-          <span className="text-[12px] text-[var(--text-tertiary)]">
+          <span className="text-[12px] text-(--text-tertiary)">
             across {summaryData.length} month{summaryData.length > 1 ? "s" : ""}
           </span>
         </motion.div>
@@ -119,17 +121,17 @@ export default function CashflowPage() {
           className="premium-card p-5 flex flex-col gap-2"
         >
           <div className="flex items-center gap-2">
-            <span className="w-7 h-7 rounded-[8px] bg-[var(--negative-light)] flex items-center justify-center">
-              <ArrowDownLeft className="w-3.5 h-3.5 text-[var(--negative)]" />
+            <span className="w-7 h-7 rounded-[8px] bg-(--negative-light) flex items-center justify-center">
+              <ArrowDownLeft className="w-3.5 h-3.5 text-(--negative)" />
             </span>
-            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               Total Expense
             </span>
           </div>
-          <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-[var(--negative)]">
+          <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-(--negative)">
             −{formatPaise(totalExpense * 100)}
           </span>
-          <span className="text-[12px] text-[var(--text-tertiary)]">
+          <span className="text-[12px] text-(--text-tertiary)">
             across {summaryData.length} month{summaryData.length > 1 ? "s" : ""}
           </span>
         </motion.div>
@@ -145,28 +147,28 @@ export default function CashflowPage() {
               className={`w-7 h-7 rounded-[8px] flex items-center justify-center ${
                 netFlow >= 0
                   ? "bg-[var(--accent-light)]"
-                  : "bg-[var(--negative-light)]"
+                  : "bg-(--negative-light)"
               }`}
             >
               <Scale
                 className={`w-3.5 h-3.5 ${
-                  netFlow >= 0 ? "text-[var(--accent)]" : "text-[var(--negative)]"
+                  netFlow >= 0 ? "text-accent" : "text-(--negative)"
                 }`}
               />
             </span>
-            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
               Net Flow
             </span>
           </div>
           <span
             className={`font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] ${
-              netFlow >= 0 ? "text-[var(--positive)]" : "text-[var(--negative)]"
+              netFlow >= 0 ? "text-(--positive)" : "text-(--negative)"
             }`}
           >
             {netFlow >= 0 ? "+" : "−"}
             {formatPaise(Math.abs(netFlow) * 100)}
           </span>
-          <span className="text-[12px] text-[var(--text-tertiary)]">
+          <span className="text-[12px] text-(--text-tertiary)">
             savings rate {savingsRate.toFixed(0)}%
           </span>
         </motion.div>
@@ -177,7 +179,7 @@ export default function CashflowPage() {
         <SectionHeader
           title="Income vs Expenses"
           action={
-            <span className="text-[12px] font-mono text-[var(--text-tertiary)]">
+            <span className="text-[12px] font-mono text-(--text-tertiary)">
               12-month view
             </span>
           }
@@ -190,11 +192,11 @@ export default function CashflowPage() {
           className="premium-card p-5"
         >
           <CashflowBarChart data={cashflowData} />
-          <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-[var(--border-subtle)]">
-            <span className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-secondary)]">
+          <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-(--border-subtle)">
+            <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#047857]" /> Income
             </span>
-            <span className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-secondary)]">
+            <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
               <span className="w-2.5 h-2.5 rounded-sm bg-[#E11D48]" /> Expense
             </span>
           </div>
@@ -206,7 +208,7 @@ export default function CashflowPage() {
         <SectionHeader
           title="Monthly Breakdown"
           action={
-            <span className="text-[12px] font-mono text-[var(--text-tertiary)]">
+            <span className="text-[12px] font-mono text-(--text-tertiary)">
               net per month
             </span>
           }
@@ -225,13 +227,13 @@ export default function CashflowPage() {
                 transition={{ duration: 0.35, delay: Math.min(i * 0.04, 0.4) }}
                 className={`p-4 ${
                   i < arr.length - 1
-                    ? "border-b border-[var(--border-subtle)]"
+                    ? "border-b border-(--border-subtle)"
                     : ""
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-[13px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] w-9 shrink-0">
+                    <span className="text-[13px] font-mono uppercase tracking-wider text-(--text-tertiary) w-9 shrink-0">
                       {m.month}
                     </span>
                     <div className="flex-1 min-w-0 hidden sm:block">
@@ -245,30 +247,30 @@ export default function CashflowPage() {
                   </div>
                   <div className="flex items-center gap-4 sm:gap-6 text-right shrink-0">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                         Income
                       </span>
-                      <span className="text-[13px] font-semibold tabular-nums text-[var(--positive)]">
+                      <span className="text-[13px] font-semibold tabular-nums text-(--positive)">
                         {formatPaise(m.income * 100, { style: "compact" })}
                       </span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                         Expense
                       </span>
-                      <span className="text-[13px] font-semibold tabular-nums text-[var(--negative)]">
+                      <span className="text-[13px] font-semibold tabular-nums text-(--negative)">
                         {formatPaise(m.expense * 100, { style: "compact" })}
                       </span>
                     </div>
                     <div className="flex flex-col w-16">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                         Net
                       </span>
                       <span
                         className={`text-[13px] font-semibold tabular-nums ${
                           net >= 0
-                            ? "text-[var(--foreground)]"
-                            : "text-[var(--negative)]"
+                            ? "text-foreground"
+                            : "text-(--negative)"
                         }`}
                       >
                         {net >= 0 ? "+" : "−"}
@@ -279,7 +281,7 @@ export default function CashflowPage() {
                 </div>
                 {/* Mobile-only savings rate bar */}
                 <div className="mt-2 sm:hidden flex items-center gap-2">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                     Savings
                   </span>
                   <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
@@ -292,7 +294,7 @@ export default function CashflowPage() {
                       }}
                     />
                   </div>
-                  <span className="text-[10px] font-mono tabular-nums text-[var(--text-secondary)] w-9 text-right">
+                  <span className="text-[10px] font-mono tabular-nums text-(--text-secondary) w-9 text-right">
                     {(netPct * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -311,11 +313,11 @@ export default function CashflowPage() {
         className="premium-card p-5 flex items-start gap-3"
       >
         <span className="w-9 h-9 rounded-[10px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
-          <Lightbulb className="w-4 h-4 text-[var(--accent)]" />
+          <Lightbulb className="w-4 h-4 text-accent" />
         </span>
         <div>
           <h3 className="text-[14px] font-semibold mb-1">What this means</h3>
-          <p className="text-[13px] text-[var(--text-secondary)] leading-[1.55]">
+          <p className="text-[13px] text-(--text-secondary) leading-[1.55]">
             {insight}
           </p>
         </div>

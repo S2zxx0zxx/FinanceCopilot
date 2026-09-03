@@ -10,6 +10,7 @@ import {
   Target, CheckCircle2,
 } from "lucide-react";
 import { formatPaise } from "@/lib/format";
+import { api } from "@/lib/api";
 
 const GOAL_TYPES = [
   {
@@ -131,14 +132,23 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     if (!selectedImport) return;
     setConnecting(true);
-    // Simulate connection
-    setTimeout(() => {
+    try {
+      await api.completeOnboarding({
+        goal_id: selectedGoal,
+        target_amount_paise: targetPaise,
+        timeline_months: timelineMonths,
+        import_method: selectedImport,
+        privacy_consented: consented
+      });
       setConnecting(false);
       setConnected(true);
-    }, 1600);
+    } catch (err) {
+      console.error("Failed to complete onboarding:", err);
+      setConnecting(false);
+    }
   };
 
   const canProceedStep1 = true;
@@ -188,7 +198,7 @@ export default function OnboardingPage() {
                 />
                 <span
                   className={`hidden sm:inline text-[11px] font-mono uppercase tracking-[0.08em] transition-colors ${
-                    isActive ? "text-[var(--foreground)]" : "text-[var(--text-tertiary)]"
+                    isActive ? "text-foreground" : "text-(--text-tertiary)"
                   }`}
                 >
                   {label}
@@ -203,7 +213,7 @@ export default function OnboardingPage() {
         {step < 3 && (
           <Link
             href="/"
-            className="text-[12px] font-medium text-[var(--text-tertiary)] hover:text-[var(--foreground)] transition-colors"
+            className="text-[12px] font-medium text-(--text-tertiary) hover:text-foreground transition-colors"
           >
             Skip for now
           </Link>
@@ -230,7 +240,7 @@ export default function OnboardingPage() {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-                    className="w-20 h-20 rounded-[24px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center shadow-[var(--shadow-glow)]"
+                    className="w-20 h-20 rounded-3xl bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shadow-[var(--shadow-glow)]"
                   >
                     <span className="font-display font-bold text-white text-[36px]">F</span>
                   </motion.div>
@@ -247,7 +257,7 @@ export default function OnboardingPage() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: 0.3 }}
-                      className="text-[15px] text-[var(--text-secondary)] leading-[1.6]"
+                      className="text-[15px] text-(--text-secondary) leading-[1.6]"
                     >
                       Your AI co-pilot for money. Track spending, plan goals,
                       forecast cash flow, and chat with your finances — all in one
@@ -294,13 +304,13 @@ export default function OnboardingPage() {
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col items-center text-center gap-4">
                     <div className="w-14 h-14 rounded-[18px] bg-[var(--accent-light)] flex items-center justify-center">
-                      <ShieldCheck className="w-7 h-7 text-[var(--accent)]" />
+                      <ShieldCheck className="w-7 h-7 text-accent" />
                     </div>
                     <div className="flex flex-col gap-2">
                       <h1 className="font-display font-bold text-[26px] tracking-[-0.02em]">
                         Your data, your control
                       </h1>
-                      <p className="text-[14px] text-[var(--text-secondary)] leading-[1.6] max-w-md">
+                      <p className="text-[14px] text-(--text-secondary) leading-[1.6] max-w-md">
                         We believe trust is earned. Here's exactly how we handle
                         your financial data.
                       </p>
@@ -339,11 +349,11 @@ export default function OnboardingPage() {
                           className="premium-card p-4 flex items-start gap-3"
                         >
                           <div className="w-9 h-9 rounded-[10px] bg-[var(--surface-subtle)] flex items-center justify-center shrink-0">
-                            <Icon className="w-4 h-4 text-[var(--accent)]" />
+                            <Icon className="w-4 h-4 text-accent" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[14px] font-semibold">{item.title}</p>
-                            <p className="text-[13px] text-[var(--text-secondary)] mt-0.5 leading-[1.5]">
+                            <p className="text-[13px] text-(--text-secondary) mt-0.5 leading-normal">
                               {item.description}
                             </p>
                           </div>
@@ -357,7 +367,7 @@ export default function OnboardingPage() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.4 }}
-                    className="premium-card p-4 flex items-start gap-3 cursor-pointer hover:border-[var(--accent)] transition-colors"
+                    className="premium-card p-4 flex items-start gap-3 cursor-pointer hover:border-accent transition-colors"
                     style={{
                       borderColor: consented ? "var(--accent)" : undefined,
                       background: consented ? "var(--accent-light)" : undefined,
@@ -377,18 +387,18 @@ export default function OnboardingPage() {
                       {consented && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
                     </button>
                     <div className="flex-1">
-                      <p className="text-[13px] font-medium leading-[1.5]">
+                      <p className="text-[13px] font-medium leading-normal">
                         I agree to FinCopilot's{" "}
                         <Link
                           href="/you/privacy"
-                          className="text-[var(--accent)] hover:underline"
+                          className="text-accent hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >
                           Privacy Policy
                         </Link>{" "}
                         and consent to secure processing of my financial data.
                       </p>
-                      <p className="text-[11px] text-[var(--text-tertiary)] mt-1">
+                      <p className="text-[11px] text-(--text-tertiary) mt-1">
                         You can withdraw consent at any time in Settings.
                       </p>
                     </div>
@@ -401,13 +411,13 @@ export default function OnboardingPage() {
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col items-center text-center gap-3">
                     <div className="w-14 h-14 rounded-[18px] bg-[var(--accent-light)] flex items-center justify-center">
-                      <Target className="w-7 h-7 text-[var(--accent)]" />
+                      <Target className="w-7 h-7 text-accent" />
                     </div>
                     <div>
                       <h1 className="font-display font-bold text-[26px] tracking-[-0.02em]">
                         What are you saving for?
                       </h1>
-                      <p className="text-[14px] text-[var(--text-secondary)] mt-1 max-w-md">
+                      <p className="text-[14px] text-(--text-secondary) mt-1 max-w-md">
                         Pick a goal to start tracking. You can add more later.
                       </p>
                     </div>
@@ -426,7 +436,7 @@ export default function OnboardingPage() {
                           transition={{ duration: 0.3, delay: i * 0.05 }}
                           onClick={() => selectGoal(goal.id)}
                           aria-pressed={selected}
-                          className="premium-card p-3.5 flex flex-col items-start gap-2 text-left hover:border-[var(--accent)] transition-all relative"
+                          className="premium-card p-3.5 flex flex-col items-start gap-2 text-left hover:border-accent transition-all relative"
                           style={{
                             borderColor: selected ? "var(--accent)" : undefined,
                             background: selected ? "var(--accent-light)" : undefined,
@@ -437,7 +447,7 @@ export default function OnboardingPage() {
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--accent)] flex items-center justify-center"
+                              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-accent flex items-center justify-center"
                             >
                               <Check className="w-3 h-3 text-white" strokeWidth={3} />
                             </motion.div>
@@ -459,7 +469,7 @@ export default function OnboardingPage() {
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[13px] font-semibold">{goal.name}</span>
-                            <span className="text-[11px] text-[var(--text-tertiary)] leading-[1.4] mt-0.5">
+                            <span className="text-[11px] text-(--text-tertiary) leading-[1.4] mt-0.5">
                               {goal.description}
                             </span>
                           </div>
@@ -481,7 +491,7 @@ export default function OnboardingPage() {
                         <div className="premium-card p-4 flex flex-col gap-4">
                           {/* Target amount */}
                           <div>
-                            <label className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                            <label className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
                               Target amount
                             </label>
                             <div className="flex items-baseline gap-1 mt-2 mb-2">
@@ -502,7 +512,7 @@ export default function OnboardingPage() {
                                 <button
                                   key={amt}
                                   onClick={() => setTargetPaise(amt * 100)}
-                                  className="px-2.5 py-1 rounded-[8px] bg-[var(--surface-subtle)] text-[11px] font-medium text-[var(--text-secondary)] hover:bg-[var(--accent-light)] hover:text-[var(--accent)] transition-colors"
+                                  className="px-2.5 py-1 rounded-[8px] bg-[var(--surface-subtle)] text-[11px] font-medium text-(--text-secondary) hover:bg-[var(--accent-light)] hover:text-accent transition-colors"
                                 >
                                   ₹{amt.toLocaleString("en-IN")}
                                 </button>
@@ -512,9 +522,9 @@ export default function OnboardingPage() {
 
                           {/* Timeline */}
                           <div>
-                            <label className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
+                            <label className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
                               Timeline:{" "}
-                              <span className="text-[var(--foreground)] font-semibold">
+                              <span className="text-foreground font-semibold">
                                 {timelineMonths} {timelineMonths === 1 ? "month" : "months"}
                               </span>
                             </label>
@@ -528,7 +538,7 @@ export default function OnboardingPage() {
                               className="w-full mt-3 accent-[var(--accent)] cursor-pointer"
                               aria-label="Timeline in months"
                             />
-                            <div className="flex justify-between mt-1 text-[10px] font-mono text-[var(--text-tertiary)]">
+                            <div className="flex justify-between mt-1 text-[10px] font-mono text-(--text-tertiary)">
                               <span>1 mo</span>
                               <span>5 yr</span>
                               <span>10 yr</span>
@@ -539,17 +549,17 @@ export default function OnboardingPage() {
                           {timelineMonths > 0 && targetPaise > 0 && (
                             <div className="bg-[var(--surface-subtle)] rounded-[12px] p-3 flex items-center justify-between">
                               <div>
-                                <p className="text-[11px] text-[var(--text-tertiary)]">
+                                <p className="text-[11px] text-(--text-tertiary)">
                                   Monthly contribution needed
                                 </p>
                                 <p className="text-[18px] font-display font-bold tabular-nums mt-0.5">
                                   {formatPaise(Math.ceil(targetPaise / timelineMonths))}{" "}
-                                  <span className="text-[12px] text-[var(--text-tertiary)] font-normal">
+                                  <span className="text-[12px] text-(--text-tertiary) font-normal">
                                     /mo
                                   </span>
                                 </p>
                               </div>
-                              <PiggyBank className="w-7 h-7 text-[var(--accent)]" />
+                              <PiggyBank className="w-7 h-7 text-accent" />
                             </div>
                           )}
                         </div>
@@ -566,13 +576,13 @@ export default function OnboardingPage() {
                     <>
                       <div className="flex flex-col items-center text-center gap-3">
                         <div className="w-14 h-14 rounded-[18px] bg-[var(--accent-light)] flex items-center justify-center">
-                          <Landmark className="w-7 h-7 text-[var(--accent)]" />
+                          <Landmark className="w-7 h-7 text-accent" />
                         </div>
                         <div>
                           <h1 className="font-display font-bold text-[26px] tracking-[-0.02em]">
                             Connect your data
                           </h1>
-                          <p className="text-[14px] text-[var(--text-secondary)] mt-1 max-w-md">
+                          <p className="text-[14px] text-(--text-secondary) mt-1 max-w-md">
                             Choose how you'd like to import your transactions. We'll
                             handle the rest.
                           </p>
@@ -592,7 +602,7 @@ export default function OnboardingPage() {
                               onClick={() => setSelectedImport(method.id)}
                               aria-pressed={selected}
                               disabled={connecting}
-                              className="premium-card p-3.5 flex items-center gap-3 text-left hover:border-[var(--accent)] transition-all relative disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="premium-card p-3.5 flex items-center gap-3 text-left hover:border-accent transition-all relative disabled:opacity-50 disabled:cursor-not-allowed"
                               style={{
                                 borderColor: selected ? "var(--accent)" : undefined,
                                 background: selected ? "var(--accent-light)" : undefined,
@@ -624,7 +634,7 @@ export default function OnboardingPage() {
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5 truncate">
+                                <p className="text-[12px] text-(--text-tertiary) mt-0.5 truncate">
                                   {method.description}
                                 </p>
                               </div>
@@ -656,7 +666,7 @@ export default function OnboardingPage() {
                         initial={{ scale: 0, rotate: -180 }}
                         animate={{ scale: 1, rotate: 0 }}
                         transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
-                        className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center shadow-[var(--shadow-glow)]"
+                        className="w-20 h-20 rounded-full bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shadow-[var(--shadow-glow)]"
                       >
                         <CheckCircle2 className="w-10 h-10 text-white" strokeWidth={2} />
                       </motion.div>
@@ -664,7 +674,7 @@ export default function OnboardingPage() {
                         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
                           You're all set, Arjun
                         </h1>
-                        <p className="text-[14px] text-[var(--text-secondary)] leading-[1.6]">
+                        <p className="text-[14px] text-(--text-secondary) leading-[1.6]">
                           {selectedImport === "bank"
                             ? "Your bank is securely connected. We're syncing your transactions now — this usually takes 30 seconds."
                             : selectedImport === "manual"
@@ -700,7 +710,7 @@ export default function OnboardingPage() {
                             key={item.label}
                             className="flex items-center justify-between"
                           >
-                            <span className="text-[12px] text-[var(--text-tertiary)]">
+                            <span className="text-[12px] text-(--text-tertiary)">
                               {item.label}
                             </span>
                             <span className="text-[12px] font-semibold">{item.value}</span>
@@ -710,7 +720,7 @@ export default function OnboardingPage() {
 
                       <Link
                         href="/"
-                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[12px] bg-[var(--accent)] text-white text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-[var(--shadow-glow)]"
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[12px] bg-accent text-white text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-[var(--shadow-glow)]"
                       >
                         Go to Home
                         <ArrowRight className="w-4 h-4" />
@@ -736,13 +746,13 @@ export default function OnboardingPage() {
             onClick={back}
             disabled={step === 0}
             aria-label="Back"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[12px] text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] hover:text-[var(--foreground)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[12px] text-[13px] font-medium text-(--text-secondary) hover:bg-(--surface-subtle) hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <ArrowLeft className="w-4 h-4" />
             Back
           </button>
 
-          <span className="text-[11px] font-mono text-[var(--text-tertiary)]">
+          <span className="text-[11px] font-mono text-(--text-tertiary)">
             {step + 1} / {STEP_LABELS.length}
           </span>
 
@@ -751,7 +761,7 @@ export default function OnboardingPage() {
               onClick={next}
               disabled={!canProceed}
               aria-label="Continue"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-[var(--accent)] text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
             >
               {step === 0 ? "Get Started" : step === 1 ? "I Agree" : "Continue"}
               <ArrowRight className="w-4 h-4" />
@@ -761,7 +771,7 @@ export default function OnboardingPage() {
               onClick={handleConnect}
               disabled={!canProceed || connecting}
               aria-label="Connect"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-[var(--accent)] text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
             >
               {connecting ? (
                 <>

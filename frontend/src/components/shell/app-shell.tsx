@@ -9,7 +9,7 @@ import {
   Search, Target, Moon, Sun, ShieldCheck, Bell, Flame,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { unreadNotificationsCount, notifications as notifData, gamification } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
 import { timeAgo } from "@/lib/format";
 
 const NAV_ITEMS = [
@@ -50,6 +50,9 @@ function ThemeToggle() {
 }
 
 function NotificationBell() {
+  const { notifications } = useAppData();
+  const notifData = notifications || [];
+  const unreadNotificationsCount = notifData.filter(n => !n.read).length;
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
 
@@ -127,6 +130,8 @@ function NotificationBell() {
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
+  const { gamification: rawGamification } = useAppData();
+  const gamification = rawGamification || { tracking_streak_days: 0, level: 1, level_name: 'Beginner' };
   const [fabOpen, setFabOpen] = React.useState(false);
   const fabRef = React.useRef<HTMLDivElement>(null);
   const fabHidden = ["/onboarding", "/ai/chat", "/ai/afford", "/ai/leaks", "/ai/what-if", "/ai/explain-month", "/ai/goal-accelerator", "/login"].some(p => pathname.startsWith(p));

@@ -12,7 +12,8 @@ import {
   Check,
   ChevronDown,
 } from "lucide-react";
-import { privacyData } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatDate, timeAgo } from "@/lib/format";
 
 // ── Toggle ─────────────────────────────────────────────────────────────────
@@ -35,10 +36,10 @@ function ConsentToggle({
     onChange(next);
   };
   return (
-    <div className="flex items-center gap-3 p-4 border-b border-[var(--border-subtle)] last:border-b-0">
+    <div className="flex items-center gap-3 p-4 border-b border-(--border-subtle) last:border-b-0">
       <div className="flex-1 min-w-0">
         <p className="text-[14px] font-semibold">{label}</p>
-        <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5 leading-[1.5]">
+        <p className="text-[12px] text-(--text-tertiary) mt-0.5 leading-normal">
           {description}
         </p>
       </div>
@@ -68,6 +69,7 @@ function ConsentToggle({
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function PrivacyPage() {
+  const { privacyData } = useAppData();
   const [retention, setRetention] = React.useState(
     privacyData.data_retention_days
   );
@@ -108,19 +110,19 @@ export default function PrivacyPage() {
           className="premium-card p-8 flex flex-col items-center text-center gap-4"
         >
           <div className="w-14 h-14 rounded-full bg-[var(--positive-light)] flex items-center justify-center">
-            <Check className="w-7 h-7 text-[var(--positive)]" />
+            <Check className="w-7 h-7 text-(--positive)" />
           </div>
           <h2 className="font-display font-semibold text-[18px]">
             Data deletion requested
           </h2>
-          <p className="text-[13px] text-[var(--text-secondary)] max-w-sm leading-[1.6]">
+          <p className="text-[13px] text-(--text-secondary) max-w-sm leading-[1.6]">
             Your account data has been queued for permanent deletion. This
             usually completes within 30 days. You'll receive an email
             confirmation at <strong>{`arjun.sharma@fincopilot.in`}</strong>.
           </p>
           <Link
             href="/you"
-            className="mt-2 px-4 py-2 rounded-[10px] bg-[var(--accent)] text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+            className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
           >
             Back to Settings
           </Link>
@@ -140,14 +142,14 @@ export default function PrivacyPage() {
         transition={{ duration: 0.5, delay: 0.1 }}
         className="premium-card-glow p-6 flex items-start gap-4"
       >
-        <div className="w-12 h-12 rounded-[14px] bg-[var(--accent)] flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-[14px] bg-accent flex items-center justify-center shrink-0">
           <Shield className="w-6 h-6 text-white" />
         </div>
         <div>
           <h2 className="font-display font-semibold text-[17px]">
             Your data is encrypted end-to-end
           </h2>
-          <p className="text-[13px] text-[var(--text-secondary)] mt-1 leading-[1.6]">
+          <p className="text-[13px] text-(--text-secondary) mt-1 leading-[1.6]">
             All bank connections use 256-bit TLS encryption. We never store your
             credentials — tokens are kept in an HSM-backed vault. You're in
             control.
@@ -170,13 +172,13 @@ export default function PrivacyPage() {
               key={item.category}
               className={`flex items-center gap-4 p-4 ${
                 i < privacyData.data_inventory.length - 1
-                  ? "border-b border-[var(--border-subtle)]"
+                  ? "border-b border-(--border-subtle)"
                   : ""
               }`}
             >
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-semibold">{item.category}</p>
-                <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+                <p className="text-[12px] text-(--text-tertiary) mt-0.5">
                   {item.description}
                 </p>
               </div>
@@ -184,7 +186,7 @@ export default function PrivacyPage() {
                 <p className="font-display font-bold text-[18px] tabular-nums tracking-[-0.02em]">
                   {item.record_count.toLocaleString("en-IN")}
                 </p>
-                <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                <p className="text-[10px] font-mono uppercase tracking-wider text-(--text-tertiary)">
                   records
                 </p>
               </div>
@@ -233,7 +235,7 @@ export default function PrivacyPage() {
         <SectionLabel>Data Retention</SectionLabel>
         <div className="premium-card p-4">
           <p className="text-[14px] font-semibold">Keep my data for</p>
-          <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5 mb-3 leading-[1.5]">
+          <p className="text-[12px] text-(--text-tertiary) mt-0.5 mb-3 leading-normal">
             We'll automatically delete transactions and insights older than
             this period.
           </p>
@@ -248,7 +250,7 @@ export default function PrivacyPage() {
                 {retentionOptions.find((o) => o.value === retention)?.label}
               </span>
               <ChevronDown
-                className={`w-4 h-4 text-[var(--text-tertiary)] transition-transform ${retentionOpen ? "rotate-180" : ""}`}
+                className={`w-4 h-4 text-(--text-tertiary) transition-transform ${retentionOpen ? "rotate-180" : ""}`}
               />
             </button>
             {retentionOpen && (
@@ -265,9 +267,9 @@ export default function PrivacyPage() {
                       setRetention(opt.value);
                       setRetentionOpen(false);
                     }}
-                    className={`w-full text-left px-3 py-2 rounded-[8px] text-[13px] flex items-center justify-between hover:bg-[var(--surface-subtle)] transition-colors ${
+                    className={`w-full text-left px-3 py-2 rounded-[8px] text-[13px] flex items-center justify-between hover:bg-(--surface-subtle) transition-colors ${
                       opt.value === retention
-                        ? "text-[var(--accent)] font-semibold"
+                        ? "text-accent font-semibold"
                         : ""
                     }`}
                   >
@@ -297,11 +299,11 @@ export default function PrivacyPage() {
               const Icon =
                 entry.type === "grant" ? (
                   <div className="w-7 h-7 rounded-full bg-[var(--positive-light)] flex items-center justify-center">
-                    <Check className="w-3.5 h-3.5 text-[var(--positive)]" />
+                    <Check className="w-3.5 h-3.5 text-(--positive)" />
                   </div>
                 ) : (
                   <div className="w-7 h-7 rounded-full bg-[var(--accent-light)] flex items-center justify-center">
-                    <Shield className="w-3.5 h-3.5 text-[var(--accent)]" />
+                    <Shield className="w-3.5 h-3.5 text-accent" />
                   </div>
                 );
               return (
@@ -313,10 +315,10 @@ export default function PrivacyPage() {
                     )}
                   </div>
                   <div className="flex-1 pb-5">
-                    <p className="text-[13px] font-medium leading-[1.5]">
+                    <p className="text-[13px] font-medium leading-normal">
                       {entry.action}
                     </p>
-                    <p className="text-[11px] font-mono text-[var(--text-tertiary)] mt-0.5">
+                    <p className="text-[11px] font-mono text-(--text-tertiary) mt-0.5">
                       {formatDate(entry.timestamp, { style: "long" })} ·{" "}
                       {timeAgo(entry.timestamp)}
                     </p>
@@ -347,10 +349,10 @@ export default function PrivacyPage() {
               <Trash2 className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1">
-              <p className="text-[14px] font-semibold text-[var(--negative)]">
+              <p className="text-[14px] font-semibold text-(--negative)">
                 Delete all my data
               </p>
-              <p className="text-[12px] text-[var(--text-secondary)] mt-0.5 leading-[1.5]">
+              <p className="text-[12px] text-(--text-secondary) mt-0.5 leading-normal">
                 Permanently delete all transactions, accounts, goals, and AI
                 insights. This action cannot be undone.
               </p>
@@ -359,7 +361,7 @@ export default function PrivacyPage() {
           {!confirmDelete ? (
             <button
               onClick={() => setConfirmDelete(true)}
-              className="self-start px-4 py-2 rounded-[10px] text-[13px] font-semibold text-[var(--negative)] border border-[var(--negative)] hover:bg-[var(--negative)] hover:text-white transition-colors"
+              className="self-start px-4 py-2 rounded-[10px] text-[13px] font-semibold text-(--negative) border border-[var(--negative)] hover:bg-[var(--negative)] hover:text-white transition-colors"
             >
               Request data deletion
             </button>
@@ -370,7 +372,7 @@ export default function PrivacyPage() {
               className="flex flex-col gap-3"
             >
               <div className="flex items-start gap-2 p-3 rounded-[10px] bg-white/60 dark:bg-black/20">
-                <p className="text-[12px] text-[var(--text-secondary)] leading-[1.5]">
+                <p className="text-[12px] text-(--text-secondary) leading-normal">
                   <strong>Type DELETE</strong> to confirm. Your connected bank
                   accounts will be unlinked and all data wiped within 30 days.
                 </p>
@@ -384,7 +386,7 @@ export default function PrivacyPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setConfirmDelete(false)}
-                    className="px-3 py-2 rounded-[10px] text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-subtle)] transition-colors"
+                    className="px-3 py-2 rounded-[10px] text-[13px] font-medium text-(--text-secondary) hover:bg-(--surface-subtle) transition-colors"
                   >
                     Cancel
                   </button>
@@ -423,7 +425,7 @@ function Header() {
       <Link
         href="/you"
         aria-label="Back to You"
-        className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-[var(--surface-subtle)] transition-colors"
+        className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-(--surface-subtle) transition-colors"
       >
         <ArrowLeft className="w-5 h-5" />
       </Link>
@@ -431,7 +433,7 @@ function Header() {
         <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">
           Privacy
         </h1>
-        <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
+        <p className="text-[13px] text-(--text-secondary) mt-0.5">
           Control your data, consents, and retention
         </p>
       </div>
@@ -447,7 +449,7 @@ function SectionLabel({
   icon?: React.ReactNode;
 }) {
   return (
-    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)] mb-3 px-1 flex items-center gap-1.5">
+    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary) mb-3 px-1 flex items-center gap-1.5">
       {icon}
       {children}
     </h2>

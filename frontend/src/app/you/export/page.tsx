@@ -118,20 +118,20 @@ export default function ExportPage() {
           transition={{ duration: 0.5 }}
           className="premium-card p-8 flex flex-col items-center text-center gap-4"
         >
-          <div className="w-14 h-14 rounded-full bg-[var(--negative-light)] flex items-center justify-center">
-            <Trash2 className="w-7 h-7 text-[var(--negative)]" />
+          <div className="w-14 h-14 rounded-full bg-(--negative-light) flex items-center justify-center">
+            <Trash2 className="w-7 h-7 text-(--negative)" />
           </div>
           <h2 className="font-display font-semibold text-[18px]">
             Account deletion in progress
           </h2>
-          <p className="text-[13px] text-[var(--text-secondary)] max-w-sm leading-[1.6]">
+          <p className="text-[13px] text-(--text-secondary) max-w-sm leading-[1.6]">
             Your account has been scheduled for permanent deletion. All linked
             bank accounts have been disconnected. You'll be signed out shortly
             and receive a final email confirmation.
           </p>
           <Link
             href="/"
-            className="mt-2 px-4 py-2 rounded-[10px] bg-[var(--accent)] text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+            className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
           >
             Go home
           </Link>
@@ -151,12 +151,12 @@ export default function ExportPage() {
         transition={{ duration: 0.5, delay: 0.05 }}
         className="premium-card-glow p-4 flex items-center gap-3"
       >
-        <div className="w-10 h-10 rounded-[12px] bg-[var(--accent)] flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-[12px] bg-accent flex items-center justify-center shrink-0">
           <ShieldCheck className="w-5 h-5 text-white" />
         </div>
-        <p className="text-[13px] font-medium leading-[1.5]">
+        <p className="text-[13px] font-medium leading-normal">
           Your data is yours.{" "}
-          <span className="text-[var(--text-secondary)]">
+          <span className="text-(--text-secondary)">
             Export anytime, delete anytime.
           </span>
         </p>
@@ -173,7 +173,7 @@ export default function ExportPage() {
         </SectionLabel>
         <div className="premium-card p-5 flex flex-col gap-4">
           <div>
-            <p className="text-[13px] text-[var(--text-secondary)] leading-[1.5]">
+            <p className="text-[13px] text-(--text-secondary) leading-normal">
               Download a complete archive of your transactions, accounts, goals,
               budgets, and AI insights. Ready in under a minute.
             </p>
@@ -181,7 +181,7 @@ export default function ExportPage() {
 
           {/* Format options */}
           <div>
-            <p className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)] mb-2">
+            <p className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary) mb-2">
               Choose format
             </p>
             <div className="grid grid-cols-3 gap-2">
@@ -195,25 +195,25 @@ export default function ExportPage() {
                     className={`relative p-3 rounded-[12px] border text-left transition-all ${
                       selected
                         ? "border-[var(--accent)] bg-[var(--accent-light)]"
-                        : "border-[var(--border)] hover:border-[var(--border-strong)] hover:bg-[var(--surface-subtle)]"
+                        : "border-[var(--border)] hover:border-[var(--border-strong)] hover:bg-(--surface-subtle)"
                     }`}
                     aria-pressed={selected}
                   >
                     <div
                       className={`w-7 h-7 rounded-[8px] flex items-center justify-center mb-2 ${
                         selected
-                          ? "bg-[var(--accent)] text-white"
-                          : "bg-[var(--surface-subtle)] text-[var(--text-secondary)]"
+                          ? "bg-accent text-white"
+                          : "bg-[var(--surface-subtle)] text-(--text-secondary)"
                       }`}
                     >
                       {cfg.icon}
                     </div>
                     <p className="text-[13px] font-semibold">{cfg.label}</p>
-                    <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                    <p className="text-[11px] text-(--text-tertiary) mt-0.5">
                       {cfg.desc}
                     </p>
                     {selected && (
-                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[var(--accent)] flex items-center justify-center">
+                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
                         <Check className="w-2.5 h-2.5 text-white" />
                       </div>
                     )}
@@ -227,7 +227,7 @@ export default function ExportPage() {
           <button
             disabled={exporting}
             onClick={handleExport}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[12px] bg-[var(--accent)] text-white text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[12px] bg-accent text-white text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-60"
           >
             {exporting ? (
               <>
@@ -246,7 +246,7 @@ export default function ExportPage() {
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
-              className="flex items-center gap-2 p-3 rounded-[10px] bg-[var(--positive-light)] text-[var(--positive)] text-[12px] font-medium"
+              className="flex items-center gap-2 p-3 rounded-[10px] bg-[var(--positive-light)] text-(--positive) text-[12px] font-medium"
             >
               <Check className="w-4 h-4 shrink-0" />
               <span className="flex-1">
@@ -271,7 +271,7 @@ export default function ExportPage() {
         <div className="premium-card overflow-hidden">
           {history.length === 0 && (
             <div className="p-6 text-center">
-              <p className="text-[13px] text-[var(--text-tertiary)]">
+              <p className="text-[13px] text-(--text-tertiary)">
                 No exports yet.
               </p>
             </div>
@@ -283,22 +283,22 @@ export default function ExportPage() {
                 key={entry.id}
                 className={`flex items-center gap-3 p-4 ${
                   i < history.length - 1
-                    ? "border-b border-[var(--border-subtle)]"
+                    ? "border-b border-(--border-subtle)"
                     : ""
                 }`}
               >
-                <div className="w-10 h-10 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center text-[var(--text-secondary)] shrink-0">
+                <div className="w-10 h-10 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center text-(--text-secondary) shrink-0">
                   {cfg.icon}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-semibold">
                     FinCopilot-export.{entry.format.toUpperCase()}
                   </p>
-                  <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5">
+                  <p className="text-[12px] text-(--text-tertiary) mt-0.5">
                     {formatDate(entry.date, { style: "long" })} · {entry.size}
                   </p>
                 </div>
-                <button className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[12px] font-medium text-[var(--accent)] hover:bg-[var(--accent-light)] transition-colors">
+                <button className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[12px] font-medium text-accent hover:bg-[var(--accent-light)] transition-colors">
                   <Download className="w-3.5 h-3.5" />
                   Download
                 </button>
@@ -329,10 +329,10 @@ export default function ExportPage() {
               <Trash2 className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="font-display font-semibold text-[15px] text-[var(--negative)]">
+              <h3 className="font-display font-semibold text-[15px] text-(--negative)">
                 Delete your account
               </h3>
-              <p className="text-[12px] text-[var(--text-secondary)] mt-1 leading-[1.5]">
+              <p className="text-[12px] text-(--text-secondary) mt-1 leading-normal">
                 This will permanently erase all your data, disconnect all bank
                 accounts, cancel your subscription, and remove your AI history.
                 <strong> This action cannot be undone.</strong>
@@ -350,9 +350,9 @@ export default function ExportPage() {
             ].map((item, i) => (
               <li
                 key={i}
-                className="flex items-start gap-2 text-[12px] text-[var(--text-secondary)]"
+                className="flex items-start gap-2 text-[12px] text-(--text-secondary)"
               >
-                <span className="text-[var(--negative)] mt-0.5">•</span>
+                <span className="text-(--negative) mt-0.5">•</span>
                 {item}
               </li>
             ))}
@@ -375,14 +375,14 @@ export default function ExportPage() {
             >
               {confirmChecked && <Check className="w-3.5 h-3.5 text-white" />}
             </button>
-            <span className="text-[12px] text-[var(--text-secondary)] leading-[1.5]">
+            <span className="text-[12px] text-(--text-secondary) leading-normal">
               I understand this action is permanent and cannot be reversed.
             </span>
           </label>
 
           {/* Type DELETE confirm */}
           <div>
-            <label className="block text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-tertiary)] mb-1.5">
+            <label className="block text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary) mb-1.5">
               Type DELETE to confirm
             </label>
             <input
@@ -430,12 +430,12 @@ export default function ExportPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
-        className="text-center text-[12px] text-[var(--text-tertiary)] mt-2"
+        className="text-center text-[12px] text-(--text-tertiary) mt-2"
       >
         Need help?{" "}
         <Link
           href="/you"
-          className="text-[var(--accent)] font-medium hover:underline"
+          className="text-accent font-medium hover:underline"
         >
           Contact support
         </Link>{" "}
@@ -456,7 +456,7 @@ function Header() {
       <Link
         href="/you"
         aria-label="Back to You"
-        className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-[var(--surface-subtle)] transition-colors"
+        className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-(--surface-subtle) transition-colors"
       >
         <ArrowLeft className="w-5 h-5" />
       </Link>
@@ -464,7 +464,7 @@ function Header() {
         <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">
           Data & Account
         </h1>
-        <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">
+        <p className="text-[13px] text-(--text-secondary) mt-0.5">
           Export your data or permanently delete your account
         </p>
       </div>
@@ -480,7 +480,7 @@ function SectionLabel({
   icon?: React.ReactNode;
 }) {
   return (
-    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-[var(--text-tertiary)] mb-3 px-1 flex items-center gap-1.5">
+    <h2 className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary) mb-3 px-1 flex items-center gap-1.5">
       {icon}
       {children}
     </h2>

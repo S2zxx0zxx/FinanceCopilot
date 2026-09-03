@@ -13,16 +13,18 @@ export class R2StorageAdapter extends StorageInterface {
     constructor() {
         super();
         if (!process.env.R2_ENDPOINT_URL || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
-            throw new AppError('R2 Storage credentials missing in environment', 500, true, 'CONFIG_ERROR');
+            console.warn('[WARNING] R2 Storage credentials missing in environment. File uploads will fail.');
         }
-        this.s3Client = new S3Client({
-            region: 'auto',
-            endpoint: process.env.R2_ENDPOINT_URL,
-            credentials: {
-                accessKeyId: process.env.R2_ACCESS_KEY_ID,
-                secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-            }
-        });
+        if (process.env.R2_ENDPOINT_URL && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY) {
+            this.s3Client = new S3Client({
+                region: 'auto',
+                endpoint: process.env.R2_ENDPOINT_URL,
+                credentials: {
+                    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+                }
+            });
+        }
     }
 
     /**

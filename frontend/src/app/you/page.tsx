@@ -10,9 +10,8 @@ import {
   HelpCircle, MessageSquare, Info, LogOut, Crown, Calendar, MessageCircle,
   Zap, Award, Sparkles, Check, TrendingUp, type LucideIcon,
 } from "lucide-react";
-import {
-  currentUser, securityData, gamification, privacyData, accounts,
-} from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
+
 import { formatDate, formatPct } from "@/lib/format";
 import { Badge, ProgressRing, CountUp } from "@/components/shared";
 import { useToast } from "@/hooks/use-toast";
@@ -129,7 +128,7 @@ function ThemeSwitch() {
         className="absolute top-[3px] w-[20px] h-[20px] rounded-full bg-white flex items-center justify-center"
         style={{ left: isDark ? "21px" : "3px", boxShadow: "0 1px 3px rgba(0,0,0,0.18)" }}
       >
-        {mounted && (isDark ? <Moon className="w-3 h-3 text-[var(--accent)]" /> : <Sun className="w-3 h-3 text-[var(--warning)]" />)}
+        {mounted && (isDark ? <Moon className="w-3 h-3 text-accent" /> : <Sun className="w-3 h-3 text-(--warning)" />)}
       </motion.span>
     </button>
   );
@@ -137,6 +136,7 @@ function ThemeSwitch() {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function YouPage() {
+  const { currentUser, securityData, gamification, privacyData, accounts } = useAppData();
   const { toast } = useToast();
   const score = securityData.security_score;
   const scoreColor = securityColor(score);
@@ -165,10 +165,10 @@ export default function YouPage() {
     >
       {/* ── Header ──────────────────────────────────────────────────── */}
       <motion.header variants={item} className="pt-1">
-        <h1 className="font-display font-bold text-[28px] tracking-[-0.02em] text-[var(--foreground)]">
+        <h1 className="font-display font-bold text-[28px] tracking-[-0.02em] text-foreground">
           You
         </h1>
-        <p className="text-[14px] text-[var(--text-secondary)] mt-1">
+        <p className="text-[14px] text-(--text-secondary) mt-1">
           Profile, achievements, and settings
         </p>
       </motion.header>
@@ -198,7 +198,7 @@ export default function YouPage() {
           type="button"
           onClick={() => comingSoon("Profile editing")}
           aria-label="Edit profile"
-          className="absolute top-4 right-4 w-9 h-9 rounded-[10px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--surface-subtle)] transition-colors z-10"
+          className="absolute top-4 right-4 w-9 h-9 rounded-[10px] flex items-center justify-center text-(--text-secondary) hover:text-foreground hover:bg-(--surface-subtle) transition-colors z-10"
         >
           <Pencil className="w-4 h-4" />
         </button>
@@ -222,22 +222,22 @@ export default function YouPage() {
           {/* Identity */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-display font-bold text-[22px] tracking-[-0.01em] text-[var(--foreground)] truncate">
+              <h2 className="font-display font-bold text-[22px] tracking-[-0.01em] text-foreground truncate">
                 {currentUser.displayName}
               </h2>
               <Badge label="Level 4" variant="gold" />
             </div>
-            <div className="flex flex-col gap-0.5 mt-1.5 text-[13px] text-[var(--text-secondary)]">
+            <div className="flex flex-col gap-0.5 mt-1.5 text-[13px] text-(--text-secondary)">
               <span className="flex items-center gap-1.5 truncate">
-                <span className="text-[var(--text-tertiary)] font-mono text-[11px] uppercase tracking-wider">email</span>
+                <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">email</span>
                 <span className="truncate">{currentUser.email}</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="text-[var(--text-tertiary)] font-mono text-[11px] uppercase tracking-wider">phone</span>
+                <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">phone</span>
                 <span>{currentUser.phone || "—"}</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="text-[var(--text-tertiary)] font-mono text-[11px] uppercase tracking-wider">member</span>
+                <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">member</span>
                 <span>Since {formatDate(currentUser.createdAt, { style: "long" })}</span>
               </span>
             </div>
@@ -251,7 +251,7 @@ export default function YouPage() {
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <Award className="w-4 h-4 text-[var(--gold)]" />
-            <h3 className="font-display font-semibold text-[15px] tracking-[-0.01em] text-[var(--foreground)]">
+            <h3 className="font-display font-semibold text-[15px] tracking-[-0.01em] text-foreground">
               Achievements
             </h3>
           </div>
@@ -265,15 +265,15 @@ export default function YouPage() {
             <div className="relative shrink-0">
               <ProgressRing pct={xpPct} size={72} stroke={7} color="var(--gold)" />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-display font-bold text-[18px] leading-none tabular-nums text-[var(--foreground)]">
+                <span className="font-display font-bold text-[18px] leading-none tabular-nums text-foreground">
                   {gamification.level}
                 </span>
-                <span className="font-mono text-[8px] uppercase tracking-wider text-[var(--text-tertiary)] mt-0.5">level</span>
+                <span className="font-mono text-[8px] uppercase tracking-wider text-(--text-tertiary) mt-0.5">level</span>
               </div>
             </div>
             <div className="min-w-0">
-              <p className="font-display font-semibold text-[13px] text-[var(--foreground)] truncate">{gamification.level_name}</p>
-              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 tabular-nums">
+              <p className="font-display font-semibold text-[13px] text-foreground truncate">{gamification.level_name}</p>
+              <p className="text-[11px] text-(--text-tertiary) mt-0.5 tabular-nums">
                 <CountUp value={gamification.xp} format={(v) => Math.round(v).toLocaleString("en-IN")} /> / {gamification.xp_to_next_level.toLocaleString("en-IN")} XP
               </p>
             </div>
@@ -285,13 +285,13 @@ export default function YouPage() {
               className="w-[72px] h-[72px] rounded-full flex items-center justify-center shrink-0"
               style={{ background: "color-mix(in oklab, var(--warning) 14%, transparent)" }}
             >
-              <Flame className="w-8 h-8 text-[var(--warning)]" />
+              <Flame className="w-8 h-8 text-(--warning)" />
             </div>
             <div className="min-w-0">
-              <p className="font-display font-bold text-[22px] leading-none tabular-nums text-[var(--foreground)]">
-                <CountUp value={gamification.tracking_streak_days} /><span className="text-[12px] font-medium text-[var(--text-tertiary)] ml-1">days</span>
+              <p className="font-display font-bold text-[22px] leading-none tabular-nums text-foreground">
+                <CountUp value={gamification.tracking_streak_days} /><span className="text-[12px] font-medium text-(--text-tertiary) ml-1">days</span>
               </p>
-              <p className="text-[11px] text-[var(--text-tertiary)] mt-1.5">Tracking streak · best {gamification.longest_streak_days}d</p>
+              <p className="text-[11px] text-(--text-tertiary) mt-1.5">Tracking streak · best {gamification.longest_streak_days}d</p>
             </div>
           </div>
         </div>
@@ -299,8 +299,8 @@ export default function YouPage() {
         {/* XP bar */}
         <div className="mt-4">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">XP to level {gamification.level + 1}</span>
-            <span className="text-[11px] font-medium text-[var(--text-secondary)] tabular-nums">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-(--text-tertiary)">XP to level {gamification.level + 1}</span>
+            <span className="text-[11px] font-medium text-(--text-secondary) tabular-nums">
               {xpRemaining.toLocaleString("en-IN")} XP to go
             </span>
           </div>
@@ -320,8 +320,8 @@ export default function YouPage() {
 
         {/* Badges */}
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-tertiary)]">Badges</h4>
-          <span className="text-[10px] font-mono text-[var(--text-tertiary)]">{gamification.badges.filter((b) => b.earned).length} of {gamification.badges.length} earned</span>
+          <h4 className="font-mono text-[10px] uppercase tracking-[0.1em] text-(--text-tertiary)">Badges</h4>
+          <span className="text-[10px] font-mono text-(--text-tertiary)">{gamification.badges.filter((b) => b.earned).length} of {gamification.badges.length} earned</span>
         </div>
         <div className="grid grid-cols-6 gap-2">
           {gamification.badges.map((b, i) => (
@@ -339,9 +339,9 @@ export default function YouPage() {
                   boxShadow: b.earned ? "inset 0 0 0 1px color-mix(in oklab, var(--gold) 25%, transparent)" : "inset 0 0 0 1px var(--border-subtle)",
                 }}
               >
-                {b.earned ? b.icon : <Lock className="w-4 h-4 text-[var(--text-tertiary)]" />}
+                {b.earned ? b.icon : <Lock className="w-4 h-4 text-(--text-tertiary)" />}
               </div>
-              <span className={`text-[9.5px] font-medium leading-tight text-center w-full truncate ${b.earned ? "text-[var(--text-secondary)]" : "text-[var(--text-tertiary)]"}`}>
+              <span className={`text-[9.5px] font-medium leading-tight text-center w-full truncate ${b.earned ? "text-(--text-secondary)" : "text-(--text-tertiary)"}`}>
                 {b.name}
               </span>
             </motion.div>
@@ -353,24 +353,24 @@ export default function YouPage() {
 
         {/* Milestones preview */}
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--text-tertiary)]">Milestones</h4>
-          <span className="text-[10px] font-mono text-[var(--text-tertiary)]">{achievedMilestones.length} of {gamification.milestones.length} complete</span>
+          <h4 className="font-mono text-[10px] uppercase tracking-[0.1em] text-(--text-tertiary)">Milestones</h4>
+          <span className="text-[10px] font-mono text-(--text-tertiary)">{achievedMilestones.length} of {gamification.milestones.length} complete</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Latest achieved */}
           {latestAchieved && (
-            <div className="p-3 rounded-[var(--radius-md)] bg-[var(--positive-light)]/40 border border-[var(--border-subtle)]">
+            <div className="p-3 rounded-[var(--radius-md)] bg-[var(--positive-light)]/40 border border-(--border-subtle)">
               <div className="flex items-start gap-2.5">
                 <div
                   className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
                   style={{ background: "color-mix(in oklab, var(--positive) 16%, transparent)" }}
                 >
-                  <Check className="w-4 h-4 text-[var(--positive)]" />
+                  <Check className="w-4 h-4 text-(--positive)" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[var(--foreground)] truncate">{latestAchieved.title}</p>
-                  <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 leading-snug line-clamp-2">{latestAchieved.description}</p>
-                  <p className="text-[10px] font-mono text-[var(--positive)] mt-1.5">
+                  <p className="text-[13px] font-semibold text-foreground truncate">{latestAchieved.title}</p>
+                  <p className="text-[11px] text-(--text-tertiary) mt-0.5 leading-snug line-clamp-2">{latestAchieved.description}</p>
+                  <p className="text-[10px] font-mono text-(--positive) mt-1.5">
                     ✓ {formatDate(latestAchieved.date, { style: "long" })}
                   </p>
                 </div>
@@ -380,14 +380,14 @@ export default function YouPage() {
 
           {/* Next unachieved */}
           {nextMilestone && (
-            <div className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-subtle)]/60 border border-[var(--border-subtle)]">
+            <div className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-subtle)]/60 border border-(--border-subtle)">
               <div className="flex items-start gap-2.5">
                 <div className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0 bg-[var(--surface-subtle)]">
                   <span className="text-[16px]">{nextMilestone.icon}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[var(--foreground)] truncate">{nextMilestone.title}</p>
-                  <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 leading-snug line-clamp-2">{nextMilestone.description}</p>
+                  <p className="text-[13px] font-semibold text-foreground truncate">{nextMilestone.title}</p>
+                  <p className="text-[11px] text-(--text-tertiary) mt-0.5 leading-snug line-clamp-2">{nextMilestone.description}</p>
                   <div className="mt-2 flex items-center gap-2">
                     <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
                       <motion.div
@@ -398,7 +398,7 @@ export default function YouPage() {
                         style={{ background: "var(--accent)" }}
                       />
                     </div>
-                    <span className="text-[10px] font-mono text-[var(--text-tertiary)] tabular-nums shrink-0">
+                    <span className="text-[10px] font-mono text-(--text-tertiary) tabular-nums shrink-0">
                       {nextMilestone.progress}/{nextMilestone.target}
                     </span>
                   </div>
@@ -413,7 +413,7 @@ export default function YouPage() {
           <button
             type="button"
             onClick={() => comingSoon("Full achievements page")}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors"
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:text-(--accent-hover) transition-colors"
           >
             View all achievements
             <ChevronRight className="w-3.5 h-3.5" />
@@ -429,14 +429,14 @@ export default function YouPage() {
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <CountUp
                 value={score}
-                className="font-display font-bold text-[20px] leading-none tabular-nums text-[var(--foreground)]"
+                className="font-display font-bold text-[20px] leading-none tabular-nums text-foreground"
               />
-              <span className="font-mono text-[8px] uppercase tracking-wider text-[var(--text-tertiary)] mt-0.5">/ 100</span>
+              <span className="font-mono text-[8px] uppercase tracking-wider text-(--text-tertiary) mt-0.5">/ 100</span>
             </div>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-display font-semibold text-[15px] text-[var(--foreground)]">Security Score</h3>
+              <h3 className="font-display font-semibold text-[15px] text-foreground">Security Score</h3>
               <span
                 className="text-[11px] font-mono uppercase tracking-wider font-semibold"
                 style={{ color: scoreColor }}
@@ -444,24 +444,24 @@ export default function YouPage() {
                 Strong
               </span>
             </div>
-            <p className="text-[12px] text-[var(--text-tertiary)] mt-1">
+            <p className="text-[12px] text-(--text-tertiary) mt-1">
               {securityData.two_factor_enabled ? "2FA enabled · 2 active sessions" : "Enable 2FA to improve"}
             </p>
             {securityData.two_factor_enabled && (
-              <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold bg-[var(--positive-light)] text-[var(--positive)]">
+              <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold bg-[var(--positive-light)] text-(--positive)">
                 <ShieldCheck className="w-3 h-3" />
                 2FA on
               </span>
             )}
           </div>
-          <ChevronRight className="w-5 h-5 text-[var(--text-tertiary)] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+          <ChevronRight className="w-5 h-5 text-(--text-tertiary) shrink-0 group-hover:translate-x-0.5 transition-transform" />
         </Link>
       </motion.section>
 
       {/* ── Settings Groups ─────────────────────────────────────────── */}
       {SETTING_GROUPS.map((group) => (
         <motion.section key={group.title} variants={item} aria-label={group.title}>
-          <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--text-tertiary)] mb-2.5 px-1">
+          <h2 className="font-mono text-[10px] uppercase tracking-[0.12em] text-(--text-tertiary) mb-2.5 px-1">
             {group.title}
           </h2>
           <div className="premium-card overflow-hidden">
@@ -474,27 +474,27 @@ export default function YouPage() {
                     className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
                     style={{ background: "var(--surface-subtle)" }}
                   >
-                    <Icon className="w-4 h-4 text-[var(--text-secondary)]" />
+                    <Icon className="w-4 h-4 text-(--text-secondary)" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-medium text-[var(--foreground)]">{row.label}</p>
-                    <p className="text-[12px] text-[var(--text-tertiary)] mt-0.5 leading-snug">{row.desc}</p>
+                    <p className="text-[14px] font-medium text-foreground">{row.label}</p>
+                    <p className="text-[12px] text-(--text-tertiary) mt-0.5 leading-snug">{row.desc}</p>
                   </div>
                   {row.value && !row.toggle && (
-                    <span className="text-[12px] font-medium text-[var(--text-secondary)] tabular-nums shrink-0">
+                    <span className="text-[12px] font-medium text-(--text-secondary) tabular-nums shrink-0">
                       {row.value}
                     </span>
                   )}
                   {row.toggle === "theme" ? (
                     <ThemeSwitch />
                   ) : (
-                    <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+                    <ChevronRight className="w-4 h-4 text-(--text-tertiary) shrink-0" />
                   )}
                 </>
               );
 
-              const cls = `flex items-center gap-3 p-4 transition-colors hover:bg-[var(--surface-subtle)]/60 ${
-                isLast ? "" : "border-b border-[var(--border-subtle)]"
+              const cls = `flex items-center gap-3 p-4 transition-colors hover:bg-(--surface-subtle)/60 ${
+                isLast ? "" : "border-b border-(--border-subtle)"
               }`;
 
               if (row.href) {
@@ -527,12 +527,12 @@ export default function YouPage() {
         <button
           type="button"
           onClick={() => toast({ title: "Signed out", description: "You've been signed out (mock)." })}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] text-[14px] font-medium text-[var(--negative)] hover:bg-[var(--negative-light)] transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] text-[14px] font-medium text-(--negative) hover:bg-(--negative-light) transition-colors"
         >
           <LogOut className="w-4 h-4" />
           Sign Out
         </button>
-        <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-(--text-tertiary)">
           FinCopilot · App version v78.0
         </p>
       </motion.section>

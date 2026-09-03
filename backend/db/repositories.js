@@ -1,5 +1,18 @@
 import { dbClient } from './client.js';
 
+export const AuditRepo = {
+    async logEvent(event_type, entity_type, entity_id, actor, metadata) {
+        // if tenant_id doesn't exist in audit_events schema, we can ignore it or add it
+        // wait, 004 doesn't have tenant_id. Let's just pass actor as user id
+        const res = await dbClient.query(`
+            INSERT INTO audit_events (event_type, entity_type, entity_id, actor, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *;
+        `, [event_type, entity_type, entity_id, actor, metadata]);
+        return res.rows[0];
+    }
+};
+
 export const ConsentRepo = {
     async saveConsent({ user_id, consent_type, version, ip_hash, user_agent, granted_at }) {
         const text = `
@@ -21,6 +34,44 @@ export const ConsentRepo = {
         return res.rows[0] || null;
     },
 
+    async trackPendingConsent(user_id, consent_type, consent_handle) {
+        const text = `
+            INSERT INTO consent_records (user_id, consent_type, consent_handle, status, version, consented, granted_at)
+            VALUES ($1, $2, $3, 'pending', 'v1', false, NOW())
+            RETURNING *;
+        `;
+        const res = await dbClient.query(text, [user_id, consent_type, consent_handle]);
+        return res.rows[0];
+    },
+
+    async getConsentByHandle(consent_handle) {
+        const text = `SELECT * FROM consent_records WHERE consent_handle = $1 LIMIT 1;`;
+        const res = await dbClient.query(text, [consent_handle]);
+        return res.rows[0] || null;
+    },
+
+    async activateConsent(id, consentId) {
+        const text = `
+            UPDATE consent_records 
+            SET status = 'active', consent_id = $2, consented = true, granted_at = NOW()
+            WHERE consent_id = $1 OR id = $1
+            RETURNING *;
+        `;
+        const res = await dbClient.query(text, [id, consentId]);
+        return res.rows[0];
+    },
+
+    async revokeConsentById(id, revokedAt) {
+        const text = `
+            UPDATE consent_records 
+            SET revoked_at = $2, status = 'revoked'
+            WHERE consent_id = $1 OR id = $1
+            RETURNING *;
+        `;
+        const res = await dbClient.query(text, [id, revokedAt]);
+        return res.rows[0] || null;
+    },
+
     async revokeConsent(userId, policyId, revokedAt) {
         const text = `
             UPDATE consent_records 
@@ -33,23 +84,7 @@ export const ConsentRepo = {
     }
 };
 
-export const AuditRepo = {
-    async logEvent(eventType, entityType, entityId, actor, metadata = {}) {
-        const text = `
-            INSERT INTO audit_events (event_type, entity_type, entity_id, actor, metadata)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *;
-        `;
-        const values = [eventType, entityType, entityId, actor, JSON.stringify(metadata)];
-        try {
-            const res = await dbClient.query(text, values);
-            return res.rows[0];
-        } catch (error) {
-            console.error('[AUDIT_REPO] Failed to log audit event:', error);
-            return null;
-        }
-    }
-};
+
 
 export const IngestionRepo = {
     /**
@@ -97,6 +132,11 @@ export const IngestionRepo = {
     async getImportJob(job_id) {
         const res = await dbClient.query(`SELECT * FROM import_jobs WHERE job_id = $1`, [job_id]);
         return res.rows[0];
+    },
+
+    async getJobByFileRef(file_ref) {
+        const res = await dbClient.query(`SELECT * FROM import_jobs WHERE file_ref = $1 LIMIT 1`, [file_ref]);
+        return res.rows[0] || null;
     },
 
     async updateImportJobStatus(job_id, status, last_error = null) {
