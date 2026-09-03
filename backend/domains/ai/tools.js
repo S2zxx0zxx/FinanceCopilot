@@ -62,16 +62,18 @@ export class ToolExecutor {
             }
             case 'affordability': {
                 // R-007/R-017: True Database Lookup, NO MOCKS
+                // NOTE: SafeToSpendEngine returns `safe_to_spend_paise`, not `safe_balance_paise`.
                 const stsResult = await SafeToSpendEngine.calculateAndSnapshot(userId);
                 const purchaseAmount = args?.amount ? Number(args.amount) : 0;
-                
-                return { 
-                    success: true, 
+                const safeToSpend = stsResult.safe_to_spend_paise ?? 0;
+
+                return {
+                    success: true,
                     data: {
                         ...stsResult,
                         purchase_amount: purchaseAmount,
-                        is_affordable: stsResult.safe_balance_paise >= purchaseAmount,
-                        remaining_balance_after_purchase: stsResult.safe_balance_paise - purchaseAmount
+                        is_affordable: safeToSpend >= purchaseAmount,
+                        remaining_balance_after_purchase: safeToSpend - purchaseAmount
                     }
                 };
             }

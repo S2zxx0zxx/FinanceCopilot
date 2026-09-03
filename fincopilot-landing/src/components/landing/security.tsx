@@ -7,13 +7,6 @@ import { getIcon } from "@/lib/icon-map";
 import { SectionHeading } from "@/components/bits/section-heading";
 import { GlassCard } from "@/components/bits/glass-card";
 
-const badgeGlyphs: Record<string, string> = {
-  "SOC 2 Type II": "SOC2",
-  "ISO 27001": "ISO",
-  "AES-256": "AES",
-  "Setu AA": "P",
-};
-
 export function Security() {
   return (
     <section id="security" className="py-20 md:py-28 scroll-mt-20 bg-[var(--bg-aurora-1)]/30">

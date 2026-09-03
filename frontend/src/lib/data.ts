@@ -549,15 +549,17 @@ export const securityData = {
   ],
 };
 
-// ── Cashflow (12 months) ──────────────────────────────────────────────────────────
-
+// ── Cashflow (12 months) ──────────────────────────────────────────────────────
+// Deterministic (no Math.random) — values stable across builds.
+const CASHFLOW_SEED = [82000, 87000, 91000, 84000, 93000, 88000, 95000, 89000, 92000, 98000, 91000, 102000];
+const CASHFLOW_EXPENSE = [34000, 38000, 41000, 35000, 44000, 39000, 46000, 40000, 43000, 49000, 42000, 51000];
 export const cashflowData = Array.from({ length: 12 }, (_, i) => {
   const monthDate = new Date(now);
   monthDate.setMonth(monthDate.getMonth() - (11 - i));
   return {
     month: monthDate.toLocaleString("en-IN", { month: "short" }),
-    income: 80000 + Math.round(Math.random() * 10000) + (i === 11 ? 5000 : 0),
-    expense: 30000 + Math.round(Math.random() * 8000),
+    income: CASHFLOW_SEED[i],
+    expense: CASHFLOW_EXPENSE[i],
   };
 });
 
@@ -668,7 +670,7 @@ export const notifications: Notification[] = [
 export const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
 // ── Net Worth History (12 months) ──────────────────────────────────────────────
-
+// Deterministic (no Math.random) — values stable across builds.
 export const netWorthHistory = Array.from({ length: 12 }, (_, i) => {
   const monthDate = new Date(now);
   monthDate.setMonth(monthDate.getMonth() - (11 - i));

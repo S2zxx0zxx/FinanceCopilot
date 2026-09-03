@@ -6,9 +6,9 @@
 #     (0) ?XTransformPort=<port> → reverse-proxy to localhost:<port>  [sandbox mini-services]
 #     (1) /app/api/*  → backend (Node, :3001)  [app's own backend API if separate]
 #     (2) /api/v1/*   → backend (Node, :3001)  [app's API — has /auth/config, /financial-state/*, etc.]
-#     (3) /api/session, /api/cta, /api/health → landing (Next.js, :3000)  [landing's own bridge routes]
+#     (3) /api/session, /api/cta, /api/health → landing (Next.js, :3002)  [landing's own bridge routes]
 #     (4) /app/*     → backend (Node, :3001)  [backend serves the SPA via express.static + catch-all]
-#     (5) /*         → landing (Next.js, :3000)  [marketing page]
+#     (5) /*         → landing (Next.js, :3002)  [marketing page]
 #
 # Why /app/* → backend (not file_server):
 #   The backend already has `express.static(frontendPath)` + SPA catch-all `app.get('*')`.
@@ -76,11 +76,11 @@
         }
     }
 
-    # ── (3) Landing's bridge API routes — landing (Next.js :3000) ──
+    # ── (3) Landing's bridge API routes — landing (Next.js :3002) ──
     # /api/session, /api/cta, /api/health (NOT /api/v1/*)
     @landingApi path /api/session /api/cta /api/health /api/session/* /api/cta/* /api/health/*
     handle @landingApi {
-        reverse_proxy localhost:3000 {
+        reverse_proxy localhost:3002 {
             header_up Host {host}
             header_up X-Forwarded-For {remote_host}
             header_up X-Forwarded-Proto {scheme}
@@ -111,9 +111,9 @@
         }
     }
 
-    # ── (5) Everything else → landing (Next.js :3000) ──
+    # ── (5) Everything else → landing (Next.js :3002) ──
     handle {
-        reverse_proxy localhost:3000 {
+        reverse_proxy localhost:3002 {
             header_up Host {host}
             header_up X-Forwarded-For {remote_host}
             header_up X-Forwarded-Proto {scheme}

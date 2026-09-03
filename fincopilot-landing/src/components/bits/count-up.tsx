@@ -51,12 +51,13 @@ export function CountUp({
   if (format === "text") {
     text = String(value);
   } else if (format === "currency") {
+    // ₹ INR — Indian number system (lakh/crore), never $.
     const v = display;
-    if (v >= 1000000000) text = (v / 1000000000).toFixed(1) + "B";
-    else if (v >= 1000000) text = (v / 1000000).toFixed(1) + "M";
-    else if (v >= 1000) text = Math.round(v).toLocaleString();
-    else text = v.toFixed(dec);
-    text = "$" + text;
+    if (v >= 1000000000) text = "₹" + (v / 1000000000).toFixed(1) + "B";
+    else if (v >= 10000000) text = "₹" + (v / 10000000).toFixed(2) + "Cr";
+    else if (v >= 100000) text = "₹" + (v / 100000).toFixed(2) + "L";
+    else if (v >= 1000) text = "₹" + Math.round(v).toLocaleString("en-IN");
+    else text = "₹" + v.toFixed(dec);
   } else if (format === "percent") {
     text = display.toFixed(dec) + "%";
   } else {

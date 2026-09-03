@@ -5,6 +5,31 @@
 // Currency values are realistic for an Indian personal-finance user.
 // ============================================================================
 
+// ── Type exports (consumed by bits/insight-card.tsx + bits/chat-demo.tsx) ──
+
+export type InsightCardType = "insight" | "forecast" | "action" | "alert";
+
+export interface ChatCard {
+  type: InsightCardType;
+  metric?: string;
+  delta?: string;
+  chart?: "mini-bar" | "forecast" | "list" | "alert";
+  action?: string;
+  list?: { emoji: string; name: string; price: string }[];
+  confidence?: number;
+}
+
+export interface InsightCardData {
+  type: InsightCardType;
+  title: string;
+  metric: string;
+  delta?: string;
+  chart: "mini-bar" | "forecast" | "list" | "alert";
+  action: string;
+  list?: { emoji: string; name: string; price: string }[];
+  confidence?: number;
+}
+
 export const chatExamples = [
   {
     q: "How much did I spend on dining out last month?",

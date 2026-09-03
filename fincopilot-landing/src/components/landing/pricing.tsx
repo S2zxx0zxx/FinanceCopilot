@@ -6,7 +6,6 @@ import { Check, ArrowRight } from "lucide-react";
 import { pricingTiers } from "@/lib/landing-data";
 import { SectionHeading } from "@/components/bits/section-heading";
 import { GlassCard } from "@/components/bits/glass-card";
-import { MagneticButton } from "@/components/bits/magnetic-button";
 import { cn } from "@/lib/utils";
 
 export function Pricing() {

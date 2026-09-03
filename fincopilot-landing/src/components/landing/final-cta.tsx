@@ -17,9 +17,9 @@ export function FinalCTA() {
             key={i}
             className="absolute w-1 h-1 rounded-full bg-[var(--accent)]"
             style={{
-              left: `₹{(i * 8.5) % 100}%`,
+              left: `${(i * 8.5) % 100}%`,
               bottom: "10%",
-              animation: `particle-drift ₹{6 + (i % 4)}s ease-in-out ₹{i * 0.5}s infinite`,
+              animation: `particle-drift ${6 + (i % 4)}s ease-in-out ${i * 0.5}s infinite`,
             }}
           />
         ))}

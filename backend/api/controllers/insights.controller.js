@@ -27,8 +27,8 @@ export class InsightsController {
                 `SELECT COALESCE(SUM(ABS(amount_paise)), 0) as income_paise
                  FROM transactions
                  WHERE user_id = $1 AND direction = 'credit'
-                   AND posting_date >= date_trunc('month', NOW())
-                   AND posting_date < date_trunc('month', NOW()) + INTERVAL '1 month'
+                   AND observed_at >= date_trunc('month', NOW())
+                   AND observed_at < date_trunc('month', NOW()) + INTERVAL '1 month'
                    AND duplicate_status != 'duplicate' AND is_deleted = false`,
                 [userId]
             );
@@ -36,8 +36,8 @@ export class InsightsController {
                 `SELECT COALESCE(SUM(ABS(amount_paise)), 0) as spend_paise
                  FROM transactions
                  WHERE user_id = $1 AND direction = 'debit'
-                   AND posting_date >= date_trunc('month', NOW())
-                   AND posting_date < date_trunc('month', NOW()) + INTERVAL '1 month'
+                   AND observed_at >= date_trunc('month', NOW())
+                   AND observed_at < date_trunc('month', NOW()) + INTERVAL '1 month'
                    AND duplicate_status != 'duplicate' AND is_deleted = false`,
                 [userId]
             );
@@ -54,14 +54,15 @@ export class InsightsController {
             );
             const subCount = parseInt(subsResult.rows[0].sub_count, 10);
 
-            // Dining spend percentage
+            // Dining spend percentage — join categories (transactions use category_id, not text)
             const diningResult = await dbClient.query(
-                `SELECT COALESCE(SUM(ABS(amount_paise)), 0) as dining_paise
-                 FROM transactions
-                 WHERE user_id = $1 AND direction = 'debit'
-                   AND category = 'Dining'
-                   AND posting_date >= date_trunc('month', NOW())
-                   AND duplicate_status != 'duplicate' AND is_deleted = false`,
+                `SELECT COALESCE(SUM(ABS(t.amount_paise)), 0) as dining_paise
+                 FROM transactions t
+                 LEFT JOIN categories c ON c.category_id = t.category_id
+                 WHERE t.user_id = $1 AND t.direction = 'debit'
+                   AND LOWER(COALESCE(c.name, '')) = 'dining'
+                   AND t.observed_at >= date_trunc('month', NOW())
+                   AND t.duplicate_status != 'duplicate' AND t.is_deleted = false`,
                 [userId]
             );
             const diningPct = incomePaise > 0
@@ -236,15 +237,15 @@ export class InsightsController {
             const monthlyData = await dbClient.query(
                 `WITH monthly AS (
                     SELECT
-                        date_trunc('month', posting_date) as month_start,
+                        date_trunc('month', observed_at) as month_start,
                         COALESCE(SUM(CASE WHEN direction = 'credit' THEN amount_paise ELSE 0 END), 0)
                           - COALESCE(SUM(CASE WHEN direction = 'debit' THEN ABS(amount_paise) ELSE 0 END), 0) as net_change
                     FROM transactions
                     WHERE user_id = $1
-                      AND posting_date >= NOW() - INTERVAL '12 months'
+                      AND observed_at >= NOW() - INTERVAL '12 months'
                       AND duplicate_status != 'duplicate'
                       AND is_deleted = false
-                    GROUP BY date_trunc('month', posting_date)
+                    GROUP BY date_trunc('month', observed_at)
                     ORDER BY month_start ASC
                 )
                 SELECT month_start, SUM(net_change) OVER (ORDER BY month_start) as cumulative_net_worth

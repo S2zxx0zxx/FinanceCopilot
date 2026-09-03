@@ -122,19 +122,22 @@ export class BudgetsController {
     static async recalculateSpent(req, res, next) {
         try {
             const userId = req.user.userId;
-            // For each active budget, sum transactions in that category for current month
+            // For each active budget, sum transactions in that category for current month.
+            // Schema: transactions.category_id → categories.slug/name; transactions.observed_at (not posting_date).
+            // We match budgets.category (text) to categories.name (case-insensitive).
             const query = `
                 UPDATE budgets b
                 SET spent_paise = COALESCE((
                     SELECT COALESCE(SUM(ABS(t.amount_paise)), 0)
                     FROM transactions t
+                    LEFT JOIN categories c ON c.category_id = t.category_id
                     WHERE t.user_id = $1
                       AND t.direction = 'debit'
                       AND t.duplicate_status != 'duplicate'
                       AND t.is_deleted = false
-                      AND t.category = b.category
-                      AND t.posting_date >= date_trunc('month', NOW())
-                      AND t.posting_date < date_trunc('month', NOW()) + INTERVAL '1 month'
+                      AND LOWER(COALESCE(c.name, '')) = LOWER(b.category)
+                      AND t.observed_at >= date_trunc('month', NOW())
+                      AND t.observed_at < date_trunc('month', NOW()) + INTERVAL '1 month'
                 ), 0),
                 updated_at = NOW()
                 WHERE b.user_id = $1 AND b.is_active = true

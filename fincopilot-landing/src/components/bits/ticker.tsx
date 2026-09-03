@@ -24,10 +24,9 @@ export function Ticker({ className }: TickerProps) {
           <div key={i} className="flex items-center gap-2 text-[12px] font-mono">
             <span className="text-[var(--text-secondary)]">{it.symbol}</span>
             <span
-              className={it.change >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}
+              className={it.up ? "text-[var(--success)]" : "text-[var(--danger)]"}
             >
-              {it.change >= 0 ? "+" : ""}
-              {it.change.toFixed(2)}%
+              {it.change}
             </span>
           </div>
         ))}

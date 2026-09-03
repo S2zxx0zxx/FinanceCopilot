@@ -209,7 +209,7 @@ export const api = {
     apiFetch("/trust/privacy/consent", { method: "POST", body: JSON.stringify(data) }),
   getSecuritySessions: () => apiFetch("/trust/security/sessions"),
   revokeSession: (id: string) =>
-    apiFetch(`/auth/security/sessions/revoke`, { method: "POST", body: JSON.stringify({ session_id: id }) }),
+    apiFetch(`/trust/security/sessions/revoke`, { method: "POST", body: JSON.stringify({ session_id: id }) }),
   requestExport: (format?: string) =>
     apiFetch("/trust/export", { method: "POST", body: JSON.stringify({ format: format || "csv" }) }),
   requestDeletion: () =>

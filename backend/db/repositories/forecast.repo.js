@@ -60,13 +60,20 @@ export const ForecastRepo = {
     
     /**
      * Retrieve recent evaluation metrics.
+     * NOTE: forecast_evaluations has no user_id column (per migration 010).
+     * We filter by the model_ids that the user has snapshots for, so a user only
+     * sees evaluations for models that produced their forecasts.
      */
     async getRecentEvaluations(userId) {
         const query = `
-            SELECT fe.*, fm.model_type 
+            SELECT fe.*, fm.model_type
             FROM forecast_evaluations fe
             JOIN forecast_models fm ON fe.model_id = fm.model_id
-            WHERE fe.user_id = $1
+            WHERE fe.model_id IN (
+                SELECT DISTINCT fs.model_id
+                FROM forecast_snapshots fs
+                WHERE fs.user_id = $1 AND fs.model_id IS NOT NULL
+            )
             ORDER BY fe.created_at DESC LIMIT 50
         `;
         const res = await dbClient.query(query, [userId]);

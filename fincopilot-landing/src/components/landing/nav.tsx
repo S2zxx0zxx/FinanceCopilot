@@ -6,7 +6,6 @@ import { useTheme } from "next-themes";
 import { motion, useMotionValueEvent, useScroll } from "framer-motion";
 import { Menu, Moon, Sun, X, ShieldCheck } from "lucide-react";
 import { navLinks } from "@/lib/landing-data";
-import { MagneticButton } from "@/components/bits/magnetic-button";
 import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/nextjs";
 import {
   Sheet,

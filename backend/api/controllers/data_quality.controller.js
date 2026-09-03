@@ -5,16 +5,17 @@ export class DataQualityController {
         try {
             const db = dbClient;
             
-            // This endpoint aggregates connection health, sync failures, and freshness
-            // to satisfy Phase 13 Data Quality Dashboard requirements (Section 45).
+            // Aggregate connection health from source_connections (schema table).
+            // Schema: source_connections has status + created_at; financial_accounts has last_synced_at.
             const { rows: connections } = await db.query(`
-                SELECT 
-                    status,
+                SELECT
+                    sc.status,
                     COUNT(*) as count,
-                    MAX(last_sync) as latest_sync
-                FROM user_connections
-                WHERE user_id = $1
-                GROUP BY status
+                    MAX(fa.last_synced_at) as latest_sync
+                FROM source_connections sc
+                LEFT JOIN financial_accounts fa ON fa.connection_id = sc.connection_id
+                WHERE sc.user_id = $1
+                GROUP BY sc.status
             `, [req.user.userId]);
 
             res.json({

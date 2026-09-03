@@ -224,22 +224,22 @@ export class TransactionsController {
 
                 const remainder = originalTx.amount_paise - amount_paise;
 
-                // Update original
+                // Update original — schema has merchant_raw (not merchant_original), no is_split column, observed_at (not posting_date)
                 await client.query(
-                    `UPDATE transactions SET amount_paise = $1, transaction_type = $2, is_split = true WHERE transaction_id = $3`,
+                    `UPDATE transactions SET amount_paise = $1, transaction_type = $2 WHERE transaction_id = $3`,
                     [remainder, category1 || originalTx.transaction_type, txId]
                 );
 
-                // Insert split part
+                // Insert split part — uses merchant_raw (schema column), drops non-existent is_split
                 const insertResult = await client.query(
                     `INSERT INTO transactions (
                         user_id, account_id, amount_paise, direction, currency,
-                        observed_at, merchant_original, merchant_normalized, transaction_type,
-                        posting_status, duplicate_status, is_split
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true) RETURNING *`,
+                        observed_at, merchant_raw, merchant_normalized, transaction_type,
+                        posting_status, duplicate_status
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
                     [
                         userId, originalTx.account_id, amount_paise, originalTx.direction, originalTx.currency,
-                        originalTx.observed_at, originalTx.merchant_original, merchant_normalized || originalTx.merchant_normalized,
+                        originalTx.observed_at, originalTx.merchant_raw, merchant_normalized || originalTx.merchant_normalized,
                         category2 || originalTx.transaction_type, originalTx.posting_status, originalTx.duplicate_status
                     ]
                 );

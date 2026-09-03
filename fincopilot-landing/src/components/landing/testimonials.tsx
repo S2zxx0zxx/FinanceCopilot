@@ -33,7 +33,7 @@ export function Testimonials() {
                   </span>
                 </div>
                 <span className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)]">
-                  {t.metricLabel}
+                  {t.label}
                 </span>
                 <p className="text-[14px] text-[var(--text-secondary)] italic leading-[1.55] flex-1">
                   "{t.quote}"
@@ -42,13 +42,13 @@ export function Testimonials() {
                   {/* eslint-disable-next-line @next/next/no-img-element -- avatars are static local files */}
                   <img
                     src={t.avatar}
-                    alt={`${t.name}, ${t.role}`}
+                    alt={`${t.author}, ${t.role}`}
                     width={36}
                     height={36}
                     className="w-9 h-9 rounded-full object-cover shrink-0 border border-[var(--border)]"
                   />
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-[13px] font-semibold text-[var(--text)] truncate">{t.name}</span>
+                    <span className="text-[13px] font-semibold text-[var(--text)] truncate">{t.author}</span>
                     <span className="text-[11px] text-[var(--text-muted)] truncate">{t.role}</span>
                   </div>
                   <div className="ml-auto flex gap-0.5">
