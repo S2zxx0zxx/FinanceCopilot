@@ -95,10 +95,10 @@ const rateLimitMiddleware = async (req, res, next) => {
 
             // Fetch available insights
             const { rows: insights } = await db.query(
-                `SELECT insight_id, title, category, confidence, created_at
+                `SELECT insight_id, title, tags, confidence, generated_at
                  FROM ai_insights
                  WHERE user_id = $1 AND status = 'ACTIVE'
-                 ORDER BY created_at DESC LIMIT 5`,
+                 ORDER BY generated_at DESC LIMIT 5`,
                 [userId]
             );
 
@@ -112,9 +112,9 @@ const rateLimitMiddleware = async (req, res, next) => {
                 insights: insights.map(i => ({
                     id: i.insight_id,
                     title: i.title,
-                    category: i.category,
+                    category: i.tags && i.tags.length > 0 ? i.tags[0] : 'Insight',
                     confidence: i.confidence,
-                    createdAt: i.created_at
+                    createdAt: i.generated_at
                 })),
                 suggestions: [
                     { prompt: 'How am I doing this month?', route: '/ai/chat?q=monthly+review' },

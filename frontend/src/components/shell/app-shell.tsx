@@ -51,8 +51,8 @@ function ThemeToggle() {
 
 function NotificationBell() {
   const { notifications } = useAppData();
-  const notifData = notifications || [];
-  const unreadNotificationsCount = notifData.filter(n => !n.read).length;
+  const notifData = Array.isArray(notifications) ? notifications : (notifications?.notifications || []);
+  const unreadNotificationsCount = notifData.filter((n: any) => !n.read && !n.is_read).length;
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
 

@@ -59,7 +59,7 @@ async function apiFetch<T>(
       window.location.hostname === "127.0.0.1");
   if (isDev && !token) {
     headers["X-Dev-Bypass"] = "true";
-    headers["X-Dev-User-Id"] = "dev-test-user";
+    headers["X-Dev-User-Id"] = "seed_user";
   }
 
   const url = endpoint.startsWith("http")
@@ -177,7 +177,7 @@ export const api = {
 
   // ── Notifications ────────────────────────────────────────────────────────────
   getNotifications: (unreadOnly?: boolean) =>
-    apiFetch(`/notifications${unreadOnly ? "?unread_only=true" : ""}`),
+    apiFetch(`/notifications${unreadOnly ? "?unread_only=true" : ""}`).then((res: any) => res.notifications),
   markNotificationRead: (id: string) =>
     apiFetch(`/notifications/${id}/read`, { method: "PUT" }),
   markAllNotificationsRead: () =>

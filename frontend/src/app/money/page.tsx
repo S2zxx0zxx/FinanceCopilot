@@ -9,10 +9,11 @@ import { Sparkline } from "@/components/charts/sparkline";
 import { useAppData } from "@/hooks/use-app-data";
 import { bankCardGradients } from "@/lib/merchant-data";
 import { formatPaise, formatDate } from "@/lib/format";
+import { netWorthHistory as fallbackNetWorthHistory } from "@/lib/data";
 
 // ── 3D Currency Note Card ─────────────────────────────────────────────────
 function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; posted: number; pending: number }) {
-  const { netWorthHistory, financialStateMoney } = useAppData();
+  const { netWorthHistory = fallbackNetWorthHistory, financialStateMoney } = useAppData();
   const [showDetails, setShowDetails] = React.useState(false);
   return (
     <motion.div
@@ -146,7 +147,7 @@ function BankCard3D({ account }: { account: typeof accounts[0] }) {
 }
 
 export default function MoneyPage() {
-  const { accounts, financialStateMoney, netWorthHistory } = useAppData();
+  const { accounts, financialStateMoney, netWorthHistory = fallbackNetWorthHistory } = useAppData();
   const net = financialStateMoney.net_position;
 
   return (

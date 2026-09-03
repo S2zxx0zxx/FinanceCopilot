@@ -161,7 +161,7 @@ export function setupRoutes(app, dependencies) {
     // ── Auth Profile & Security (frontend expects /auth/* paths) ─────────────
     router.get('/auth/me',                              requireAuth, async (req, res, next) => {
         try {
-            const { dbClient } = await import('../../db/client.js');
+            const { dbClient } = await import('../db/client.js');
             const { rows } = await dbClient.query(
                 'SELECT user_id, email, display_name, created_at FROM users WHERE user_id = $1',
                 [req.user.id]
@@ -173,7 +173,7 @@ export function setupRoutes(app, dependencies) {
 
     router.post('/auth/onboarding-complete',           requireAuth, async (req, res, next) => {
         try {
-            const { dbClient } = await import('../../db/client.js');
+            const { dbClient } = await import('../db/client.js');
 
             await dbClient.query(
                 'UPDATE users SET onboarding_done = true, onboarding_step = \'completed\', updated_at = NOW() WHERE user_id = $1',
@@ -215,8 +215,8 @@ export function setupRoutes(app, dependencies) {
     // ── Liabilities (frontend calls /financial/liabilities) ───────────────────
     router.get('/financial/liabilities',                requireAuth, async (req, res, next) => {
         try {
-            const { dbClient } = await import('../../db/client.js');
-            const { FinancialStateRepo } = await import('../../db/repositories/financial_state.repo.js');
+            const { dbClient } = await import('../db/client.js');
+            const { FinancialStateRepo } = await import('../db/repositories/financial_state.repo.js');
             const { rows } = await dbClient.query(
                 `SELECT account_id, institution_name as account_name, account_type
                  FROM financial_accounts

@@ -50,7 +50,7 @@ app.use(helmet({
 app.use(cors({
     origin: process.env.CORS_ORIGIN || '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-dev-user-id', 'x-dev-bypass']
 }));
 
 // 3. Body Parsing & Size Limits
