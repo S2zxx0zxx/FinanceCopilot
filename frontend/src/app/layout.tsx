@@ -1,20 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/components/ui/toaster";
-import { AppShell } from "@/components/shell/app-shell";
+import { Providers } from "@/components/providers";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-display",
   subsets: ["latin"],
@@ -24,29 +14,17 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "FinCopilot — AI Financial Life Manager",
-  description:
-    "Your AI co-pilot for money. Track spending, budget smarter, forecast cash flow, and chat with your finances — all in one beautiful place.",
-  keywords: [
-    "personal finance",
-    "AI financial advisor",
-    "budget tracker",
-    "net worth",
-    "expense tracker",
-    "cash flow forecast",
-    "Indian finance",
-  ],
+  description: "Your AI co-pilot for money. Track spending, budget smarter, forecast cash flow, and chat with your finances — all in one beautiful place.",
+  keywords: ["personal finance", "AI financial advisor", "budget tracker", "net worth", "Indian finance"],
   authors: [{ name: "FinCopilot, Inc." }],
-  icons: {
-    icon: "/favicon.svg",
-    apple: "/apple-touch-icon.png",
-  },
+  icons: { icon: "/favicon.svg", apple: "/apple-touch-icon.png" },
   openGraph: {
     title: "FinCopilot — AI Financial Life Manager",
-    description: "Your AI co-pilot for money. Track spending, budget smarter, forecast cash flow.",
+    description: "Your AI co-pilot for money.",
     type: "website",
     locale: "en_IN",
     siteName: "FinCopilot",
-    images: [{ url: "/og-cover.png", width: 1344, height: 768, alt: "FinCopilot — AI Financial Life Manager" }],
+    images: [{ url: "/og-cover.png", width: 1344, height: 768, alt: "FinCopilot" }],
   },
   twitter: {
     card: "summary_large_image",
@@ -58,23 +36,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} antialiased bg-[var(--background)] text-[var(--foreground)]`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
-          <AppShell>{children}</AppShell>
-          <Toaster />
-        </ThemeProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

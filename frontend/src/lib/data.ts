@@ -708,3 +708,19 @@ export const calendarEvents = [
   { id: "cal6", date: daysAhead(28), title: "Netflix", amount_paise: 649, type: "subscription", severity: "low" },
   { id: "cal7", date: daysAhead(29), title: "Salary Credit", amount_paise: 8500000, type: "income", severity: "positive" },
 ];
+
+// ── Chat Examples (for AI chat page placeholder suggestions) ──────────────────
+export const chatExamples = [
+  { q: "How much did I spend on dining out last month?", a: "₹8,450 across 23 transactions. That's 22% above your 3-month average.", card: { type: "insight", metric: "₹8,450", delta: "+22%", action: "Set a budget" } },
+  { q: "Can I afford a ₹40,000 vacation in August?", a: "Yes — with 92% confidence. At your current saving rate, you'll have enough.", card: { type: "forecast", metric: "Aug 14", confidence: 92, action: "Create goal" } },
+  { q: "What subscriptions am I paying for that I don't use?", a: "I found 3 subscriptions with no activity in 90 days — totaling ₹2,400/month.", card: { type: "action", action: "Cancel all" } },
+  { q: "Find me ₹5,000 I can save this month.", a: "Three opportunities: dining budget adherence, unused subs, phone plan.", card: { type: "insight", metric: "₹5,000", action: "Apply all" } },
+];
+
+export const chatPlaceholders = [
+  "Ask about your spending...",
+  "How am I doing this month?",
+  "Can I afford that purchase?",
+  "Find my money leaks...",
+  "What's my 30-day outlook?",
+];
