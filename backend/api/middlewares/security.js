@@ -28,15 +28,21 @@ import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
 
 export const requireAuth = [
     (req, res, next) => {
-        // Dev bypass
-        if (req.headers['x-dev-bypass'] === 'true' && req.headers['x-dev-user-id']) {
-            req.user = { id: 1, userId: 1, clerkId: req.headers['x-dev-user-id'] }; // Mock user ID 1 for seed_user usually
+        // Dev bypass — ONLY allowed in non-production environments.
+        // In production this header is completely ignored.
+        const isDevBypass = process.env.NODE_ENV !== 'production'
+            && req.headers['x-dev-bypass'] === 'true'
+            && req.headers['x-dev-user-id'];
+        if (isDevBypass) {
+            req.user = { id: 1, userId: 1, clerkId: req.headers['x-dev-user-id'] };
             return next();
         }
         return ClerkExpressRequireAuth({})(req, res, next);
     },
     async (req, res, next) => {
-        if (req.headers['x-dev-bypass'] === 'true') {
+        const isDevBypass = process.env.NODE_ENV !== 'production'
+            && req.headers['x-dev-bypass'] === 'true';
+        if (isDevBypass) {
             // Already handled by bypass, but need to map to DB user
             try {
                 const result = await dbClient.query('SELECT user_id FROM users WHERE clerk_uid = $1 OR firebase_uid = $1', [req.headers['x-dev-user-id']]);
@@ -61,16 +67,17 @@ export const requireAuth = [
                 } else {
                     // Create user if they don't exist
                     const insertResult = await dbClient.query(
-                        'INSERT INTO users (clerk_uid, firebase_uid) VALUES ($1, $1) RETURNING user_id',
-                        [req.auth.userId]
+                        'INSERT INTO users (clerk_uid, firebase_uid) VALUES ($1, $2) RETURNING user_id',
+                        [req.auth.userId, req.auth.userId]
                     );
                     req.user = { id: insertResult.rows[0].user_id, userId: insertResult.rows[0].user_id, clerkId: req.auth.userId };
                 }
             } catch (err) {
                 console.error("Auth middleware DB error:", err);
-                return res.status(500).json({ error: 'Auth failed' });
+                return res.status(500).json({ error: 'Auth failed', detail: err.message });
             }
         }
+
         next();
     }
 ];

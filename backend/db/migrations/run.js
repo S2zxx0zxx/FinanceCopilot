@@ -12,12 +12,12 @@ import { fileURLToPath } from 'node:url';
 const MIGRATIONS_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 export async function discoverMigrations(dir = MIGRATIONS_DIR) {
-  const files = (await fs.readdir(dir)).filter((f) => /^\d{3}_.*\.sql$/.test(f)).sort();
+  const files = (await fs.readdir(dir)).filter((f) => /^\d{3,4}_.*\.sql$/.test(f)).sort();
   const out = [];
   for (const f of files) {
     const sql = await fs.readFile(path.join(dir, f), 'utf8');
     out.push({
-      id: f.slice(0, 3),
+      id: f.split('_')[0],
       name: f,
       bytes: Buffer.byteLength(sql),
       statements: sql.split(';').map((s) => s.trim()).filter(Boolean).length,

@@ -36,22 +36,22 @@ export function useAppData() {
           liabilities,
           notifications
         ] = await Promise.all([
-          api.getAccounts().catch(() => fallbackData.accounts),
-          api.getMoneyState().catch(() => fallbackData.financialStateMoney),
-          api.getTransactions().catch(() => fallbackData.recentTransactions),
-          api.getGoals().catch(() => fallbackData.goals),
-          api.getBudgets().catch(() => fallbackData.budgets),
-          api.getFinancialHealth().catch(() => fallbackData.financialHealth),
-          api.getRecurring().catch(() => fallbackData.recurringSeries),
-          api.getCashflow().catch(() => fallbackData.cashflowData),
-          api.getForecast().catch(() => fallbackData.forecastData),
-          api.getAIHomeFeed().catch(() => fallbackData.aiHomeFeed),
-          api.getPeerComparison().catch(() => fallbackData.peerComparison),
-          api.getCalendarEvents().catch(() => fallbackData.calendarEvents),
-          api.getSpendingStory().catch(() => fallbackData.spendingStory),
-          api.getIncome().catch(() => fallbackData.incomeData),
-          api.getLiabilities().catch(() => fallbackData.liabilities),
-          api.getNotifications().catch(() => fallbackData.notifications),
+          api.getAccounts().catch(() => null),
+          api.getMoneyState().catch(() => null),
+          api.getTransactions().catch(() => null),
+          api.getGoals().catch(() => null),
+          api.getBudgets().catch(() => null),
+          api.getFinancialHealth().catch(() => null),
+          api.getRecurring().catch(() => null),
+          api.getCashflow().catch(() => null),
+          api.getForecast().catch(() => null),
+          api.getAIHomeFeed().catch(() => null),
+          api.getPeerComparison().catch(() => null),
+          api.getCalendarEvents().catch(() => null),
+          api.getSpendingStory().catch(() => null),
+          api.getIncome().catch(() => null),
+          api.getLiabilities().catch(() => null),
+          api.getNotifications().catch(() => null),
         ]);
 
         if (!mounted) return;
@@ -59,25 +59,64 @@ export function useAppData() {
         setData((prev: any) => ({
           ...prev,
           loading: false,
-          accounts: Array.isArray(accounts) ? accounts : accounts?.accounts || fallbackData.accounts || [],
-          financialStateMoney: financialStateMoney?.data || financialStateMoney || fallbackData.financialStateMoney,
-          recentTransactions: Array.isArray(transactions) ? transactions : transactions?.transactions || transactions?.data || fallbackData.recentTransactions || [],
-          goals: Array.isArray(goals) ? goals : goals?.goals || fallbackData.goals || [],
-          budgets: Array.isArray(budgets) ? budgets : budgets?.budgets || fallbackData.budgets || [],
-          financialHealth: financialHealth?.data || financialHealth || fallbackData.financialHealth,
-          recurringSeries: Array.isArray(recurringSeries) ? recurringSeries : recurringSeries?.series || recurringSeries?.data || fallbackData.recurringSeries || [],
-          cashflowData: cashflowData?.data || cashflowData || fallbackData.cashflowData,
-          forecastData: forecastData?.data || forecastData || fallbackData.forecastData,
-          aiHomeFeed: aiHomeFeed?.data || aiHomeFeed || fallbackData.aiHomeFeed,
-          peerComparison: peerComparison?.data || peerComparison || fallbackData.peerComparison,
-          calendarEvents: Array.isArray(calendarEvents) ? calendarEvents : calendarEvents?.events || calendarEvents?.data || fallbackData.calendarEvents || [],
-          spendingStory: spendingStory?.data || spendingStory || fallbackData.spendingStory,
-          incomeData: incomeData?.data || incomeData || fallbackData.incomeData,
-          liabilities: liabilities?.data || liabilities || fallbackData.liabilities,
-          notifications: Array.isArray(notifications) ? notifications : notifications?.notifications || notifications?.data || fallbackData.notifications || []
+          error: null,
+          // Use real data if available, fall back to existing state (not mock) on null
+          accounts: accounts !== null
+            ? (Array.isArray(accounts) ? accounts : accounts?.accounts || [])
+            : prev.accounts,
+          financialStateMoney: financialStateMoney !== null
+            ? (financialStateMoney?.data || financialStateMoney)
+            : prev.financialStateMoney,
+          recentTransactions: transactions !== null
+            ? (Array.isArray(transactions) ? transactions : transactions?.transactions || transactions?.data || [])
+            : prev.recentTransactions,
+          goals: goals !== null
+            ? (Array.isArray(goals) ? goals : goals?.goals || [])
+            : prev.goals,
+          budgets: budgets !== null
+            ? (Array.isArray(budgets) ? budgets : budgets?.budgets || [])
+            : prev.budgets,
+          financialHealth: financialHealth !== null
+            ? (financialHealth?.data || financialHealth)
+            : prev.financialHealth,
+          recurringSeries: recurringSeries !== null
+            ? (Array.isArray(recurringSeries) ? recurringSeries : recurringSeries?.series || recurringSeries?.data || [])
+            : prev.recurringSeries,
+          cashflowData: cashflowData !== null
+            ? (cashflowData?.data || cashflowData)
+            : prev.cashflowData,
+          forecastData: forecastData !== null
+            ? (forecastData?.data || forecastData)
+            : prev.forecastData,
+          aiHomeFeed: aiHomeFeed !== null
+            ? (aiHomeFeed?.data || aiHomeFeed)
+            : prev.aiHomeFeed,
+          // aiInsights is a sub-key of aiHomeFeed — keep in sync
+          aiInsights: aiHomeFeed !== null
+            ? (aiHomeFeed?.insights || aiHomeFeed?.data?.insights || [])
+            : prev.aiInsights || [],
+          peerComparison: peerComparison !== null
+            ? (peerComparison?.data || peerComparison)
+            : prev.peerComparison,
+          calendarEvents: calendarEvents !== null
+            ? (Array.isArray(calendarEvents) ? calendarEvents : calendarEvents?.events || calendarEvents?.data || [])
+            : prev.calendarEvents,
+          spendingStory: spendingStory !== null
+            ? (spendingStory?.data || spendingStory)
+            : prev.spendingStory,
+          incomeData: incomeData !== null
+            ? (incomeData?.data || incomeData)
+            : prev.incomeData,
+          liabilities: liabilities !== null
+            ? (liabilities?.data || liabilities)
+            : prev.liabilities,
+          notifications: notifications !== null
+            ? (Array.isArray(notifications) ? notifications : notifications?.notifications || notifications?.data || [])
+            : prev.notifications || [],
         }));
       } catch (err) {
         if (!mounted) return;
+        // On catastrophic failure, keep existing data (from initial fallback) but flag error
         setData((prev: any) => ({ ...prev, loading: false, error: err }));
       }
     }

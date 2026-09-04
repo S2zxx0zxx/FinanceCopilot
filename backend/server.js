@@ -48,7 +48,9 @@ app.use(helmet({
 
 // 2. CORS (Strictly controlled for frontend)
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(',')
+        : ['http://localhost:3000', 'http://localhost:3002'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-dev-user-id', 'x-dev-bypass']
 }));
@@ -151,7 +153,7 @@ const ingestionService = new IngestionService(storageAdapter, queueAdapter, Inge
 // Real DB repos for Consent Service
 const consentService = new ConsentService(ConsentRepo, AuditRepo);
 
-const aaAdapter = new AccountAggregatorAdapter({ baseUrl: 'https://sandbox.setu.co', fiuId: 'fiu-1', apiKey: 'mock' });
+const aaAdapter = new AccountAggregatorAdapter({ baseUrl: config.setu.baseUrl, fiuId: config.setu.fiuId, apiKey: config.setu.apiKey || 'mock' });
 const aaService = new AccountAggregatorService(aaAdapter, consentService, IngestionRepo);
 
 const dependencies = { ingestionService, aaService };

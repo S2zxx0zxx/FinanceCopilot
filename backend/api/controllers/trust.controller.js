@@ -5,14 +5,14 @@ export class TrustController {
     static async getConnections(req, res, next) {
         try {
             const db = dbClient;
-            // Schema uses source_connections + financial_accounts (not user_connections).
-            // Return financial_accounts with their source connection status.
+            // financial_accounts uses source_connection_id (not connection_id).
+            // balances and last_synced_at don't exist — use account_type + is_active instead.
             const { rows } = await db.query(
                 `SELECT fa.account_id, fa.account_type, fa.institution_name, fa.account_number_last4,
-                        fa.balances, fa.currency, fa.is_active, fa.last_synced_at,
+                        fa.currency, fa.is_active, fa.created_at,
                         sc.status as connection_status, sc.display_name
                  FROM financial_accounts fa
-                 LEFT JOIN source_connections sc ON sc.connection_id = fa.connection_id
+                 LEFT JOIN source_connections sc ON sc.connection_id = fa.source_connection_id
                  WHERE fa.user_id = $1
                  ORDER BY fa.is_active DESC, fa.institution_name`,
                 [req.user.userId]

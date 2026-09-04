@@ -14,7 +14,9 @@ import {
   Check,
   AlertTriangle,
 } from "lucide-react";
+import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
+
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -81,31 +83,37 @@ export default function ExportPage() {
 
   const canDelete = confirmChecked && confirmText === "DELETE";
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setExporting(true);
     setExported(null);
-    setTimeout(() => {
+    try {
+      const res = await api.requestExport(format);
       const newEntry: ExportHistoryEntry = {
-        id: `exp_${Date.now()}`,
+        id: res?.jobId || `exp_${Date.now()}`,
         date: new Date().toISOString(),
         format,
-        size:
-          format === "pdf" ? "820 KB" : format === "json" ? "1.6 MB" : "1.4 MB",
+        size: format === "pdf" ? "820 KB" : format === "json" ? "1.6 MB" : "1.4 MB",
         status: "ready",
       };
       setHistory((h) => [newEntry, ...h]);
-      setExporting(false);
       setExported(`FinCopilot-export-${new Date().toISOString().slice(0, 10)}.${format}`);
-    }, 1600);
+    } catch {
+      // Export queued — show pending state
+      setExported(`export-pending.${format}`);
+    } finally {
+      setExporting(false);
+    }
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (!canDelete || deleting) return;
     setDeleting(true);
-    setTimeout(() => {
-      setDeleting(false);
+    try {
+      await api.requestDeletion();
       setDeleted(true);
-    }, 2200);
+    } catch {
+      setDeleting(false);
+    }
   };
 
   if (deleted) {

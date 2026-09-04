@@ -16,8 +16,10 @@ import {
   X,
 } from "lucide-react";
 import { useAppData } from "@/hooks/use-app-data";
-
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import { ProgressRing } from "@/components/shared";
+
 import { timeAgo, formatDate } from "@/lib/format";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -63,18 +65,24 @@ export default function SecurityPage() {
   const [twoFA, setTwoFA] = React.useState(securityData.two_factor_enabled);
   const [sessions, setSessions] = React.useState(securityData.active_sessions);
   const [revoking, setRevoking] = React.useState<string | null>(null);
+  const { toast } = useToast();
 
   const score = securityData.security_score;
   const scoreColor = getScoreColor(score);
   const scoreLabel = getScoreLabel(score);
   const scoreBg = getScoreLightBg(score);
 
-  const handleRevoke = (id: string) => {
+  const handleRevoke = async (id: string) => {
     setRevoking(id);
-    setTimeout(() => {
+    try {
+      await api.revokeSession(id);
       setSessions((s) => s.filter((sess) => sess.id !== id));
+      toast({ title: "Session revoked", description: "The session has been signed out." });
+    } catch {
+      toast({ title: "Revoke failed", description: "Could not revoke session.", variant: "destructive" });
+    } finally {
       setRevoking(null);
-    }, 900);
+    }
   };
 
   return (

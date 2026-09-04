@@ -72,7 +72,7 @@ async function apiFetch<T>(
     let errorMessage = `HTTP ${response.status}`;
     try {
       const error = await response.json();
-      errorMessage = error.message || error.error || errorMessage;
+      errorMessage = error.detail || error.message || error.error || errorMessage;
     } catch {
       // Non-JSON error
     }

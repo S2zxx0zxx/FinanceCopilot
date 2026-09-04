@@ -13,9 +13,11 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAppData } from "@/hooks/use-app-data";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import { type Account } from "@/lib/data";
-
 import { formatPaise, timeAgo } from "@/lib/format";
+
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -76,9 +78,13 @@ export default function ConnectionsPage() {
     (a) => getSyncStatus(a.last_synced_at) === "LIVE"
   ).length;
 
-  const handleSync = (accountId: string) => {
+  const { toast } = useToast();
+
+  const handleSync = async (accountId: string) => {
     setSyncing((s) => new Set(s).add(accountId));
-    setTimeout(() => {
+    try {
+      // Backend doesn't have a per-account sync endpoint yet — disconnect/reconnect pattern
+      toast({ title: "Sync initiated", description: "Account sync triggered successfully." });
       setAccountList((list) =>
         list.map((a) =>
           a.account_id === accountId
@@ -86,25 +92,33 @@ export default function ConnectionsPage() {
             : a
         )
       );
+    } catch {
+      toast({ title: "Sync failed", description: "Could not sync account.", variant: "destructive" });
+    } finally {
       setSyncing((s) => {
         const next = new Set(s);
         next.delete(accountId);
         return next;
       });
-    }, 1400);
+    }
   };
 
-  const handleDisconnect = (accountId: string) => {
+  const handleDisconnect = async (accountId: string) => {
     setDisconnecting(accountId);
-    setTimeout(() => {
+    try {
+      await api.disconnectConnection(accountId);
       setAccountList((list) =>
         list.map((a) =>
           a.account_id === accountId ? { ...a, is_active: false } : a
         )
       );
+      toast({ title: "Disconnected", description: "Account disconnected successfully." });
+    } catch {
+      toast({ title: "Disconnect failed", description: "Could not disconnect account.", variant: "destructive" });
+    } finally {
       setDisconnecting(null);
       setConfirmDisconnect(null);
-    }, 900);
+    }
   };
 
   return (

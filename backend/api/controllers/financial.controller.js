@@ -129,7 +129,7 @@ export class FinancialController {
                 SELECT COALESCE(SUM(amount_paise), 0) AS total_spent
                 FROM transactions
                 WHERE user_id = $1 
-                  AND transaction_type = $2 
+                  AND category_id = $2::uuid
                   AND observed_at >= $3 
                   AND observed_at <= $4
                   AND is_deleted = false

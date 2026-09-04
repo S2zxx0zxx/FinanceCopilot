@@ -11,6 +11,7 @@ import {
   Zap, Award, Sparkles, Check, TrendingUp, type LucideIcon,
 } from "lucide-react";
 import { useAppData } from "@/hooks/use-app-data";
+import { useClerk } from "@clerk/nextjs";
 
 import { formatDate, formatPct } from "@/lib/format";
 import { Badge, ProgressRing, CountUp } from "@/components/shared";
@@ -29,6 +30,35 @@ const itemQuick: Variants = {
   hidden: { opacity: 0, y: 8 },
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
 };
+
+// ── Real Sign-Out Button ──────────────────────────────────────────────────
+function SignOutButton() {
+  const { signOut } = useClerk();
+  const { toast } = useToast();
+  const [loading, setLoading] = React.useState(false);
+
+  const handleSignOut = async () => {
+    setLoading(true);
+    try {
+      await signOut({ redirectUrl: "/sign-in" });
+    } catch {
+      toast({ title: "Sign out failed", description: "Please try again.", variant: "destructive" });
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleSignOut}
+      disabled={loading}
+      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] text-[14px] font-medium text-(--negative) hover:bg-(--negative-light) transition-colors disabled:opacity-50"
+    >
+      <LogOut className="w-4 h-4" />
+      {loading ? "Signing out..." : "Sign Out"}
+    </button>
+  );
+}
 
 // ── Settings types ────────────────────────────────────────────────────────
 type SettingsRow = {
@@ -523,16 +553,9 @@ export default function YouPage() {
 
       {/* ── Danger Zone ─────────────────────────────────────────────── */}
       <motion.section variants={item} aria-label="Danger zone" className="flex flex-col items-center gap-3 pt-2">
-        <button
-          type="button"
-          onClick={() => toast({ title: "Signed out", description: "You've been signed out (mock)." })}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] text-[14px] font-medium text-(--negative) hover:bg-(--negative-light) transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </button>
+        <SignOutButton />
         <p className="font-mono text-[10px] uppercase tracking-wider text-(--text-tertiary)">
-          FinCopilot · App version v78.0
+          FinCopilot · v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}
         </p>
       </motion.section>
     </motion.div>

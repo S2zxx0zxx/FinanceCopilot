@@ -13,8 +13,10 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useAppData } from "@/hooks/use-app-data";
-
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import { formatDate, timeAgo } from "@/lib/format";
+
 
 // ── Toggle ─────────────────────────────────────────────────────────────────
 
@@ -91,12 +93,15 @@ export default function PrivacyPage() {
     { value: 365, label: "365 days" },
   ];
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     setDeleting(true);
-    setTimeout(() => {
-      setDeleting(false);
+    try {
+      await api.requestDeletion();
       setDeleted(true);
-    }, 1800);
+    } catch {
+      // Show inline error — deletion failed
+      setDeleting(false);
+    }
   };
 
   if (deleted) {

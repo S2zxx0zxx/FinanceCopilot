@@ -4,17 +4,19 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useAppData } from "@/hooks/use-app-data";
-
+import { useToast } from "@/hooks/use-toast";
 import { formatPaise, formatDate } from "@/lib/format";
 import { Badge } from "@/components/shared";
 
 export default function GoalsPage() {
   const { goals } = useAppData();
+  const { toast } = useToast();
+
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <div className="flex items-center justify-between">
         <div><h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">Goals</h1><p className="text-[14px] text-(--text-secondary) mt-1">{goals.length} active goals</p></div>
-        <button className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"><Plus className="w-4 h-4" /> New Goal</button>
+        <Link href="/goals/new" className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"><Plus className="w-4 h-4" /> New Goal</Link>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {goals.map((goal, i) => (

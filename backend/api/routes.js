@@ -26,7 +26,12 @@ import { InsightsController } from './controllers/insights.controller.js';
 // Internal webhook validation — rejects requests without a valid service token
 function validateInternalWebhook(req, res, next) {
     const token = req.headers['x-internal-token'];
-    if (!token || token !== (process.env.INTERNAL_WEBHOOK_TOKEN || 'fincopilot-internal-2024')) {
+    const expectedToken = process.env.INTERNAL_WEBHOOK_TOKEN;
+    if (!expectedToken) {
+        // Internal token not configured — block ALL internal webhook calls to fail-safe.
+        return res.status(503).json({ error: 'Internal webhook token not configured.' });
+    }
+    if (!token || token !== expectedToken) {
         return res.status(403).json({ error: 'Forbidden' });
     }
     next();
@@ -187,16 +192,7 @@ export function setupRoutes(app, dependencies) {
         } catch (err) { next(err); }
     });
     
-    // Temporary route to trigger refactor
-    router.get('/refactor', async (req, res) => {
-        try {
-            const { execSync } = await import('node:child_process');
-            const output = execSync('node c:/Fincopilot/frontend/refactor.js', { encoding: 'utf-8' });
-            res.json({ success: true, output });
-        } catch (error) {
-            res.status(500).json({ error: error.message, stack: error.stack });
-        }
-    });
+    // NOTE: /refactor route permanently removed (RCE security risk).
 
     router.get('/auth/security',                        requireAuth, TrustController.getSecuritySessions);
     router.put('/auth/security',                        requireAuth, async (req, res, next) => {

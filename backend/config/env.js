@@ -17,7 +17,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const requiredVars = [
     'DATABASE_URL',
-    'FIREBASE_PROJECT_ID'
+    'CLERK_SECRET_KEY'
 ];
 
 function validateEnv() {
@@ -50,18 +50,9 @@ export const config = {
     db: {
         url: process.env.DATABASE_URL
     },
-    firebase: {
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        // Public web config (safe to expose to browser) — served at /api/v1/auth/config
-        web: {
-            apiKey: process.env.FIREBASE_WEB_API_KEY,
-            authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-            appId: process.env.FIREBASE_APP_ID,
-        }
+    clerk: {
+        secretKey: process.env.CLERK_SECRET_KEY,
+        publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY,
     },
     auth: {
         mode: process.env.AUTH_MODE || 'production',

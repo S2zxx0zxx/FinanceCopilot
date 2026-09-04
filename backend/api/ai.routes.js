@@ -97,7 +97,7 @@ const rateLimitMiddleware = async (req, res, next) => {
             const { rows: insights } = await db.query(
                 `SELECT insight_id, title, tags, confidence, generated_at
                  FROM ai_insights
-                 WHERE user_id = $1 AND status = 'ACTIVE'
+                 WHERE user_id = $1 AND status = 'active'
                  ORDER BY generated_at DESC LIMIT 5`,
                 [userId]
             );
@@ -142,12 +142,11 @@ const rateLimitMiddleware = async (req, res, next) => {
             res.json({
                 id: insight.insight_id,
                 title: insight.title,
-                category: insight.category,
-                description: insight.description,
-                confidence: insight.confidence,
-                data: insight.data,
+                category: insight.tags && insight.tags.length > 0 ? insight.tags[0] : 'Insight',
+                description: insight.summary || null,
+                data: insight.evidence || null,
                 status: insight.status,
-                createdAt: insight.created_at
+                createdAt: insight.generated_at
             });
         } catch (err) {
             next(err);
@@ -205,12 +204,13 @@ const rateLimitMiddleware = async (req, res, next) => {
             if (!type || !title) {
                 return res.status(400).json({ error: 'Type and title are required' });
             }
+            // Real schema: input_snapshot (params), output_snapshot (result), label (title)
             const { rows } = await gateway.dbClient.query(
-                `INSERT INTO ai_saved_simulations (user_id, simulation_type, title, result_data, params)
-                 VALUES ($1, $2, $3, $4, $5) RETURNING id, created_at`,
-                [userId, type, title, JSON.stringify(result || {}), JSON.stringify(params || {})]
+                `INSERT INTO ai_saved_simulations (user_id, simulation_type, input_snapshot, output_snapshot, label)
+                 VALUES ($1, $2, $3, $4, $5) RETURNING simulation_id, created_at`,
+                [userId, type, JSON.stringify(params || {}), JSON.stringify(result || {}), title]
             );
-            res.json({ status: 'SAVED', id: rows[0].id, savedAt: rows[0].created_at });
+            res.json({ status: 'SAVED', id: rows[0].simulation_id, savedAt: rows[0].created_at });
         } catch (err) {
             next(err);
         }
