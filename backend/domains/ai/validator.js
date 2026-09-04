@@ -18,8 +18,18 @@ export class Validator {
             if (!obj) return;
             if (typeof obj === 'object') {
                 for (const [key, val] of Object.entries(obj)) {
-                    if (key.endsWith('_paise') && typeof val === 'number') {
-                        contextPaiseValues.add(val);
+                    if (key.endsWith('_paise')) {
+                        // FIX (audit P0 #22): the pg driver returns BIGINT
+                        // columns as STRINGS (so precision is preserved for
+                        // values > Number.MAX_SAFE_INTEGER). The old
+                        // `typeof val === 'number'` check therefore never
+                        // matched, leaving the allow-list empty — every AI
+                        // answer that mentioned any rupee figure was rejected
+                        // as a hallucination. Parse both strings and numbers.
+                        const numVal = typeof val === 'string' ? parseInt(val, 10) : val;
+                        if (typeof numVal === 'number' && !Number.isNaN(numVal)) {
+                            contextPaiseValues.add(numVal);
+                        }
                     } else if (typeof val === 'object') {
                         extractPaise(val);
                     }

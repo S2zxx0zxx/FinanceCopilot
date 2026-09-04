@@ -24,10 +24,15 @@ export class TrustController {
     static async disconnectConnection(req, res, next) {
         try {
             const db = dbClient;
-            // Mark the source_connection as 'disconnected' (schema status enum allows it).
+            // FIX (audit P0 #5): financial_accounts has NO `connection_id` column —
+            // the FK to source_connections is `source_connection_id`. The old
+            // sub-query silently returned NULL and disconnected nothing.
             await db.query(
                 `UPDATE source_connections SET status = 'disconnected', updated_at = NOW()
-                 WHERE connection_id = (SELECT connection_id FROM financial_accounts WHERE account_id = $2 AND user_id = $1)
+                 WHERE connection_id = (
+                     SELECT source_connection_id FROM financial_accounts
+                     WHERE account_id = $2 AND user_id = $1
+                 )
                  AND user_id = $1`,
                 [req.user.userId, req.params.id]
             );
@@ -73,7 +78,12 @@ export class TrustController {
                 'INSERT INTO consent_records (user_id, consent_type, version, consented, granted_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING consent_id',
                 [req.user.userId, id, activeVersion, granted]
             );
-            res.json({ status: rowCount > 0 ? 'UPDATED' : 'FAILED', policy: id, granted, version: activeVersion });
+            const updated = rowCount > 0;
+            // FIX (audit P1 #33): don't lie with a 200 'FAILED'. Surface real failure.
+            if (!updated) {
+                return res.status(500).json({ status: 'FAILED', policy: id, granted, version: activeVersion });
+            }
+            res.json({ status: 'UPDATED', policy: id, granted, version: activeVersion });
         } catch (err) { next(err); }
     }
 
@@ -99,12 +109,18 @@ export class TrustController {
                 return res.status(501).json({ status: 'NOT_SUPPORTED', message: 'Session revocation is handled by the auth provider.' });
             }
             const targetSessionId = req.body.id;
-            if (req.body.allOther && req.user.uid) {
+            // FIX (audit P0 #25): req.user has no `uid` — the security middleware
+            // attaches { id, userId, clerkId }. Use userId for the DB user and
+            // clerkId for the auth-provider identity.
+            const providerUid = req.user?.clerkId || req.user?.userId;
+            if (req.body.allOther && providerUid) {
                 // Revoke all sessions for the user except the current one.
-                await adapter.revokeSessions(req.user.uid);
+                await adapter.revokeSessions(providerUid);
                 res.json({ status: 'REVOKED', count: -1 });
             } else if (targetSessionId) {
-                await adapter.revokeSession?.(targetSessionId);
+                if (typeof adapter.revokeSession === 'function') {
+                    await adapter.revokeSession(targetSessionId);
+                }
                 res.json({ status: 'REVOKED', count: 1 });
             } else {
                 res.status(400).json({ status: 'MISSING_ID' });
@@ -115,32 +131,55 @@ export class TrustController {
     static async requestExport(req, res, next) {
         try {
             const db = dbClient;
-            // export_jobs table doesn't exist in migrations; return a job stub + audit.
-            const jobId = `export_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            // FIX (audit P0 #8): export_jobs table EXISTS (migration 016).
+            // Previously this returned a fake `export_${Date.now()}` stub that
+            // the frontend could never poll to COMPLETED. Now we INSERT a real
+            // row that the queue worker updates via _internalUpdateExportStatus.
+            const format = (req.body?.format || 'csv').toLowerCase();
+            const { rows } = await db.query(
+                `INSERT INTO export_jobs (user_id, status, format)
+                 VALUES ($1, 'PROCESSING', $2)
+                 RETURNING job_id`,
+                [req.user.userId, format]
+            );
+            const jobId = rows[0]?.job_id;
             const { AuditRepo } = await import('../../db/repositories.js');
-            await AuditRepo.logEvent('EXPORT_REQUESTED', 'user', req.user.userId, req.user.userId, { format: req.body?.format || 'csv', job_id: jobId });
-            res.json({ status: 'PROCESSING', jobId, format: req.body?.format || 'csv' });
+            await AuditRepo.logEvent('EXPORT_REQUESTED', 'user', req.user.userId, req.user.userId, { format, job_id: jobId });
+            res.json({ status: 'PROCESSING', jobId, format });
         } catch (err) { next(err); }
     }
 
     static async getExportStatus(req, res, next) {
-        // export_jobs table doesn't exist in migrations; return the latest export
-        // request from the audit log instead, or a NOT_FOUND status.
+        // FIX (audit P0 #8): export_jobs table now exists (migration 016).
         try {
-            const { AuditRepo } = await import('../../db/repositories.js');
-            // We don't have a dedicated table; return a graceful NOT_FOUND so the
-            // frontend can show "no exports yet". When a real export_jobs table is
-            // added via migration, replace this with a real query.
-            res.json({ status: 'NOT_FOUND', message: 'No export jobs table yet. Use requestExport to start one.' });
+            const { rows } = await dbClient.query(
+                `SELECT job_id, status, format, download_url, created_at, updated_at
+                 FROM export_jobs
+                 WHERE user_id = $1
+                 ORDER BY created_at DESC LIMIT 1`,
+                [req.user.userId]
+            );
+            if (rows.length === 0) {
+                return res.json({ status: 'NOT_FOUND' });
+            }
+            res.json({ job: rows[0] });
         } catch (err) { next(err); }
     }
 
     static async _internalUpdateExportStatus(req, res, next) {
-        // Internal webhook for CF Queue Worker (R-014). With no export_jobs table,
-        // we simply audit the status update so the trail is preserved.
+        // Internal webhook for CF Queue Worker (R-014). Updates the real
+        // export_jobs row (migration 016) AND emits an audit event.
         try {
             const { jobId, status, downloadUrl } = req.body;
             if (!['PROCESSING', 'COMPLETED', 'FAILED'].includes(status)) throw new Error('Invalid status');
+            await dbClient.query(
+                `UPDATE export_jobs
+                 SET status = $2,
+                     download_url = COALESCE($3, download_url),
+                     updated_at = NOW()
+                 WHERE job_id = $1`,
+                [jobId, status, downloadUrl || null]
+            );
             const { AuditRepo } = await import('../../db/repositories.js');
             await AuditRepo.logEvent('EXPORT_STATUS_UPDATE', 'export', req.user?.userId ?? 'system', jobId, { status, downloadUrl });
             res.json({ success: true, status });
@@ -151,34 +190,71 @@ export class TrustController {
         try {
             const db = dbClient;
             const userId = req.user.userId;
-            
-            // Delete user, which will cascade to everything because of migration 017
-            await db.query('DELETE FROM users WHERE user_id = $1', [userId]);
-            
-            const jobId = `del_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            res.json({ status: 'COMPLETED', jobId });
+
+            // FIX (audit P0 #9): ADR-006 mandates soft-delete with a 30-day grace
+            // period — the old `DELETE FROM users` was a hard delete with no audit
+            // trail and no grace window. We now flip is_deleted, set deleted_at,
+            // enqueue a deletion_jobs row, and emit an audit event.
+            await db.query(
+                `UPDATE users SET is_deleted = TRUE, deleted_at = NOW(), updated_at = NOW()
+                 WHERE user_id = $1`,
+                [userId]
+            );
+
+            const { rows } = await db.query(
+                `INSERT INTO deletion_jobs (user_id, status)
+                 VALUES ($1, 'PROCESSING')
+                 RETURNING job_id`,
+                [userId]
+            );
+            const jobId = rows[0]?.job_id;
+
+            const { AuditRepo } = await import('../../db/repositories.js');
+            await AuditRepo.logEvent('DELETION_REQUESTED', 'user', userId, userId, { job_id: jobId });
+
+            res.json({ status: 'PROCESSING', jobId });
         } catch (err) { next(err); }
     }
 
     static async getDeletionStatus(req, res, next) {
-        // No deletion_jobs table; check audit_events for the latest DELETION_REQUESTED.
+        // FIX (audit P0 #6): audit_events has NO `user_id` column (it uses
+        // `actor`) and NO `created_at` column (it uses `timestamp`). The old
+        // query threw a 500 for every caller. deletion_jobs table exists
+        // (migration 016) — prefer that, fall back to audit_events.
         try {
-            const { rows } = await dbClient.query(
-                `SELECT metadata, created_at FROM audit_events
-                 WHERE user_id = $1 AND event_type = 'DELETION_REQUESTED'
+            const { rows: dj } = await dbClient.query(
+                `SELECT job_id, status, created_at, updated_at
+                 FROM deletion_jobs
+                 WHERE user_id = $1
                  ORDER BY created_at DESC LIMIT 1`,
                 [req.user.userId]
             );
+            if (dj.length > 0) {
+                return res.json({ status: dj[0].status, jobId: dj[0].job_id, requestedAt: dj[0].created_at });
+            }
+            const { rows } = await dbClient.query(
+                `SELECT metadata, timestamp FROM audit_events
+                 WHERE actor = $1 AND event_type = 'DELETION_REQUESTED'
+                 ORDER BY timestamp DESC LIMIT 1`,
+                [req.user.userId]
+            );
             if (rows.length === 0) return res.json({ status: 'NOT_FOUND' });
-            res.json({ status: 'PROCESSING', requestedAt: rows[0].created_at });
+            res.json({ status: 'PROCESSING', requestedAt: rows[0].timestamp });
         } catch (err) { next(err); }
     }
 
     static async _internalUpdateDeletionStatus(req, res, next) {
-        // Internal webhook for CF Queue Worker (R-014). Audit the status update.
+        // Internal webhook for CF Queue Worker (R-014). Updates the real
+        // deletion_jobs row (migration 016) AND audits the status update.
         try {
             const { jobId, status } = req.body;
             if (!['PROCESSING', 'COMPLETED', 'FAILED'].includes(status)) throw new Error('Invalid status');
+            await dbClient.query(
+                `UPDATE deletion_jobs
+                 SET status = $2, updated_at = NOW()
+                 WHERE job_id = $1`,
+                [jobId, status]
+            );
             const { AuditRepo } = await import('../../db/repositories.js');
             await AuditRepo.logEvent('DELETION_STATUS_UPDATE', 'deletion', req.user?.userId ?? 'system', jobId, { status });
             res.json({ success: true, status });

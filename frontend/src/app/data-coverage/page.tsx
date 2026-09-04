@@ -94,11 +94,11 @@ export default function DataCoveragePage() {
     0,
   );
 
-  // Trust badges
+  // Trust badges — only claims we can actually substantiate.
   const trustBadges = [
     { icon: Lock, label: "AES-256 Encryption", sub: "At rest & in transit" },
-    { icon: ShieldCheck, label: "ISO 27001", sub: "Certified" },
-    { icon: Key, label: "Zero-knowledge", sub: "We can't see your data" },
+    { icon: ShieldCheck, label: "DPDP Act 2023", sub: "Compliant design" },
+    { icon: Key, label: "Tokenized access", sub: "No credential storage" },
     { icon: RefreshCw, label: "Auto-sync", sub: "Every 15 minutes" },
   ];
 
@@ -468,7 +468,7 @@ export default function DataCoveragePage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <Key className="w-3.5 h-3.5 text-(--text-tertiary)" />
-                <span className="font-semibold text-foreground">Zero-knowledge</span> architecture
+                <span className="font-semibold text-foreground">Tokenized</span> access — we never store bank credentials
               </span>
               <Link
                 href="/you/privacy"

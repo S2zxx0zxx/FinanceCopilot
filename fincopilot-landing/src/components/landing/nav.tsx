@@ -170,7 +170,7 @@ export function Nav() {
           <div className="max-w-7xl mx-auto px-5 sm:px-8 h-7 flex items-center justify-center gap-2">
             <ShieldCheck className="w-3 h-3 text-[var(--accent)]" />
             <span className="text-[11px] text-[var(--text-muted)] font-mono">
-              No credit card · 256-bit AES · SOC 2 Type II
+              No credit card · 256-bit AES · 256-bit AES
             </span>
           </div>
         </motion.div>

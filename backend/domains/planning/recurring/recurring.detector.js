@@ -89,7 +89,27 @@ function estimateNextDate(lastSeenAt, meanIntervalDays) {
     if (!lastSeenAt || !meanIntervalDays) return null;
     const last = new Date(lastSeenAt);
     last.setDate(last.getDate() + Math.round(meanIntervalDays));
-    return last.toISOString().split('T')[0];
+    // FIX (audit P1 #43): toISOString() returns UTC. For Indian users a
+    // transaction observed at 23:30 IST becomes "yesterday" in UTC and the
+    // next_expected_at drifts by a day. Format in IST (Asia/Kolkata, UTC+5:30).
+    return toIstDateString(last);
+}
+
+/**
+ * FIX (audit P1 #43): format a Date as YYYY-MM-DD in IST. Falls back to UTC
+ * ISO slice on environments without Intl. Used for next_expected_at,
+ * first_seen_at, last_seen_at so the user-facing calendar matches what they
+ * see in their bank statement (which is in IST).
+ */
+function toIstDateString(date) {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        }).format(date);
+    } catch {
+        return date.toISOString().split('T')[0];
+    }
 }
 
 /**
@@ -185,7 +205,7 @@ export async function detectRecurringCandidates(userId) {
             // Evidence metadata (returned for caller to persist)
             _evidence: txs.map(tx => ({
                 transaction_id: tx.transaction_id,
-                observed_at:    tx.observed_at?.toISOString?.()?.split('T')[0] || null,
+                observed_at:    toIstDateString(new Date(tx.observed_at)),
                 amount_paise:   Number(tx.amount_paise)
             })),
 

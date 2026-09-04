@@ -70,7 +70,6 @@ const SYNC_STATUS_CONFIG: Record<
 export default function ConnectionsPage() {
   const { accounts } = useAppData();
   const [accountList, setAccountList] = React.useState<Account[]>(accounts);
-  const [syncing, setSyncing] = React.useState<Set<string>>(new Set());
   const [disconnecting, setDisconnecting] = React.useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = React.useState<string | null>(null);
 
@@ -80,27 +79,22 @@ export default function ConnectionsPage() {
 
   const { toast } = useToast();
 
-  const handleSync = async (accountId: string) => {
-    setSyncing((s) => new Set(s).add(accountId));
-    try {
-      // Backend doesn't have a per-account sync endpoint yet — disconnect/reconnect pattern
-      toast({ title: "Sync initiated", description: "Account sync triggered successfully." });
-      setAccountList((list) =>
-        list.map((a) =>
-          a.account_id === accountId
-            ? { ...a, last_synced_at: new Date().toISOString() }
-            : a
-        )
-      );
-    } catch {
-      toast({ title: "Sync failed", description: "Could not sync account.", variant: "destructive" });
-    } finally {
-      setSyncing((s) => {
-        const next = new Set(s);
-        next.delete(accountId);
-        return next;
-      });
-    }
+  const handleSync = async (_accountId: string) => {
+    // The per-account sync endpoint isn't available yet — surface a clear toast
+    // instead of silently mutating local state and pretending we synced.
+    toast({
+      title: "Bank sync coming soon",
+      description:
+        "Automatic re-sync will be available in the next release. For now, disconnect and reconnect to refresh.",
+    });
+  };
+
+  const handleAddNew = () => {
+    toast({
+      title: "Bank connection coming soon",
+      description:
+        "We're rolling out Setu AA integration in the next release. You'll be able to add banks securely here.",
+    });
   };
 
   const handleDisconnect = async (accountId: string) => {
@@ -146,8 +140,8 @@ export default function ConnectionsPage() {
           </p>
         </div>
         <button
-          className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[10px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
-          onClick={() => {}}
+          className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[10px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+          onClick={handleAddNew}
         >
           <Plus className="w-4 h-4" />
           Add New
@@ -177,8 +171,8 @@ export default function ConnectionsPage() {
 
       {/* Mobile Add button */}
       <button
-        className="sm:hidden inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-[12px] bg-accent text-white text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
-        onClick={() => {}}
+        className="sm:hidden inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-[12px] bg-accent text-accent-foreground text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+        onClick={handleAddNew}
       >
         <Plus className="w-4 h-4" />
         Add New Connection
@@ -189,7 +183,6 @@ export default function ConnectionsPage() {
         {accountList.map((account, idx) => {
           const syncStatus = getSyncStatus(account.last_synced_at);
           const syncConfig = SYNC_STATUS_CONFIG[syncStatus];
-          const isSyncing = syncing.has(account.account_id);
           const isDisconnecting = disconnecting === account.account_id;
           const showConfirm = confirmDisconnect === account.account_id;
           const maskedNumber = `••••${account.account_number_last4}`;
@@ -251,7 +244,7 @@ export default function ConnectionsPage() {
                     Last synced
                   </p>
                   <p className="text-[12px] text-(--text-secondary) mt-0.5">
-                    {isSyncing ? "Syncing now…" : timeAgo(account.last_synced_at)}
+                    {timeAgo(account.last_synced_at)}
                   </p>
                 </div>
               </div>
@@ -259,14 +252,12 @@ export default function ConnectionsPage() {
               {/* Actions */}
               <div className="flex items-center gap-2 pt-1 border-t border-(--border-subtle)">
                 <button
-                  disabled={!account.is_active || isSyncing}
+                  disabled={!account.is_active}
                   onClick={() => handleSync(account.account_id)}
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[13px] font-medium text-accent hover:bg-[var(--accent-light)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <RefreshCw
-                    className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`}
-                  />
-                  {isSyncing ? "Syncing…" : "Sync Now"}
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Sync Now
                 </button>
                 <div className="flex-1" />
                 {showConfirm ? (

@@ -21,8 +21,8 @@ export function CashflowBarChart({ data }: { data: { month: string; income: numb
           contentStyle={{ background: "var(--surface)", border: "1px solid var(--border-strong)", borderRadius: 12, fontSize: 12, boxShadow: "var(--shadow-lg)" }}
           formatter={(v: number) => `₹${v.toLocaleString("en-IN")}`}
         />
-        <Bar dataKey="income" name="Income" fill="#047857" radius={[3, 3, 0, 0]} isAnimationActive animationDuration={1200} />
-        <Bar dataKey="expense" name="Expense" fill="#E11D48" radius={[3, 3, 0, 0]} isAnimationActive animationDuration={1200} animationBegin={200} />
+        <Bar dataKey="income" name="Income" fill="var(--chart-1)" radius={[3, 3, 0, 0]} isAnimationActive animationDuration={1200} />
+        <Bar dataKey="expense" name="Expense" fill="var(--chart-5)" radius={[3, 3, 0, 0]} isAnimationActive animationDuration={1200} animationBegin={200} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -36,8 +36,8 @@ export function NetWorthLineChart({ data }: { data: { month: string; value: numb
       <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="nwGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#B08D57" />
-            <stop offset="100%" stopColor="#047857" />
+            <stop offset="0%" stopColor="var(--chart-2)" />
+            <stop offset="100%" stopColor="var(--chart-1)" />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
@@ -61,8 +61,8 @@ export function ForecastComboChart({ data }: { data: { month: string; actual: nu
       <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="forecastBand" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#047857" stopOpacity={0.2} />
-            <stop offset="100%" stopColor="#047857" stopOpacity={0.02} />
+            <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.2} />
+            <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0.02} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
@@ -74,8 +74,8 @@ export function ForecastComboChart({ data }: { data: { month: string; actual: nu
         />
         <Area type="monotone" dataKey="upper" stroke="none" fill="url(#forecastBand)" isAnimationActive animationDuration={1200} />
         <Area type="monotone" dataKey="lower" stroke="none" fill="var(--background)" isAnimationActive animationDuration={1200} />
-        <Line type="monotone" dataKey="actual" name="Actual" stroke="#047857" strokeWidth={2.5} dot={false} connectNulls isAnimationActive animationDuration={1200} />
-        <Line type="monotone" dataKey="projected" name="Projected" stroke="#B08D57" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls isAnimationActive animationDuration={1200} />
+        <Line type="monotone" dataKey="actual" name="Actual" stroke="var(--chart-1)" strokeWidth={2.5} dot={false} connectNulls isAnimationActive animationDuration={1200} />
+        <Line type="monotone" dataKey="projected" name="Projected" stroke="var(--chart-2)" strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls isAnimationActive animationDuration={1200} />
       </ComposedChart>
     </ResponsiveContainer>
   );

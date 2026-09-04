@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  ArrowRight, ArrowUpRight, ArrowDownRight, Sparkles,
+  ArrowRight, ArrowUpRight, ArrowDownRight,
   TrendingUp, ShieldCheck, Wallet, PiggyBank, Lightbulb,
   Users, Activity, Trophy,
 } from "lucide-react";
@@ -322,11 +322,11 @@ export default function FinancialHealthPage() {
         transition={{ duration: 0.5, delay: 0.4 }}
       >
         <SectionHeader
-          title="Recommendations"
+          title="Tips"
           action={
             <span className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
-              <Sparkles className="w-3 h-3 text-accent" />
-              AI Generated
+              <Lightbulb className="w-3 h-3 text-(--warning)" />
+              General guidance
             </span>
           }
         />
@@ -497,6 +497,14 @@ export default function FinancialHealthPage() {
       </motion.section>
 
       {/* ── Footer note ───────────────────────────────────── */}
+      <motion.p
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.65 }}
+        className="text-[11px] text-(--text-tertiary) text-center max-w-lg mx-auto leading-normal"
+      >
+        Tips are general guidance based on common personal-finance best practices. Always consider your own circumstances before acting.
+      </motion.p>
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}

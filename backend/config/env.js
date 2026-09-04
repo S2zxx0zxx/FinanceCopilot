@@ -64,7 +64,12 @@ export const config = {
         r2AccountId: process.env.R2_ACCOUNT_ID,
         r2AccessKey: process.env.R2_ACCESS_KEY_ID,
         r2SecretKey: process.env.R2_SECRET_ACCESS_KEY,
-        r2BucketName: process.env.R2_BUCKET_NAME
+        r2BucketName: process.env.R2_BUCKET_NAME,
+        // FIX (audit P1 #30): R2StorageAdapter reads R2_ENDPOINT_URL at boot
+        // but env.js never declared it — the adapter silently skipped client
+        // construction in any environment that relied on the central config
+        // schema. Surface it here so config validation / debug pages pick it up.
+        r2EndpointUrl: process.env.R2_ENDPOINT_URL
     },
     queue: {
         apiToken: process.env.CF_QUEUE_API_TOKEN,

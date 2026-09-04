@@ -17,7 +17,7 @@ export const SpendingArea = React.memo(function SpendingArea() {
         <XAxis dataKey="day" hide />
         <Tooltip
           cursor={{ stroke: "#34D399", strokeWidth: 1 }}
-          formatter={(v: number) => [`$${v}`, "Spend"]}
+          formatter={(v: number) => [`₹${v.toLocaleString('en-IN')}`, "Spend"]}
           labelFormatter={(l) => `Day ${l}`}
         />
         <Area

@@ -96,7 +96,9 @@ export class NotificationsController {
             const userId = req.user.userId;
             const { id } = req.params;
             await dbClient.query(`DELETE FROM notifications WHERE notification_id = $2 AND user_id = $1`, [userId, id]);
-            res.status(204).json({ status: 'OK' });
+            // FIX (audit P1 #34): 204 must NOT have a body. Use 200 with a JSON
+            // status payload so the frontend can read the confirmation message.
+            res.status(200).json({ status: 'OK' });
         } catch (err) {
             next(err);
         }

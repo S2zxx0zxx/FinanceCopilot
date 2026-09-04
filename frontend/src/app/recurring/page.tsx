@@ -36,7 +36,7 @@ function confidenceColor(c: number): string {
 }
 
 export default function RecurringPage() {
-  const { recurringSeries } = useAppData();
+  const { recurringSeries, refetch } = useAppData();
   const { toast } = useToast();
   const [detecting, setDetecting] = React.useState(false);
   const active = recurringSeries.filter((s) => s.status === "active");
@@ -50,7 +50,9 @@ export default function RecurringPage() {
     setDetecting(true);
     try {
       await api.detectRecurring();
-      toast({ title: "Detection started", description: "Scanning your transactions for new recurring patterns." });
+      toast({ title: "Detection complete", description: "Refreshed your recurring series with the latest patterns." });
+      // Refetch so the list reflects newly detected series.
+      await refetch?.();
     } catch {
       toast({ title: "Detection failed", description: "Could not start detection. Try again.", variant: "destructive" });
     } finally {
@@ -89,7 +91,7 @@ export default function RecurringPage() {
           type="button"
           onClick={handleDetect}
           disabled={detecting}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-sm shrink-0 disabled:opacity-60"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-[12px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-sm shrink-0 disabled:opacity-60"
         >
           <Sparkles className="w-4 h-4" />
           {detecting ? "Detecting..." : "Detect New"}

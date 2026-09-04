@@ -35,47 +35,68 @@ export const ConsentRepo = {
     },
 
     async trackPendingConsent(user_id, consent_type, consent_handle) {
+        // FIX (audit P0 #4 + P1 #40): columns consent_handle / status /
+        // consent_id_ext now exist (migration 018). Persist a 'pending'
+        // consent row that the AA webhook can later promote to 'active'.
         const text = `
-            INSERT INTO consent_records (user_id, consent_type, consent_handle, status, version, consented, granted_at)
-            VALUES ($1, $2, $3, 'pending', 'v1', false, NOW())
+            INSERT INTO consent_records (
+                user_id, consent_type, version, consented,
+                consent_handle, status, granted_at
+            )
+            VALUES ($1, $2, $3, false, $4, 'pending', NOW())
             RETURNING *;
         `;
-        const res = await dbClient.query(text, [user_id, consent_type, consent_handle]);
+        const todayVersion = new Date().toISOString().slice(0, 10);
+        const res = await dbClient.query(text, [user_id, consent_type, todayVersion, consent_handle]);
         return res.rows[0];
     },
 
     async getConsentByHandle(consent_handle) {
-        const text = `SELECT * FROM consent_records WHERE consent_handle = $1 LIMIT 1;`;
+        // FIX (audit P0 #4): consent_handle column now exists (migration 018).
+        const text = `
+            SELECT * FROM consent_records
+            WHERE consent_handle = $1
+            ORDER BY granted_at DESC LIMIT 1;
+        `;
         const res = await dbClient.query(text, [consent_handle]);
         return res.rows[0] || null;
     },
 
-    async activateConsent(id, consentId) {
+    async activateConsent(consentId, externalConsentId) {
+        // FIX (audit P0 #4 + P1 #40): use the canonical PK `consent_id` for
+        // lookup and store the AA-issued consentId in `consent_id_ext`
+        // (migration 018) so it never collides with our UUID PK.
         const text = `
-            UPDATE consent_records 
-            SET status = 'active', consent_id = $2, consented = true, granted_at = NOW()
-            WHERE consent_id = $1 OR id = $1
+            UPDATE consent_records
+            SET status = 'active',
+                consent_id_ext = $2,
+                consented = true,
+                granted_at = NOW()
+            WHERE consent_id = $1
             RETURNING *;
         `;
-        const res = await dbClient.query(text, [id, consentId]);
-        return res.rows[0];
+        const res = await dbClient.query(text, [consentId, externalConsentId]);
+        return res.rows[0] || null;
     },
 
-    async revokeConsentById(id, revokedAt) {
+    async revokeConsentById(consentId, revokedAt) {
+        // FIX (audit P0 #4): use canonical PK `consent_id` (no `id` column
+        // exists on consent_records).
         const text = `
-            UPDATE consent_records 
-            SET revoked_at = $2, status = 'revoked'
-            WHERE consent_id = $1 OR id = $1
+            UPDATE consent_records
+            SET status = 'revoked',
+                revoked_at = $2
+            WHERE consent_id = $1
             RETURNING *;
         `;
-        const res = await dbClient.query(text, [id, revokedAt]);
+        const res = await dbClient.query(text, [consentId, revokedAt]);
         return res.rows[0] || null;
     },
 
     async revokeConsent(userId, policyId, revokedAt) {
         const text = `
-            UPDATE consent_records 
-            SET revoked_at = $3 
+            UPDATE consent_records
+            SET revoked_at = $3
             WHERE user_id = $1 AND consent_type = $2 AND revoked_at IS NULL
             RETURNING *;
         `;

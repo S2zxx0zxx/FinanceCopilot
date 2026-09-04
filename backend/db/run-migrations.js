@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { dbClient } from './client.js';
 import { logger } from '../utils/logger.js';
 
@@ -101,7 +101,16 @@ async function runMigrations() {
     }
 }
 
-// Execute if run directly
-if (process.argv[1] === __filename) {
+// Execute if run directly (compare normalized paths — works across ESM URL/path formats)
+const invokedDirectly = (() => {
+    try {
+        const argvUrl = pathToFileURL(process.argv[1]).href;
+        const moduleUrl = import.meta.url;
+        return argvUrl === moduleUrl;
+    } catch {
+        return process.argv[1] === __filename;
+    }
+})();
+if (invokedDirectly) {
     runMigrations();
 }

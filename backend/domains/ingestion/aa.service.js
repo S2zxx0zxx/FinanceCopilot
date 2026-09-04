@@ -52,13 +52,16 @@ export class AccountAggregatorService {
             }
 
             if (status === 'ACTIVE') {
-                await this.consentService.activateConsent(consentRecord.id, consentId);
+                // FIX (audit P0 #4): consent_records has no `id` column —
+                // use the canonical PK `consent_id`. ConsentService.activateConsent
+                // now stores the AA-issued consentId in `consent_id_ext`.
+                await this.consentService.activateConsent(consentRecord.consent_id, consentId);
                 await AuditRepo.logEvent('AA_CONSENT_ACTIVE', 'consent', consentId, consentRecord.user_id, {});
-                
+
                 // Automatically trigger first data pull
                 await this.triggerDataSync(consentRecord.user_id, consentId);
             } else if (status === 'REVOKED') {
-                await this.consentService.revokeConsentById(consentRecord.id);
+                await this.consentService.revokeConsentById(consentRecord.consent_id);
                 await AuditRepo.logEvent('AA_CONSENT_REVOKED', 'consent', consentId, consentRecord.user_id, {});
             }
         } catch (error) {
@@ -75,10 +78,14 @@ export class AccountAggregatorService {
         const { sessionId } = await this.aaAdapter.requestData(consentId, {});
 
         // 2. Create an Import Job for the incoming data
+        // FIX (audit P1 #47): import_jobs.job_type CHECK constraint allows
+        // ('pdf','csv','excel','ocr','manual') — 'account_aggregator' was
+        // rejected by the CHECK, throwing and silently losing the AA webhook.
+        // Use 'manual' (the closest semantic match for AA-sourced data).
         const importJob = await this.dbRepository.createImportJob({
             user_id: userId,
             idempotency_key: `aa_sync_${sessionId}`,
-            job_type: 'account_aggregator',
+            job_type: 'manual',
             file_ref: sessionId, // Used to map the incoming webhook data
             original_filename: `aa_sync_${new Date().toISOString()}`,
             content_type: 'application/json'

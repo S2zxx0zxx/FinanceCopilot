@@ -39,7 +39,17 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "'unsafe-inline'", "https://clerk.com", "https://*.clerk.com", "https://*.clerk.accounts.dev"],
             connectSrc: ["'self'", "https://clerk.com", "https://*.clerk.com", "https://*.clerk.accounts.dev"],
-            imgSrc: ["'self'", "data:", "https://*"],
+            // FIX (audit P1 #37): `https://*` lets any TLS site inject images
+            // (and via CSS data: exfil, scripts). Restrict to known domains
+            // we actually serve avatars/logos from. Add more as needed.
+            imgSrc: [
+                "'self'",
+                "data:",
+                "https://img.clerk.com",
+                "https://images.clerk.dev",
+                "https://*.clerk.com",
+                "https://*.clerk.accounts.dev"
+            ],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
         }
@@ -51,7 +61,7 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN
         ? process.env.CORS_ORIGIN.split(',')
         : ['http://localhost:3000', 'http://localhost:3002'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-dev-user-id', 'x-dev-bypass']
 }));
 

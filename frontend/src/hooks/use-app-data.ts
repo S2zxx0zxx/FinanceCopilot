@@ -1,132 +1,122 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useQueries } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import * as fallbackData from "@/lib/data";
+import { useCallback } from "react";
 
-// Type mapping to ensure we match what data.ts exported
+// ── Empty defaults (NO mock data — only safe empty structures) ───────────────
+const EMPTY_STATE = {
+  accounts: [] as any[],
+  financialStateMoney: {
+    net_position: { available_balance_paise: 0, posted_balance_paise: 0, pending_balance_paise: 0 },
+    coverage: { synced_accounts: 0, total_accounts: 0 },
+  } as any,
+  recentTransactions: [] as any[],
+  goals: [] as any[],
+  budgets: [] as any[],
+  financialHealth: { cash_buffer_months: 0, cash_buffer_status: "missing", commitment_load_ratio: 0, commitment_load_status: "missing", savings_rate_pct: 0, savings_rate_status: "missing", emergency_fund_months: 0, emergency_fund_status: "missing", drivers: {} } as any,
+  recurringSeries: [] as any[],
+  cashflowData: [] as any[],
+  forecastData: { horizons: [], timeline: [], drivers: [] } as any,
+  aiHomeFeed: { insights: [] } as any,
+  aiInsights: [] as any[],
+  peerComparison: { bracket: "—", total_peers: 0, your_savings_rate: 0, peer_median_savings_rate: 0, peer_top_10_pct: 0, your_cash_buffer_months: 0, peer_median_cash_buffer: 0, peer_top_10_pct_buffer: 0, your_subscription_count: 0, peer_median_subscriptions: 0, your_dining_spend_pct_of_income: 0, peer_median_dining_pct: 0 } as any,
+  calendarEvents: [] as any[],
+  spendingStory: { total_spent_paise: 0, change_paise: 0, categories: [] } as any,
+  incomeData: {} as any,
+  liabilities: {} as any,
+  notifications: [] as any[],
+  currentUser: { id: "", email: "", displayName: "", photoURL: null, createdAt: new Date().toISOString() } as any,
+  securityData: { security_score: 0, two_factor_enabled: false, active_sessions: [], recent_activity: [] } as any,
+  gamification: { level: 1, level_name: "Beginner", xp: 0, xp_to_next_level: 1000, tracking_streak_days: 0, longest_streak_days: 0, badges: [], milestones: [] } as any,
+  privacyData: { data_retention_days: 365, marketing_consent: false, analytics_consent: false, ai_sharing_consent: false, data_inventory: [], consent_history: [] } as any,
+  dataCoverage: { coverage_pct: 0, synced_accounts: 0, total_accounts: 0, accounts: [] } as any,
+  netWorthHistory: [] as any[],
+};
+
+// Helper to safely extract arrays/objects
+const extract = (data: any, fallback: any, key: string) => {
+  if (data === null || data === undefined) return fallback;
+  if (Array.isArray(data)) return data;
+  if (data[key]) return data[key];
+  if (data.data) return data.data;
+  if (data.user) return data.user;
+  if (data.cashflow) return data.cashflow;
+  if (data.history) return data.history;
+  return data;
+};
+
 export function useAppData() {
-  const [data, setData] = useState<any>({
-    loading: true,
-    error: null,
-    // Start with fallback/mock data so the UI doesn't crash before fetch finishes
-    ...fallbackData
+  const results = useQueries({
+    queries: [
+      { queryKey: ['accounts'], queryFn: () => api.getAccounts().catch(() => null) },
+      { queryKey: ['financialStateMoney'], queryFn: () => api.getMoneyState().catch(() => null) },
+      { queryKey: ['transactions'], queryFn: () => api.getTransactions().catch(() => null) },
+      { queryKey: ['goals'], queryFn: () => api.getGoals().catch(() => null) },
+      { queryKey: ['budgets'], queryFn: () => api.getBudgets().catch(() => null) },
+      { queryKey: ['financialHealth'], queryFn: () => api.getFinancialHealth().catch(() => null) },
+      { queryKey: ['recurringSeries'], queryFn: () => api.getRecurring().catch(() => null) },
+      { queryKey: ['cashflowData'], queryFn: () => api.getCashflow().catch(() => null) },
+      { queryKey: ['forecastData'], queryFn: () => api.getForecast().catch(() => null) },
+      { queryKey: ['aiHomeFeed'], queryFn: () => api.getAIHomeFeed().catch(() => null) },
+      { queryKey: ['peerComparison'], queryFn: () => api.getPeerComparison().catch(() => null) },
+      { queryKey: ['calendarEvents'], queryFn: () => api.getCalendarEvents().catch(() => null) },
+      { queryKey: ['spendingStory'], queryFn: () => api.getSpendingStory().catch(() => null) },
+      { queryKey: ['incomeData'], queryFn: () => api.getIncome().catch(() => null) },
+      { queryKey: ['liabilities'], queryFn: () => api.getLiabilities().catch(() => null) },
+      { queryKey: ['notifications'], queryFn: () => api.getNotifications().catch(() => null) },
+      { queryKey: ['currentUser'], queryFn: () => api.getMe().catch(() => null) },
+      { queryKey: ['gamification'], queryFn: () => api.getGamification().catch(() => null) },
+      { queryKey: ['securityData'], queryFn: () => Promise.resolve(null) },
+      { queryKey: ['privacyData'], queryFn: () => Promise.resolve(null) },
+      { queryKey: ['dataCoverage'], queryFn: () => Promise.resolve(null) },
+      { queryKey: ['netWorthHistory'], queryFn: () => api.getNetWorthHistory().catch(() => null) },
+    ]
   });
 
-  useEffect(() => {
-    let mounted = true;
+  const isLoading = results.some(r => r.isLoading);
+  const error = results.find(r => r.error)?.error || null;
 
-    async function loadData() {
-      try {
-        const [
-          accounts,
-          financialStateMoney,
-          transactions,
-          goals,
-          budgets,
-          financialHealth,
-          recurringSeries,
-          cashflowData,
-          forecastData,
-          aiHomeFeed,
-          peerComparison,
-          calendarEvents,
-          spendingStory,
-          incomeData,
-          liabilities,
-          notifications
-        ] = await Promise.all([
-          api.getAccounts().catch(() => null),
-          api.getMoneyState().catch(() => null),
-          api.getTransactions().catch(() => null),
-          api.getGoals().catch(() => null),
-          api.getBudgets().catch(() => null),
-          api.getFinancialHealth().catch(() => null),
-          api.getRecurring().catch(() => null),
-          api.getCashflow().catch(() => null),
-          api.getForecast().catch(() => null),
-          api.getAIHomeFeed().catch(() => null),
-          api.getPeerComparison().catch(() => null),
-          api.getCalendarEvents().catch(() => null),
-          api.getSpendingStory().catch(() => null),
-          api.getIncome().catch(() => null),
-          api.getLiabilities().catch(() => null),
-          api.getNotifications().catch(() => null),
-        ]);
+  const refetch = useCallback(async () => {
+    await Promise.all(results.map(r => r.refetch()));
+  }, [results]);
 
-        if (!mounted) return;
+  const [
+    accountsRes, moneyRes, txRes, goalsRes, budgetsRes, healthRes, recurringRes,
+    cashflowRes, forecastRes, aiRes, peerRes, calendarRes, spendingRes, incomeRes,
+    liabilitiesRes, notificationsRes, meRes, gamificationRes, securityRes, privacyRes,
+    coverageRes, netWorthRes
+  ] = results;
 
-        setData((prev: any) => ({
-          ...prev,
-          loading: false,
-          error: null,
-          // Use real data if available, fall back to existing state (not mock) on null
-          accounts: accounts !== null
-            ? (Array.isArray(accounts) ? accounts : accounts?.accounts || [])
-            : prev.accounts,
-          financialStateMoney: financialStateMoney !== null
-            ? (financialStateMoney?.data || financialStateMoney)
-            : prev.financialStateMoney,
-          recentTransactions: transactions !== null
-            ? (Array.isArray(transactions) ? transactions : transactions?.transactions || transactions?.data || [])
-            : prev.recentTransactions,
-          goals: goals !== null
-            ? (Array.isArray(goals) ? goals : goals?.goals || [])
-            : prev.goals,
-          budgets: budgets !== null
-            ? (Array.isArray(budgets) ? budgets : budgets?.budgets || [])
-            : prev.budgets,
-          financialHealth: financialHealth !== null
-            ? (financialHealth?.data || financialHealth)
-            : prev.financialHealth,
-          recurringSeries: recurringSeries !== null
-            ? (Array.isArray(recurringSeries) ? recurringSeries : recurringSeries?.series || recurringSeries?.data || [])
-            : prev.recurringSeries,
-          cashflowData: cashflowData !== null
-            ? (cashflowData?.data || cashflowData)
-            : prev.cashflowData,
-          forecastData: forecastData !== null
-            ? (forecastData?.data || forecastData)
-            : prev.forecastData,
-          aiHomeFeed: aiHomeFeed !== null
-            ? (aiHomeFeed?.data || aiHomeFeed)
-            : prev.aiHomeFeed,
-          // aiInsights is a sub-key of aiHomeFeed — keep in sync
-          aiInsights: aiHomeFeed !== null
-            ? (aiHomeFeed?.insights || aiHomeFeed?.data?.insights || [])
-            : prev.aiInsights || [],
-          peerComparison: peerComparison !== null
-            ? (peerComparison?.data || peerComparison)
-            : prev.peerComparison,
-          calendarEvents: calendarEvents !== null
-            ? (Array.isArray(calendarEvents) ? calendarEvents : calendarEvents?.events || calendarEvents?.data || [])
-            : prev.calendarEvents,
-          spendingStory: spendingStory !== null
-            ? (spendingStory?.data || spendingStory)
-            : prev.spendingStory,
-          incomeData: incomeData !== null
-            ? (incomeData?.data || incomeData)
-            : prev.incomeData,
-          liabilities: liabilities !== null
-            ? (liabilities?.data || liabilities)
-            : prev.liabilities,
-          notifications: notifications !== null
-            ? (Array.isArray(notifications) ? notifications : notifications?.notifications || notifications?.data || [])
-            : prev.notifications || [],
-        }));
-      } catch (err) {
-        if (!mounted) return;
-        // On catastrophic failure, keep existing data (from initial fallback) but flag error
-        setData((prev: any) => ({ ...prev, loading: false, error: err }));
-      }
-    }
+  const aiHomeFeed = extract(aiRes.data, EMPTY_STATE.aiHomeFeed, 'data');
+  const aiInsights = aiHomeFeed?.insights || aiHomeFeed?.data?.insights || [];
 
-    loadData();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  return data;
+  return {
+    loading: isLoading,
+    error,
+    accounts: extract(accountsRes.data, EMPTY_STATE.accounts, 'accounts'),
+    financialStateMoney: extract(moneyRes.data, EMPTY_STATE.financialStateMoney, 'data'),
+    recentTransactions: extract(txRes.data, EMPTY_STATE.recentTransactions, 'transactions'),
+    goals: extract(goalsRes.data, EMPTY_STATE.goals, 'goals'),
+    budgets: extract(budgetsRes.data, EMPTY_STATE.budgets, 'budgets'),
+    financialHealth: extract(healthRes.data, EMPTY_STATE.financialHealth, 'data'),
+    recurringSeries: extract(recurringRes.data, EMPTY_STATE.recurringSeries, 'series'),
+    cashflowData: extract(cashflowRes.data, EMPTY_STATE.cashflowData, 'data'),
+    forecastData: extract(forecastRes.data, EMPTY_STATE.forecastData, 'data'),
+    aiHomeFeed,
+    aiInsights,
+    peerComparison: extract(peerRes.data, EMPTY_STATE.peerComparison, 'data'),
+    calendarEvents: extract(calendarRes.data, EMPTY_STATE.calendarEvents, 'events'),
+    spendingStory: extract(spendingRes.data, EMPTY_STATE.spendingStory, 'data'),
+    incomeData: extract(incomeRes.data, EMPTY_STATE.incomeData, 'data'),
+    liabilities: extract(liabilitiesRes.data, EMPTY_STATE.liabilities, 'data'),
+    notifications: extract(notificationsRes.data, EMPTY_STATE.notifications, 'notifications'),
+    currentUser: extract(meRes.data, EMPTY_STATE.currentUser, 'data'),
+    gamification: extract(gamificationRes.data, EMPTY_STATE.gamification, 'data'),
+    securityData: extract(securityRes.data, EMPTY_STATE.securityData, 'data'),
+    privacyData: extract(privacyRes.data, EMPTY_STATE.privacyData, 'data'),
+    dataCoverage: extract(coverageRes.data, EMPTY_STATE.dataCoverage, 'data'),
+    netWorthHistory: extract(netWorthRes.data, EMPTY_STATE.netWorthHistory, 'data'),
+    refetch
+  };
 }

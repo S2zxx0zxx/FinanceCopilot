@@ -62,14 +62,11 @@ export class ConsentService {
 
   // Account Aggregator Extensions
   async trackPendingConsent(userId, policyId, consentHandle) {
-    // Save a pending consent record linked to the AA consentHandle
-    return await this.db.saveConsent({
-      user_id: userId,
-      consent_type: policyId,
-      version: new Date().toISOString().slice(0, 10),
-      status: 'PENDING',
-      consent_handle: consentHandle
-    });
+    // FIX (audit P0 #4 + P1 #40): delegate to ConsentRepo.trackPendingConsent
+    // which writes the consent_handle + 'pending' status columns added by
+    // migration 018. Previously this called saveConsent() which silently
+    // dropped the handle — AA webhook could never look the row back up.
+    return await this.db.trackPendingConsent(userId, policyId, consentHandle);
   }
 
   async getConsentByHandle(consentHandle) {
@@ -79,7 +76,7 @@ export class ConsentService {
 
   async activateConsent(consentRecordId, consentId) {
     // Abstract DB call to mark consent as ACTIVE and save AA consentId
-    return await this.db.activateConsent(consentRecordId, consentId, new Date().toISOString());
+    return await this.db.activateConsent(consentRecordId, consentId);
   }
 
   async revokeConsentById(consentRecordId) {

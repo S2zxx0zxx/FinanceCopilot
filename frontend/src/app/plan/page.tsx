@@ -116,7 +116,16 @@ function scoreLabel(score: number): { label: string; tone: Tone } {
 }
 
 // ── Savings challenge (52-week) ────────────────────────────────────────────
-const CHALLENGE_CURRENT_WEEK = 36;
+// Current week is computed from today's date (ISO week of year) so the
+// challenge card stays in sync with the real calendar. Clamped to [1, 52].
+function isoWeekOfYear(date: Date): number {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.max(1, Math.min(52, Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)));
+}
+const CHALLENGE_CURRENT_WEEK = isoWeekOfYear(new Date());
 const CHALLENGE_TOTAL_WEEKS = 52;
 
 function weekDepositPaise(week: number): number {
@@ -636,7 +645,7 @@ function SavingsHeatmap() {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function PlanPage() {
-  const { goals, budgets, financialHealth, recurringSeries, calendarEvents, peerComparison, cashflowData, forecastData, gamification } = useAppData();
+  const { goals, budgets, financialHealth, recurringSeries, calendarEvents, peerComparison, cashflowData, forecastData, gamification, accounts } = useAppData();
   const [expandedBudget, setExpandedBudget] = React.useState<string | null>(null);
   const [debtStrategy, setDebtStrategy] = React.useState<"snowball" | "avalanche">(
     "avalanche",
@@ -696,7 +705,7 @@ export default function PlanPage() {
   ];
 
   // Calendar grouping
-  const today = new Date("2026-09-01T12:00:00Z");
+  const today = new Date();
   const sortedEvents = [...calendarEvents].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
@@ -763,9 +772,28 @@ export default function PlanPage() {
   const totalExpense = cashflowData.reduce((s, d) => s + d.expense, 0) * 100;
   const totalNet = totalIncome - totalExpense;
 
-  // Debt payoff math (mock Axis card ₹45,000, APR 36%)
-  const DEBT_Paise = 4500000;
-  const DEBT_APR = 0.36;
+  // Debt payoff math — computed from real credit-card accounts when available.
+  // Falls back to a clearly-labeled DEMO example if the user has no card debt.
+  const creditCardAccounts = accounts.filter(
+    (a: any) => a.account_type === "credit_card" && a.is_active !== false,
+  );
+  const highestCard = creditCardAccounts.length > 0
+    ? creditCardAccounts.reduce((max: any, a: any) =>
+        Math.abs(a.balances?.available_balance_paise || 0) >
+        Math.abs(max.balances?.available_balance_paise || 0)
+          ? a
+          : max,
+      )
+    : null;
+  const hasCardDebt =
+    highestCard && highestCard.balances && highestCard.balances.available_balance_paise < 0;
+  const DEBT_Paise = hasCardDebt
+    ? Math.abs(highestCard.balances.available_balance_paise)
+    : 4500000; // DEMO: ₹45,000
+  const DEBT_APR = 0.36; // DEMO APR (most Indian cards 36–42%)
+  const DEBT_LABEL = hasCardDebt && highestCard
+    ? `${highestCard.institution_name} Credit Card`
+    : "Demo: Axis Bank Credit Card";
   const monthlyR = DEBT_APR / 12;
   const principalRupees = DEBT_Paise / 100;
   const monthsToPayoff = monthlyPayment <= monthlyR * principalRupees
@@ -1818,7 +1846,7 @@ export default function PlanPage() {
       >
         <SectionHeader
           title="Debt Payoff Planner"
-          action={<Badge label="2026" variant="ai" />}
+          action={<Badge label={hasCardDebt ? "Live" : "Demo"} variant={hasCardDebt ? "positive" : "warning"} />}
         />
         <div className="premium-card p-5">
           {/* Current debt */}
@@ -1827,7 +1855,7 @@ export default function PlanPage() {
               <CreditCard className="w-5 h-5 text-(--negative)" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-[14px] font-semibold">Axis Bank Credit Card</h3>
+              <h3 className="text-[14px] font-semibold">{DEBT_LABEL}</h3>
               <p className="text-[12px] text-(--text-tertiary) mt-0.5">
                 Outstanding · 36% APR · Min due {formatPaise(225000)}
               </p>

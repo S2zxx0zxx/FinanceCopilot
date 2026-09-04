@@ -101,7 +101,8 @@ export class InsightsController {
      */
     static async getCalendarEvents(req, res, next) {
         try {
-            const userId = req.user.id;
+            // FIX (audit P1 #42): standardize on req.user.userId everywhere.
+            const userId = req.user.userId;
             const { horizon_days = 30 } = req.query;
             const horizonDate = new Date();
             horizonDate.setDate(horizonDate.getDate() + parseInt(horizon_days, 10));
@@ -274,7 +275,8 @@ export class InsightsController {
      */
     static async getSavingsChallenges(req, res, next) {
         try {
-            const userId = req.user.id;
+            // FIX (audit P1 #42): standardize on req.user.userId everywhere.
+            const userId = req.user.userId;
             const result = await dbClient.query(
                 `SELECT * FROM savings_challenges WHERE user_id = $1 ORDER BY created_at DESC`,
                 [userId]
@@ -305,7 +307,8 @@ export class InsightsController {
      */
     static async contributeToChallenge(req, res, next) {
         try {
-            const userId = req.user.id;
+            // FIX (audit P1 #42): standardize on req.user.userId everywhere.
+            const userId = req.user.userId;
             const { id } = req.params;
             const { amount_paise } = req.body;
             if (!amount_paise) {

@@ -14,6 +14,17 @@ const CLERK_PUBLISHABLE_KEY =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
   "pk_test_aGVhbHRoeS1hYXJkdmFyay02Nzg3LmNsZXJrLmFjY291bnRzLmRldiQ";
 
+if (!CLERK_PUBLISHABLE_KEY) {
+  // Fail loudly in dev so the missing env var is noticed immediately.
+  // In production the build/runtime will surface this as a configuration error.
+  if (process.env.NODE_ENV !== "production") {
+    console.error(
+      "[FinCopilot] Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY. " +
+      "Set it in .env.local before running the app.",
+    );
+  }
+}
+
 // Public routes that don't need auth guard
 const PUBLIC_ROUTES = ["/sign-in", "/sign-up", "/onboarding"];
 
@@ -76,21 +87,48 @@ function ClerkTokenSync() {
   return null;
 }
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes cache to prevent DB spam
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
+
 export function Providers({ children }: { children: React.ReactNode }) {
+  if (!CLERK_PUBLISHABLE_KEY) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)] p-6">
+        <div className="premium-card p-6 max-w-md text-center">
+          <h1 className="font-display font-bold text-[20px] mb-2">Configuration error</h1>
+          <p className="text-[13px] text-(--text-secondary)">
+            <code className="font-mono">NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</code> is
+            not set. Please add it to your environment and restart the dev server.
+          </p>
+        </div>
+      </div>
+    );
+  }
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <ClerkTokenSync />
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        enableSystem={false}
-        disableTransitionOnChange
-      >
-        <AuthGate>
-          <AppShell>{children}</AppShell>
-        </AuthGate>
-        <Toaster />
-      </ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <AuthGate>
+            <AppShell>{children}</AppShell>
+          </AuthGate>
+          <Toaster />
+        </ThemeProvider>
+      </QueryClientProvider>
     </ClerkProvider>
   );
 }

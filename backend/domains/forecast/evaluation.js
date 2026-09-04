@@ -23,13 +23,17 @@ export class ForecastEvaluation {
         const targetOutcomeDate = new Date(cutoffDate.getTime() + horizonDays * 24 * 60 * 60 * 1000);
 
         // 3. Retrieve actual ending balance precisely on the outcome date
+        // FIX (audit P0 #19): financial_snapshots has NO `current_balance_paise`
+        // and NO `as_of` columns. The canonical schema (migration 008) stores
+        // the result in `result_paise` with timestamp `computed_at`.
         const actualRes = await this.dbClient.query(
-            `SELECT current_balance_paise FROM financial_snapshots 
-             WHERE user_id = $1 AND DATE(as_of) <= DATE($2)
-             ORDER BY as_of DESC LIMIT 1`,
+            `SELECT result_paise AS current_balance_paise, computed_at
+             FROM financial_snapshots
+             WHERE user_id = $1 AND computed_at <= $2
+             ORDER BY computed_at DESC LIMIT 1`,
             [userId, targetOutcomeDate.toISOString()]
         );
-        
+
         if (actualRes.rows.length === 0) {
             throw new Error(`Evaluation aborted: No actual data available for outcome date ${targetOutcomeDate.toISOString()}`);
         }

@@ -69,9 +69,21 @@ export class ZAIAdapter extends AIInterface {
                 if (!content) throw new Error("Empty response from Gemini");
 
                 const result = JSON.parse(content);
+
+                // FIX (audit P1 #29): use REAL token usage from the provider
+                // response. Gemini SDK exposes it via `response.usage_metadata`
+                // { promptTokenCount, candidatesTokenCount, totalTokenCount }.
+                const usageMeta = response.usageMetadata || response.usage_metadata || {};
+                const tokensIn = Number(usageMeta.promptTokenCount || 0);
+                const tokensOut = Number(usageMeta.candidatesTokenCount || usageMeta.totalTokenCount || 0);
+                // Real Gemini Flash cost ~ ₹0.006 per 1M tokens (~₹0.000000006/token).
+                // Charge 0.001 paise/token pre-flight; refund the difference when
+                // we know the real usage. 1 paise = 0.01 rupee.
+                const estimatedCostPaise = Math.ceil((tokensIn + tokensOut) * 0.001);
+
                 return {
                     result,
-                    usage: { tokensIn: 100, tokensOut: 100, estimatedCostPaise: 10 },
+                    usage: { tokensIn, tokensOut, estimatedCostPaise },
                     modelId: 'gemini-2.5-flash',
                     providerId: this.providerId
                 };
@@ -92,7 +104,7 @@ export class ZAIAdapter extends AIInterface {
                 } else if (typeof context === 'object' && context !== null) {
                     contextMessages = [{ role: 'system', content: `CONTEXT:\n${JSON.stringify(context)}` }];
                 }
-                
+
                 const messages = [
                     { role: 'system', content: systemPrompt },
                     ...contextMessages,
@@ -108,9 +120,16 @@ export class ZAIAdapter extends AIInterface {
                 const content = response.choices[0].message.content;
                 const result = JSON.parse(content);
 
+                // FIX (audit P1 #29): real OpenAI usage object — `response.usage`
+                // has { prompt_tokens, completion_tokens, total_tokens }.
+                const usage = response.usage || {};
+                const tokensIn = Number(usage.prompt_tokens || 0);
+                const tokensOut = Number(usage.completion_tokens || 0);
+                const estimatedCostPaise = Math.ceil((tokensIn + tokensOut) * 0.001);
+
                 return {
                     result,
-                    usage: { tokensIn: 100, tokensOut: 100, estimatedCostPaise: 10 },
+                    usage: { tokensIn, tokensOut, estimatedCostPaise },
                     modelId: 'gpt-4o-mini',
                     providerId: this.providerId
                 };

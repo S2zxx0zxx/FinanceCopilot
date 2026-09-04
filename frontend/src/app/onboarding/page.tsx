@@ -10,7 +10,8 @@ import {
   Target, CheckCircle2,
 } from "lucide-react";
 import { formatPaise } from "@/lib/format";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const GOAL_TYPES = [
   {
@@ -100,6 +101,7 @@ const IMPORT_METHODS = [
 const STEP_LABELS = ["Welcome", "Privacy", "Goal", "Connect"];
 
 export default function OnboardingPage() {
+  const { toast } = useToast();
   const [step, setStep] = React.useState(0);
   const [direction, setDirection] = React.useState(1);
 
@@ -115,6 +117,9 @@ export default function OnboardingPage() {
   const [selectedImport, setSelectedImport] = React.useState<string | null>(null);
   const [connecting, setConnecting] = React.useState(false);
   const [connected, setConnected] = React.useState(false);
+
+  // User display name (fetched after onboarding completes for the success screen)
+  const [userFirstName, setUserFirstName] = React.useState<string>("there");
 
   const goTo = (newStep: number) => {
     setDirection(newStep > step ? 1 : -1);
@@ -145,9 +150,26 @@ export default function OnboardingPage() {
       });
       setConnecting(false);
       setConnected(true);
-    } catch (err) {
-      console.error("Failed to complete onboarding:", err);
+      // Fetch the user's real name for the success screen.
+      try {
+        const me: any = await api.getMe();
+        const name: string = me?.user?.display_name || me?.display_name || me?.data?.display_name || "";
+        const first = name.split(" ")[0];
+        if (first) setUserFirstName(first);
+      } catch {
+        // Keep the default "there" — non-fatal.
+      }
+    } catch (err: unknown) {
       setConnecting(false);
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : "We couldn't complete onboarding. Please try again.";
+      toast({
+        title: "Onboarding failed",
+        description: msg,
+        variant: "destructive",
+      });
     }
   };
 
@@ -672,7 +694,7 @@ export default function OnboardingPage() {
                       </motion.div>
                       <div className="flex flex-col gap-2 max-w-md">
                         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
-                          You're all set, Arjun
+                          You're all set, {userFirstName}
                         </h1>
                         <p className="text-[14px] text-(--text-secondary) leading-[1.6]">
                           {selectedImport === "bank"
@@ -720,7 +742,7 @@ export default function OnboardingPage() {
 
                       <Link
                         href="/"
-                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[12px] bg-accent text-white text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-[var(--shadow-glow)]"
+                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[12px] bg-accent text-accent-foreground text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-[var(--shadow-glow)]"
                       >
                         Go to Home
                         <ArrowRight className="w-4 h-4" />
@@ -761,7 +783,7 @@ export default function OnboardingPage() {
               onClick={next}
               disabled={!canProceed}
               aria-label="Continue"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
             >
               {step === 0 ? "Get Started" : step === 1 ? "I Agree" : "Continue"}
               <ArrowRight className="w-4 h-4" />
@@ -771,7 +793,7 @@ export default function OnboardingPage() {
               onClick={handleConnect}
               disabled={!canProceed || connecting}
               aria-label="Connect"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
             >
               {connecting ? (
                 <>

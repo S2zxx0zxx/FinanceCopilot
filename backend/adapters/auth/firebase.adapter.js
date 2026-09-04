@@ -1,8 +1,16 @@
 import { AuthInterface } from './auth.interface.js';
-import admin from 'firebase-admin';
 
 /**
  * Firebase Authentication Adapter (F-B2 remediated).
+ *
+ * NOTE: This adapter is retained for legacy compatibility only. The ACTIVE auth
+ * provider is Clerk (see `./clerk.adapter.js`). Firebase support is unmaintained.
+ *
+ * `firebase-admin` is loaded LAZILY so it is no longer a hard runtime dependency
+ * — production deployments that use Clerk do not need it installed. If a non-mock
+ * call is attempted without the package present, it throws an explicit error
+ * rather than crashing at import time.
+ *
  * INV-SEC-001: production NEVER uses mock auth — construction throws.
  * Fail-closed: verifyToken denies unless explicitly in dev-mock mode.
  */
@@ -16,15 +24,30 @@ export class FirebaseAuthAdapter extends AuthInterface {
       err.code = 'MOCK_AUTH_FORBIDDEN';
       throw err;
     }
+    this._admin = null;
+    this._adminLoadAttempted = false;
+  }
 
-    // Initialize Firebase Admin if in production mode
-    if (this.mode !== 'mock' && !admin.apps?.length) {
-      try {
-        admin.initializeApp();
-      } catch {
-        console.warn('Failed to initialize firebase-admin natively. Ensure GOOGLE_APPLICATION_CREDENTIALS is set.');
+  async _getAdmin() {
+    if (this._adminLoadAttempted) return this._admin;
+    this._adminLoadAttempted = true;
+    try {
+      // Lazy import so `firebase-admin` is NOT a hard dependency. Production
+      // deployments using Clerk never load it.
+      const mod = await import('firebase-admin');
+      this._admin = mod.default || mod;
+      if (this.mode !== 'mock' && this._admin && !this._admin.apps?.length) {
+        this._admin.initializeApp();
       }
+    } catch (err) {
+      console.warn(
+        '[FirebaseAuthAdapter] firebase-admin is not installed or failed to initialize. ' +
+        'Clerk is the active auth provider — this adapter is legacy. Error:',
+        err.message
+      );
+      this._admin = null;
     }
+    return this._admin;
   }
 
   async verifyToken(token) {
@@ -40,12 +63,18 @@ export class FirebaseAuthAdapter extends AuthInterface {
       return { uid, email: `${uid}@mock.invalid`, emailVerified: true, mock: true };
     }
 
-    // Real Firebase Verification
+    const admin = await this._getAdmin();
+    if (!admin) {
+      const err = new Error('UNAUTHORIZED: Invalid Firebase token');
+      err.code = 'FIREBASE_UNAVAILABLE';
+      throw err;
+    }
+
     try {
       const decodedToken = await admin.auth().verifyIdToken(token);
-      return { 
-        uid: decodedToken.uid, 
-        email: decodedToken.email, 
+      return {
+        uid: decodedToken.uid,
+        email: decodedToken.email,
         emailVerified: decodedToken.email_verified,
         mock: false
       };
@@ -58,8 +87,10 @@ export class FirebaseAuthAdapter extends AuthInterface {
   }
 
   async revokeSessions(uid) {
+    if (this.mode === 'mock') return { status: 'MOCKED_SUCCESS' };
+    const admin = await this._getAdmin();
+    if (!admin) throw new Error('Failed to revoke sessions: firebase-admin unavailable');
     try {
-      if (this.mode === 'mock') return { status: 'MOCKED_SUCCESS' };
       await admin.auth().revokeRefreshTokens(uid);
       return { status: 'SUCCESS' };
     } catch (error) {
@@ -69,8 +100,10 @@ export class FirebaseAuthAdapter extends AuthInterface {
   }
 
   async deleteUser(uid) {
+    if (this.mode === 'mock') return { status: 'MOCKED_SUCCESS' };
+    const admin = await this._getAdmin();
+    if (!admin) throw new Error('Failed to delete user: firebase-admin unavailable');
     try {
-      if (this.mode === 'mock') return { status: 'MOCKED_SUCCESS' };
       await admin.auth().deleteUser(uid);
       return { status: 'SUCCESS' };
     } catch (error) {

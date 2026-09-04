@@ -64,7 +64,12 @@ export class AIGateway {
 
         // 5. Cost Governor (Atomic Pre-flight check)
         const estimatedTokensIn = (message.length + JSON.stringify(context).length) / 4;
-        const estimatedCostPaise = Math.ceil(estimatedTokensIn * 2); 
+        // FIX (audit P0 #17): 2 paise/token is ~300,000× the real Gemini Flash
+        // cost (~₹0.006 per 1M tokens ≈ 0.0000006 paise/token). Use 0.001
+        // paise/token as a conservative pre-flight estimate (still ~1,000× the
+        // real cost so we never under-bill). Without this fix, a single 1k-token
+        // query would consume the entire ₹5,000 budget.
+        const estimatedCostPaise = Math.ceil(estimatedTokensIn * 0.001);
         
         try {
             // Check if budget row exists, if not, create it
@@ -207,21 +212,37 @@ export class AIGateway {
 
     async _auditInteraction(payload) {
         const { userId, intentResult, riskLevel, llmResponse, latency, status, context, executedTools } = payload;
+        // FIX (audit P0 #11): the old code called `this.dbClient.query('BEGIN')`
+        // and then subsequent `this.dbClient.query(...)` — each grabs a DIFFERENT
+        // connection from the pool, so the COMMIT/ROLLBACK was operating on a
+        // different connection than the INSERTs. Not atomic. We now check out a
+        // single client and run BEGIN / INSERTs / COMMIT on it explicitly.
+        let client;
         try {
-            await this.dbClient.query('BEGIN');
+            client = await this.dbClient.connect();
+        } catch (connErr) {
+            console.error('[AIGateway] Failed to acquire DB client for audit:', connErr);
+            // FIX (audit P0 #12): do NOT return a fake 'fallback-uuid'. The
+            // frontend would later call /ai/chat/confirm with that UUID and
+            // blow up on the FK constraint on ai_tool_invocations. Throw so
+            // the global error handler surfaces a real 500.
+            throw new AppError('Failed to persist AI audit log', 500, true, 'AUDIT_LOG_UNAVAILABLE');
+        }
+        try {
+            await client.query('BEGIN');
 
             const query = `
                 INSERT INTO ai_interactions (
-                    user_id, intent, risk_level, context_scope, provider_id, model_id, 
+                    user_id, intent, risk_level, context_scope, provider_id, model_id,
                     tokens_in, tokens_out, estimated_cost_paise, latency_ms, status, safety_state
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                 RETURNING interaction_id
             `;
             const values = [
-                userId, 
-                intentResult.intent_id, 
+                userId,
+                intentResult.intent_id,
                 riskLevel,
-                JSON.stringify({ keys: Object.keys(context) }), 
+                JSON.stringify({ keys: Object.keys(context) }),
                 llmResponse.providerId || 'unknown',
                 llmResponse.modelId || 'unknown',
                 llmResponse.usage?.tokensIn || 0,
@@ -231,24 +252,36 @@ export class AIGateway {
                 status,
                 'VALIDATED'
             ];
-            
-            const res = await this.dbClient.query(query, values);
+
+            const res = await client.query(query, values);
             const interactionId = res.rows[0]?.interaction_id;
 
-            // Log tool lineage
-            for (const tool of executedTools) {
-                await this.dbClient.query(`
-                    INSERT INTO ai_tool_invocations (interaction_id, user_id, tool_id, tool_version, policy_decision, minimized_arguments, latency_ms, status)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                `, [interactionId, userId, tool.tool_id, tool.tool_version, tool.policy_decision, JSON.stringify(tool.minimized_arguments), tool.latency_ms, tool.status]);
+            // FIX (audit P0 #12): if INSERT failed silently (no row returned),
+            // abort — never hand back a fabricated UUID.
+            if (!interactionId) {
+                throw new Error('ai_interactions INSERT returned no interaction_id');
             }
 
-            await this.dbClient.query('COMMIT');
-            return interactionId || 'fallback-uuid';
+            // Log tool lineage (same client, same transaction)
+            for (const tool of executedTools) {
+                await client.query(
+                    `INSERT INTO ai_tool_invocations (interaction_id, user_id, tool_id, tool_version, policy_decision, minimized_arguments, latency_ms, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [interactionId, userId, tool.tool_id, tool.tool_version, tool.policy_decision, JSON.stringify(tool.minimized_arguments), tool.latency_ms, tool.status]
+                );
+            }
+
+            await client.query('COMMIT');
+            return interactionId;
         } catch (err) {
-            await this.dbClient.query('ROLLBACK');
+            try { await client.query('ROLLBACK'); } catch { /* ignore rollback failures */ }
             console.error('[AIGateway] Failed to write audit log:', err);
-            return 'fallback-uuid';
+            // FIX (audit P0 #12): surface a real error instead of returning
+            // 'fallback-uuid' which would cause downstream FK violations in
+            // /ai/chat/confirm.
+            throw new AppError('Failed to persist AI audit log', 500, true, 'AUDIT_LOG_UNAVAILABLE');
+        } finally {
+            if (client) client.release();
         }
     }
 }

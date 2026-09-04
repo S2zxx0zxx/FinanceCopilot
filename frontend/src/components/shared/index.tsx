@@ -118,7 +118,7 @@ export function ErrorState({
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+          className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
         >
           Retry
         </button>

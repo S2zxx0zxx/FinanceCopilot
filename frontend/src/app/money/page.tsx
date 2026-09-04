@@ -7,13 +7,24 @@ import { ArrowRight, TrendingUp, TrendingDown, Shield, Sparkles, Eye, EyeOff } f
 import { SectionHeader, Badge, FreshnessBadge, CountUp } from "@/components/shared";
 import { Sparkline } from "@/components/charts/sparkline";
 import { useAppData } from "@/hooks/use-app-data";
+import { type Account } from "@/lib/data";
 import { bankCardGradients } from "@/lib/merchant-data";
 import { formatPaise, formatDate } from "@/lib/format";
-import { netWorthHistory as fallbackNetWorthHistory } from "@/lib/data";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isRecentlySynced(lastSyncedAt: string): boolean {
+  try {
+    const diff = Date.now() - new Date(lastSyncedAt).getTime();
+    return diff < 24 * 3600 * 1000; // within 24h
+  } catch {
+    return false;
+  }
+}
 
 // ── 3D Currency Note Card ─────────────────────────────────────────────────
 function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; posted: number; pending: number }) {
-  const { netWorthHistory = fallbackNetWorthHistory, financialStateMoney } = useAppData();
+  const { netWorthHistory = [], financialStateMoney } = useAppData();
   const [showDetails, setShowDetails] = React.useState(false);
   return (
     <motion.div
@@ -94,7 +105,7 @@ function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; pos
 }
 
 // ── 3D Bank Card (for each account) ──────────────────────────────────────────
-function BankCard3D({ account }: { account: typeof accounts[0] }) {
+function BankCard3D({ account }: { account: Account }) {
   const ref = React.useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = React.useState({ x: 0, y: 0 });
   const isCredit = account.account_type === "credit_card";
@@ -132,7 +143,7 @@ function BankCard3D({ account }: { account: typeof accounts[0] }) {
                 <p className="text-[10px] text-white/50 font-mono uppercase">{account.account_type.replace("_", " ")} • •••• {account.account_number_last4}</p>
               </div>
             </div>
-            <FreshnessBadge status={account.last_synced_at.startsWith("2026-09-01") ? "live" : "recent"} />
+            <FreshnessBadge status={isRecentlySynced(account.last_synced_at) ? "live" : "recent"} />
           </div>
           <div>
             <p className={`text-[20px] font-display font-bold tabular-nums ${isCredit ? "opacity-90" : ""}`}>
@@ -147,8 +158,8 @@ function BankCard3D({ account }: { account: typeof accounts[0] }) {
 }
 
 export default function MoneyPage() {
-  const { accounts, financialStateMoney, netWorthHistory = fallbackNetWorthHistory } = useAppData();
-  const net = financialStateMoney.net_position;
+  const { accounts, financialStateMoney, netWorthHistory = [] } = useAppData();
+  const net = financialStateMoney?.net_position ?? { available_balance_paise: 0, posted_balance_paise: 0, pending_balance_paise: 0 };
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">

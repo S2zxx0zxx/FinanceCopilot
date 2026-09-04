@@ -178,6 +178,11 @@ export class GamificationController {
             let newLevelName = current.level_name;
             let newXPToNext = parseInt(current.xp_to_next_level, 10);
 
+            // NOTE (audit P1 #41): levels are intentionally hardcoded for V1.
+            // The progression curve (500 / 1500 / 2500 / 5000 / 10000 XP) is a
+            // product decision, not derived from a config table. If/when XP
+            // thresholds need to be tunable without a redeploy, lift into a
+            // `gamification_levels` table — for now, hardcoded is intentional.
             const LEVELS = [
                 { level: 1, name: 'Beginner', xpRequired: 0 },
                 { level: 2, name: 'Money Saver', xpRequired: 500 },

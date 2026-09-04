@@ -1,51 +1,44 @@
 # FinCopilot v10 — Production Caddyfile
 # ─────────────────────────────────────────────────────────────────────────────
-# Topology:
-#   :443 (auto-TLS) or :81 (sandbox) receives ALL traffic.
-#   Routing priority (first match wins; handle blocks are mutually exclusive):
-#     (0) ?XTransformPort=<port> → reverse-proxy to localhost:<port>  [sandbox mini-services]
+# TOPOLOGY:
+#   Production (auto-TLS): replace `:81` below with your domain name,
+#   e.g. `fincopilot.ai { ... }`. Caddy will auto-provision Let's Encrypt certs
+#   and redirect HTTP→HTTPS. NEVER run production on `:81` (plaintext HTTP) —
+#   session cookies would be sent in cleartext.
+#
+#   Sandbox (this file as-shipped): listens on `:81` plaintext HTTP. Sandbox
+#   only — do NOT ship to prod.
+#
+# ROUTING:
 #     (1) /app/api/*  → backend (Node, :3001)  [app's own backend API if separate]
-#     (2) /api/v1/*   → backend (Node, :3001)  [app's API — has /auth/config, /financial-state/*, etc.]
+#     (2) /api/v1/*   → backend (Node, :3001)  [app's API — /auth/config, /financial-state/*, etc.]
 #     (3) /api/session, /api/cta, /api/health → landing (Next.js, :3002)  [landing's own bridge routes]
-#     (4) /app/*     → backend (Node, :3001)  [backend serves the SPA via express.static + catch-all]
-#     (5) /*         → landing (Next.js, :3002)  [marketing page]
+#     (4) /app/*      → backend (Node, :3001)  [backend serves the SPA via express.static + catch-all]
+#     (5) /*          → landing (Next.js, :3002)  [marketing page]
 #
-# Why /app/* → backend (not file_server):
-#   The backend already has `express.static(frontendPath)` + SPA catch-all `app.get('*')`.
-#   Routing /app/* to the backend lets the backend serve the SPA AND handle /api/v1/* under
-#   the same origin/cookie scope. The backend's catch-all returns index.html for any
-#   non-/api path, so SPA client-side routing (e.g. /app/money, /app/ai/chat) works on refresh.
-#
-#   NOTE: The backend's SPA catch-all matches `*`. To make it serve `/app/*` content,
-#   either:
-#     (a) Set FRONTEND_BASE_PATH=/app on the backend so its express.static + catch-all
-#         prefix-strip /app, OR
-#     (b) Use Caddy to strip /app before proxying (uri strip_prefix /app) so the backend
-#         sees /, /money, /ai/chat etc. and its existing catch-all works unchanged.
-#   We use (b) — strip_prefix — so the backend code is NOT modified.
+#   NOTE: The previous `?XTransformPort=<port>` query-string reverse-proxy block
+#   has been REMOVED — it was an SSRF vector (any visitor could proxy to any
+#   localhost port). If you need mini-service routing, define explicit
+#   @named-path matchers for each known port instead.
 #
 # Cookie scope:
 #   All cookies are set with Path=/ so they span / (landing) + /app/* (SPA) + /api/* (both).
 #   SameSite=Lax. Secure in prod. HttpOnly for the session cookie.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# For production, replace :81 with your domain (e.g. fincopilot.ai) to enable auto-TLS.
-# Sandbox gateway uses :81 — DO NOT change this in the sandbox.
+# ════════════════════════════════════════════════════════════════════════════
+# PRODUCTION: replace the entire `:81 { ... }` block below with your domain:
+#
+#   fincopilot.ai {
+#       encode zstd gzip
+#       # ... (paste routing rules here) ...
+#   }
+#
+# Caddy will then auto-provision TLS. NEVER use `:81` in production.
+# ════════════════════════════════════════════════════════════════════════════
+
 :81 {
     encode zstd gzip
-
-    # ── (0) Sandbox mini-service mechanism — KEEP UNCHANGED ──
-    @transform_port_query {
-        query XTransformPort=*
-    }
-    handle @transform_port_query {
-        reverse_proxy localhost:{query.XTransformPort} {
-            header_up Host {host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-            header_up X-Real-IP {remote_host}
-        }
-    }
 
     # ── (1) App's own backend API under /app/api/* (if it ever diverges from /api/v1/*) ──
     # Strip /app so the backend sees /api/...

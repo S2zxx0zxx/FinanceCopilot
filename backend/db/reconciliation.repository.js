@@ -18,11 +18,15 @@ export const ReconciliationRepo = {
     /**
      * Safely fetches unreconciled transactions for a given tenant.
      * Uses FOR UPDATE SKIP LOCKED if called within a transaction block.
+     * FIX (audit P1 #48): must filter `is_deleted = FALSE` — otherwise
+     * soft-deleted (correction) rows would be matched and resurrected into
+     * transaction_relationships, polluting the reconciliation graph.
      */
     async claimUnreconciledTransactions(client, tenantId, limit = 100) {
         const text = `
             SELECT * FROM transactions
-            WHERE user_id = $1 
+            WHERE user_id = $1
+              AND is_deleted = FALSE
             ORDER BY observed_at DESC
             LIMIT $2
             FOR UPDATE SKIP LOCKED;
@@ -33,11 +37,14 @@ export const ReconciliationRepo = {
 
     /**
      * Gets a broad context window of historical transactions for matching.
+     * FIX (audit P1 #48): filter `is_deleted = FALSE` so soft-deleted rows
+     * don't pollute the historical context used for matching.
      */
     async getContextTransactions(client, tenantId) {
         const text = `
             SELECT * FROM transactions
             WHERE user_id = $1
+              AND is_deleted = FALSE
             ORDER BY observed_at DESC
             -- Broad window for matching
             LIMIT 1000;

@@ -19,26 +19,19 @@ class DatabaseClient {
 
         this.pool = new Pool({
             connectionString: config.db.url,
-            ssl: { rejectUnauthorized: false }
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : { rejectUnauthorized: false }
         });
 
         // Error handling on idle clients
         this.pool.on('error', (err, _client) => {
             logger.error('Unexpected error on idle database client', err);
-            process.exit(-1);
+            logger.error('[DB] Idle client error:', err);
         });
     }
 
     async connect() {
-        try {
-            const client = await this.pool.connect();
-            logger.info('[DB] Secure connection established to PostgreSQL.');
-            client.release();
-            return true;
-        } catch (error) {
-            logger.error('[DB] CRITICAL: Failed to connect to PostgreSQL.', error);
-            process.exit(1);
-        }
+        const client = await this.pool.connect();
+        return client;
     }
 
     async query(text, params) {

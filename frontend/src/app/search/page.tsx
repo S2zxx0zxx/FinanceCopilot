@@ -8,6 +8,7 @@ import {
   Clock, Sparkles, ArrowUpRight,
 } from "lucide-react";
 import { useAppData } from "@/hooks/use-app-data";
+import { api } from "@/lib/api";
 
 import { formatPaise, formatDate, timeAgo, categoryIcon } from "@/lib/format";
 import { Badge, EmptyState } from "@/components/shared";
@@ -71,10 +72,67 @@ export default function SearchPage() {
       goals: gls,
       total: tx.length + accts.length + gls.length,
     };
+  }, [q, recentTransactions, accounts, goals]);
+
+  // Hit the backend search endpoint (debounced) for authoritative results.
+  // Results from the server are merged in if available; the client-side
+  // filter remains the source of truth while we wait.
+  const [serverResults, setServerResults] = React.useState<{
+    transactions: typeof recentTransactions;
+    accounts: typeof accounts;
+    goals: typeof goals;
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (!q) {
+      setServerResults(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const res: any = await api.search(q);
+        const tx = res?.transactions || res?.data?.transactions || [];
+        const accts = res?.accounts || res?.data?.accounts || [];
+        const gls = res?.goals || res?.data?.goals || [];
+        setServerResults({ transactions: tx, accounts: accts, goals: gls });
+      } catch {
+        // Server search unavailable — keep using client filter.
+        setServerResults(null);
+      }
+    }, 250); // 250ms debounce
+    return () => clearTimeout(handle);
   }, [q]);
 
+  const mergedResults = React.useMemo(() => {
+    if (!serverResults) return results;
+    const seenTx = new Set(results.transactions.map((t) => t.transaction_id));
+    const seenAc = new Set(results.accounts.map((a) => a.account_id));
+    const seenGl = new Set(results.goals.map((g) => g.goal_id));
+    const extraTx = serverResults.transactions.filter(
+      (t: any) => t && !seenTx.has(t.transaction_id),
+    );
+    const extraAc = serverResults.accounts.filter(
+      (a: any) => a && !seenAc.has(a.account_id),
+    );
+    const extraGl = serverResults.goals.filter(
+      (g: any) => g && !seenGl.has(g.goal_id),
+    );
+    return {
+      transactions: [...results.transactions, ...extraTx],
+      accounts: [...results.accounts, ...extraAc],
+      goals: [...results.goals, ...extraGl],
+      total:
+        results.transactions.length +
+        results.accounts.length +
+        results.goals.length +
+        extraTx.length +
+        extraAc.length +
+        extraGl.length,
+    };
+  }, [results, serverResults]);
+
   const hasQuery = q.length > 0;
-  const noResults = hasQuery && results.total === 0;
+  const noResults = hasQuery && mergedResults.total === 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,7 +275,7 @@ export default function SearchPage() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.3, delay: 0.1 + i * 0.04 }}
                       onClick={() => quickSearch(term)}
-                      className="px-3.5 py-2 rounded-[10px] bg-[var(--accent-light)] text-accent text-[13px] font-medium hover:bg-accent hover:text-white transition-colors"
+                      className="px-3.5 py-2 rounded-[10px] bg-[var(--accent-light)] text-accent text-[13px] font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
                     >
                       {term}
                     </motion.button>
@@ -274,7 +332,7 @@ export default function SearchPage() {
           )}
 
           {/* Results */}
-          {hasQuery && results.total > 0 && (
+          {hasQuery && mergedResults.total > 0 && (
             <motion.div
               key="results"
               initial={{ opacity: 0, y: 8 }}
@@ -284,12 +342,12 @@ export default function SearchPage() {
               className="flex flex-col gap-6"
             >
               <p className="text-[12px] text-(--text-tertiary) font-mono">
-                {results.total} {results.total === 1 ? "result" : "results"} for
+                {mergedResults.total} {mergedResults.total === 1 ? "result" : "results"} for
                 <span className="text-foreground font-medium"> "{query.trim()}"</span>
               </p>
 
               {/* Transactions group */}
-              {results.transactions.length > 0 && (
+              {mergedResults.transactions.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="w-3.5 h-3.5 text-(--text-tertiary)" />
@@ -297,11 +355,11 @@ export default function SearchPage() {
                       Transactions
                     </h2>
                     <span className="text-[11px] font-mono text-(--text-tertiary)">
-                      {results.transactions.length}
+                      {mergedResults.transactions.length}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    {results.transactions.map((tx, i) => {
+                    {mergedResults.transactions.map((tx, i) => {
                       const isIncome = tx.direction === "credit";
                       return (
                         <motion.div
@@ -348,7 +406,7 @@ export default function SearchPage() {
               )}
 
               {/* Accounts group */}
-              {results.accounts.length > 0 && (
+              {mergedResults.accounts.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <Wallet className="w-3.5 h-3.5 text-(--text-tertiary)" />
@@ -356,11 +414,11 @@ export default function SearchPage() {
                       Accounts
                     </h2>
                     <span className="text-[11px] font-mono text-(--text-tertiary)">
-                      {results.accounts.length}
+                      {mergedResults.accounts.length}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    {results.accounts.map((acc, i) => (
+                    {mergedResults.accounts.map((acc, i) => (
                       <motion.div
                         key={acc.account_id}
                         initial={{ opacity: 0, y: 8 }}
@@ -397,7 +455,7 @@ export default function SearchPage() {
               )}
 
               {/* Goals group */}
-              {results.goals.length > 0 && (
+              {mergedResults.goals.length > 0 && (
                 <section>
                   <div className="flex items-center gap-2 mb-3">
                     <Target className="w-3.5 h-3.5 text-(--text-tertiary)" />
@@ -405,11 +463,11 @@ export default function SearchPage() {
                       Goals
                     </h2>
                     <span className="text-[11px] font-mono text-(--text-tertiary)">
-                      {results.goals.length}
+                      {mergedResults.goals.length}
                     </span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    {results.goals.map((goal, i) => (
+                    {mergedResults.goals.map((goal, i) => (
                       <motion.div
                         key={goal.goal_id}
                         initial={{ opacity: 0, y: 8 }}

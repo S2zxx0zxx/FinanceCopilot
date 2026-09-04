@@ -1,16 +1,17 @@
 import { dbClient } from './client.js';
 
 async function seed() {
-    console.log('Seeding database according to Master Prompt...');
-    
+    let err;
     try {
+        console.log('Seeding database according to Master Prompt...');
+
         const userResult = await dbClient.query(`
             INSERT INTO users (clerk_uid, firebase_uid, email, display_name, onboarding_done, onboarding_step)
             VALUES ('seed_user', 'seed_user', 'arjun.sharma@fincopilot.in', 'Arjun Sharma', true, 'completed')
             ON CONFLICT (clerk_uid) DO UPDATE SET email = 'arjun.sharma@fincopilot.in'
             RETURNING user_id
         `);
-        
+
         const userId = userResult.rows[0].user_id;
 
         // Categories
@@ -21,19 +22,28 @@ async function seed() {
 
         // Gamification
         await dbClient.query(`
-            INSERT INTO gamification_state (user_id, level, xp, tracking_streak_days, level_name) 
-            VALUES ($1, 4, 2450, 47, 'Pro') 
+            INSERT INTO gamification_state (user_id, level, xp, tracking_streak_days, level_name)
+            VALUES ($1, 4, 2450, 47, 'Pro')
             ON CONFLICT (user_id) DO UPDATE SET level = 4, xp = 2450, tracking_streak_days = 47, level_name = 'Pro'
         `, [userId]);
 
-        // Clear data in correct order to avoid FK constraint errors
+        // FIX (audit P1 #46): clear data in correct order to avoid FK constraint
+        // errors. Previously transactions/financial_accounts were wiped but
+        // source_records (which transactions FK to via source_record_id) were
+        // never cleared — orphan rows accumulated and re-seed runs hit idempotency
+        // conflicts. Order: source_records → transactions → financial_accounts
+        // → goals/recurring/budgets/notifications. Transactions reference
+        // source_records but the FK is nullable, so deleting source_records
+        // first would NULL out the column (or cascade). We DELETE transactions
+        // first to keep the chain clean.
         await dbClient.query(`DELETE FROM transactions WHERE user_id = $1`, [userId]);
+        await dbClient.query(`DELETE FROM source_records WHERE user_id = $1`, [userId]);
         await dbClient.query(`DELETE FROM financial_accounts WHERE user_id = $1`, [userId]);
 
-        // 4 Accounts
+        // 4. Accounts
         const accountResult = await dbClient.query(`
             INSERT INTO financial_accounts (user_id, institution_name, account_name, account_type, currency, is_active)
-            VALUES 
+            VALUES
             ($1, 'HDFC Bank', 'Savings', 'savings', 'INR', true),
             ($1, 'ICICI Bank', 'Current', 'current', 'INR', true),
             ($1, 'Axis Bank', 'Credit Card', 'credit_card', 'INR', true),
@@ -121,10 +131,14 @@ async function seed() {
         `, [userId]);
 
         console.log('✅ Master Seed successful.');
-    } catch (err) {
-        console.error('Seed Error:', err);
+    } catch (e) {
+        err = e;
+        console.error('Seed Error:', e);
     } finally {
-        process.exit(0);
+        // FIX (audit P0 #13): old code unconditionally `process.exit(0)` in
+        // `finally`, swallowing every seed failure. CI thought seed succeeded
+        // even when DB was empty. Exit non-zero on error.
+        process.exit(err ? 1 : 0);
     }
 }
 await seed();

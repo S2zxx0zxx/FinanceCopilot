@@ -34,15 +34,32 @@ async function startWorkers() {
     // 3. Reconciliation Worker (Simulated Cron since it's tenant-based)
     // Note: In a real system, we'd query active tenants. Here we mock a systemic run.
     logger.info('Reconciliation worker scheduled (Simulated Cron).');
+    let reconciliationRunning = false;
     setInterval(async () => {
+        // FIX (audit P1 #44): without this guard, overlapping intervals
+        // would start a new reconciliation pass for every user before the
+        // previous one finished. At scale this caused OOM + deadlocks on
+        // the transaction_relationships table. Skip if the prior tick is
+        // still running — the next interval will pick it up.
+        if (reconciliationRunning) {
+            logger.debug('[RECONCILIATION_CRON] Previous run still in progress — skipping this tick.');
+            return;
+        }
+        reconciliationRunning = true;
         try {
             // Loop over all active users in the system and run reconciliation for each tenant.
             const { rows: users } = await dbClient.query('SELECT user_id FROM users WHERE is_deleted = FALSE');
             for (const user of users) {
-                await ReconciliationWorker.startRun(user.user_id);
+                try {
+                    await ReconciliationWorker.startRun(user.user_id);
+                } catch (perUserErr) {
+                    logger.error('[RECONCILIATION_CRON] User run failed', { userId: user.user_id, err: perUserErr.message });
+                }
             }
         } catch (err) {
             logger.error('[RECONCILIATION_CRON] Failed run:', err);
+        } finally {
+            reconciliationRunning = false;
         }
     }, 60000); // Run every 60 seconds
 

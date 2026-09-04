@@ -180,7 +180,7 @@ export default function CashflowPage() {
           title="Income vs Expenses"
           action={
             <span className="text-[12px] font-mono text-(--text-tertiary)">
-              12-month view
+              {selected.label} view
             </span>
           }
         />
@@ -191,13 +191,13 @@ export default function CashflowPage() {
           transition={{ duration: 0.5 }}
           className="premium-card p-5"
         >
-          <CashflowBarChart data={cashflowData} />
+          <CashflowBarChart data={summaryData} />
           <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-(--border-subtle)">
             <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#047857]" /> Income
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "var(--chart-1)" }} /> Income
             </span>
             <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
-              <span className="w-2.5 h-2.5 rounded-sm bg-[#E11D48]" /> Expense
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "var(--chart-2)" }} /> Expense
             </span>
           </div>
         </motion.div>
@@ -209,12 +209,12 @@ export default function CashflowPage() {
           title="Monthly Breakdown"
           action={
             <span className="text-[12px] font-mono text-(--text-tertiary)">
-              net per month
+              {selected.label} · net per month
             </span>
           }
         />
         <div className="premium-card overflow-hidden">
-          {[...cashflowData].reverse().map((m, i, arr) => {
+          {[...summaryData].reverse().map((m, i, arr) => {
             const net = m.income - m.expense;
             const netPct =
               m.income > 0 ? Math.max(0, Math.min(1, net / m.income)) : 0;
@@ -239,8 +239,8 @@ export default function CashflowPage() {
                     <div className="flex-1 min-w-0 hidden sm:block">
                       <div className="h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden flex">
                         <div
-                          className="h-full bg-[#047857]"
-                          style={{ width: `${(m.income / 100000) * 100}%` }}
+                          className="h-full"
+                          style={{ width: `${(m.income / 100000) * 100}%`, background: "var(--chart-1)" }}
                         />
                       </div>
                     </div>

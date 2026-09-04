@@ -8,18 +8,25 @@ const engine = new ForecastEngine(dbClient);
 export const getOutlook = async (req, res, next) => {
     try {
         const userId = req.user.userId;
-        
-        // Generate forecasts for 7, 30, and 90 days.
-        const forecast7 = await engine.generateForecast(userId, 7);
-        const forecast30 = await engine.generateForecast(userId, 30);
-        const forecast90 = await engine.generateForecast(userId, 90);
-        
-        if (forecast7.status !== 'FORECAST_UNAVAILABLE') await engine.saveSnapshot(forecast7);
-        if (forecast30.status !== 'FORECAST_UNAVAILABLE') await engine.saveSnapshot(forecast30);
-        if (forecast90.status !== 'FORECAST_UNAVAILABLE') await engine.saveSnapshot(forecast90);
+
+        // FIX (audit P1 #28): 3 sequential LLM-free forecast computations
+        // ran back-to-back — each is ~50-200ms of DB I/O, so the route was
+        // 5-15s in latency. The 3 horizons are independent → fan out via
+        // Promise.all. Save only the successful ones.
+        const [forecast7, forecast30, forecast90] = await Promise.all([
+            engine.generateForecast(userId, 7),
+            engine.generateForecast(userId, 30),
+            engine.generateForecast(userId, 90)
+        ]);
+
+        await Promise.all([
+            forecast7.status  !== 'FORECAST_UNAVAILABLE' ? engine.saveSnapshot(forecast7)  : Promise.resolve(),
+            forecast30.status !== 'FORECAST_UNAVAILABLE' ? engine.saveSnapshot(forecast30) : Promise.resolve(),
+            forecast90.status !== 'FORECAST_UNAVAILABLE' ? engine.saveSnapshot(forecast90) : Promise.resolve()
+        ]);
 
         // Telemetry hook for Phase 13
-        Telemetry.trackEvent(userId, 'FORECAST_OUTLOOK_GENERATED', { 
+        Telemetry.trackEvent(userId, 'FORECAST_OUTLOOK_GENERATED', {
             has_7d: !!forecast7,
             has_30d: !!forecast30
         });

@@ -12,7 +12,8 @@ export class CloudflareQueuesAdapter extends QueueInterface {
     constructor() {
         super();
         this.cfAccountId = process.env.CF_ACCOUNT_ID;
-        this.cfApiToken = process.env.CF_API_TOKEN;
+        // Prefer CF_QUEUE_API_TOKEN (scoped to Queues only); fall back to CF_API_TOKEN for backward compat.
+        this.cfApiToken = process.env.CF_QUEUE_API_TOKEN || process.env.CF_API_TOKEN;
     }
 
     async enqueue(queueName, payload) {

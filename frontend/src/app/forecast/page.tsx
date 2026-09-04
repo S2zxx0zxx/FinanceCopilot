@@ -55,14 +55,15 @@ export default function ForecastPage() {
 
   const horizon = forecastData.horizons[horizonIdx];
 
-  // timeline values are rupees (chart formats with /100000 → L). Multiply by 100
-  // to convert to paise so formatPaise matches the chart's lakh-scale display.
+  // timeline `actual`/`projected` are rupees. Convert to paise for formatPaise.
+  // projected_balance_paise is already paise — DO NOT multiply again.
   const currentBalance =
     [...forecastData.timeline]
       .reverse()
       .find((t) => t.actual !== null)?.actual ?? 0;
 
-  const projectedDelta = horizon.projected_balance_paise - currentBalance;
+  const projectedBalancePaise = horizon.projected_balance_paise;
+  const projectedDelta = projectedBalancePaise - currentBalance * 100;
   const confidenceVariant =
     horizon.confidence >= 0.85
       ? "positive"
@@ -158,7 +159,7 @@ export default function ForecastPage() {
             />
           </div>
           <CountUp
-            value={horizon.projected_balance_paise * 100}
+            value={horizon.projected_balance_paise}
             format={(v) => formatPaise(v)}
             duration={1500}
             className="font-display font-bold text-[32px] tabular-nums tracking-[-0.02em]"
@@ -171,7 +172,7 @@ export default function ForecastPage() {
             }`}
           >
             {projectedDelta >= 0 ? "↑" : "↓"}{" "}
-            {formatPaise(Math.abs(projectedDelta) * 100, { style: "signed" })} vs
+            {formatPaise(Math.abs(projectedDelta), { style: "signed" })} vs
             today
           </span>
         </motion.div>
@@ -234,17 +235,20 @@ export default function ForecastPage() {
           <ForecastComboChart data={forecastData.timeline} />
           <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-(--border-subtle) flex-wrap">
             <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
-              <span className="w-3 h-0.5 bg-[#047857]" /> Actual
+              <span className="w-3 h-0.5" style={{ background: "var(--chart-1)" }} /> Actual
             </span>
             <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
               <span
-                className="w-3 h-0.5 bg-[#B08D57]"
-                style={{ borderTop: "1px dashed #B08D57" }}
+                className="w-3 h-0.5"
+                style={{ borderTop: "1px dashed var(--chart-2)", background: "transparent" }}
               />{" "}
               Projected
             </span>
             <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
-              <span className="w-3 h-2 rounded-sm bg-[#047857]/20" /> Confidence
+              <span
+                className="w-3 h-2 rounded-sm"
+                style={{ background: "color-mix(in oklab, var(--chart-1) 20%, transparent)" }}
+              /> Confidence
               band
             </span>
           </div>

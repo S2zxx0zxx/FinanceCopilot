@@ -68,6 +68,7 @@ type SettingsRow = {
   icon: LucideIcon;
   value?: string;
   toggle?: "theme";
+  comingSoon?: boolean;
 };
 
 type SettingsGroup = { title: string; items: SettingsRow[] };
@@ -78,15 +79,15 @@ const SETTING_GROUPS: SettingsGroup[] = [
   {
     title: "Account",
     items: [
-      { label: "Profile", desc: "Name, email, phone", href: "/you", icon: User },
-      { label: "Payment Methods", desc: "Cards, UPI, bank transfers", href: "/you", icon: CreditCard },
+      { label: "Profile", desc: "Name, email, phone", icon: User, comingSoon: true },
+      { label: "Payment Methods", desc: "Cards, UPI, bank transfers", icon: CreditCard, comingSoon: true },
     ],
   },
   {
     title: "Membership",
     items: [
-      { label: "Plan", desc: "Free tier · upgrade for unlimited AI", href: "/you", icon: Crown, value: "Free" },
-      { label: "Billing History", desc: "Invoices and receipts", href: "/you", icon: CreditCard },
+      { label: "Plan", desc: "Free tier · upgrade for unlimited AI", icon: Crown, value: "Free", comingSoon: true },
+      { label: "Billing History", desc: "Invoices and receipts", icon: CreditCard, comingSoon: true },
     ],
   },
   {
@@ -101,26 +102,26 @@ const SETTING_GROUPS: SettingsGroup[] = [
   {
     title: "Preferences",
     items: [
-      { label: "Currency", desc: "Indian Rupee", href: "/you", icon: IndianRupee, value: "₹ INR" },
+      { label: "Currency", desc: "Indian Rupee", icon: IndianRupee, value: "₹ INR", comingSoon: true },
       { label: "Theme", desc: "Switch appearance", icon: Sun, toggle: "theme" },
-      { label: "Notifications", desc: "Alerts, emails, push", href: "/you", icon: Bell },
-      { label: "Language", desc: "Display language", href: "/you", icon: Languages, value: "English" },
+      { label: "Notifications", desc: "Alerts, emails, push", icon: Bell, comingSoon: true },
+      { label: "Language", desc: "Display language", icon: Languages, value: "English", comingSoon: true },
     ],
   },
   {
     title: "Support",
     items: [
-      { label: "Help Center", desc: "Guides and FAQs", href: "/you", icon: HelpCircle },
-      { label: "Contact Support", desc: "Chat with our team", href: "/you", icon: MessageSquare },
-      { label: "About FinCopilot", desc: "Version, terms, privacy", href: "/you", icon: Info },
+      { label: "Help Center", desc: "Guides and FAQs", icon: HelpCircle, comingSoon: true },
+      { label: "Contact Support", desc: "Chat with our team", icon: MessageSquare, comingSoon: true },
+      { label: "About FinCopilot", desc: "Version, terms, privacy", icon: Info, comingSoon: true },
     ],
   },
   {
     title: "Integrations",
     items: [
-      { label: "Calendar Sync", desc: "Bills and SIPs to Google Calendar", href: "/you", icon: Calendar, value: "Off" },
-      { label: "WhatsApp Alerts", desc: "Critical alerts via WhatsApp", href: "/you", icon: MessageCircle, value: "On" },
-      { label: "UPI Autopay", desc: "Auto-pay subscriptions", href: "/you", icon: Zap, value: "Off" },
+      { label: "Calendar Sync", desc: "Bills and SIPs to Google Calendar", icon: Calendar, value: "Off", comingSoon: true },
+      { label: "WhatsApp Alerts", desc: "Critical alerts via WhatsApp", icon: MessageCircle, value: "On", comingSoon: true },
+      { label: "UPI Autopay", desc: "Auto-pay subscriptions", icon: Zap, value: "Off", comingSoon: true },
     ],
   },
 ];
@@ -130,6 +131,12 @@ function securityColor(score: number): string {
   if (score >= 80) return "var(--positive)";
   if (score >= 50) return "var(--warning)";
   return "var(--negative)";
+}
+
+function securityLabel(score: number): string {
+  if (score >= 80) return "Strong";
+  if (score >= 50) return "Fair";
+  return "Needs attention";
 }
 
 // ── Theme switch (spring thumb) ──────────────────────────────────────────
@@ -254,7 +261,7 @@ export default function YouPage() {
               <h2 className="font-display font-bold text-[22px] tracking-[-0.01em] text-foreground truncate">
                 {currentUser.displayName}
               </h2>
-              <Badge label="Level 4" variant="gold" />
+              <Badge label={`Level ${gamification.level}`} variant="gold" />
             </div>
             <div className="flex flex-col gap-0.5 mt-1.5 text-[13px] text-(--text-secondary)">
               <span className="flex items-center gap-1.5 truncate">
@@ -470,7 +477,7 @@ export default function YouPage() {
                 className="text-[11px] font-mono uppercase tracking-wider font-semibold"
                 style={{ color: scoreColor }}
               >
-                Strong
+                {securityLabel(score)}
               </span>
             </div>
             <p className="text-[12px] text-(--text-tertiary) mt-1">

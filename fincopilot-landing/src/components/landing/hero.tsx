@@ -116,7 +116,7 @@ export function Hero() {
               <Lock className="w-3 h-3 text-[var(--accent)]" /> Bank-level 256-bit AES
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="w-3 h-3 text-[var(--accent)]" /> SOC 2 Type II
+              <ShieldCheck className="w-3 h-3 text-[var(--accent)]" /> Bank-grade
             </span>
           </motion.div>
 
@@ -168,7 +168,7 @@ export function Hero() {
                   <div className="glass-card p-3 flex flex-col gap-1">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">Net worth</span>
                     <span className="text-[22px] font-bold font-mono">
-                      $<CountUp value={48217} format="currency" duration={1800} />
+                      ₹<CountUp value={48217} format="currency" duration={1800} />
                     </span>
                     <div className="h-6">
                       <MiniSparkline data={[42, 43, 44, 46, 45, 47, 48]} color="var(--accent)" fill />
@@ -177,7 +177,7 @@ export function Hero() {
                   <div className="glass-card p-3 flex flex-col gap-1">
                     <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">This month</span>
                     <span className="text-[22px] font-bold font-mono text-[var(--success)]">
-                      +$1,240
+                      +₹1,240
                     </span>
                     <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
                       <Star className="w-2.5 h-2.5 text-[var(--gold)]" />

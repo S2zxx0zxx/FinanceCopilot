@@ -13,7 +13,7 @@ export interface ChatCard {
   type: InsightCardType;
   metric?: string;
   delta?: string;
-  chart?: "mini-bar" | "forecast" | "list" | "alert";
+  chart?: "mini-bar" | "forecast-spark" | "forecast" | "list" | "alert";
   action?: string;
   list?: { emoji: string; name: string; price: string }[];
   confidence?: number;
@@ -24,7 +24,7 @@ export interface InsightCardData {
   title: string;
   metric: string;
   delta?: string;
-  chart: "mini-bar" | "forecast" | "list" | "alert";
+  chart: "mini-bar" | "bar" | "forecast" | "list" | "alert";
   action: string;
   list?: { emoji: string; name: string; price: string }[];
   confidence?: number;
@@ -83,33 +83,36 @@ export const dashboardKpis = [
   { iconKey: "Target", label: "Savings goal", value: "64%", delta: "", up: true },
 ];
 
+// Illustrative testimonials. FinCopilot has not yet launched publicly.
+// Names, photos, and outcomes are illustrative composites used to show what
+// the product could do — NOT real customer claims.
 export const testimonials = [
-  { metric: "₹38,000", label: "saved in 3 months", quote: "FinCopilot found three subscriptions I forgot I had. That alone paid for a decade.", author: "Sarah K.", role: "Product Designer, Mumbai", avatar: "/founder-avatar-1.jpg" },
-  { metric: "31%", label: "net worth growth in a year", quote: "I finally see everything in one place. No more spreadsheet Sundays.", author: "Mike R.", role: "Software Engineer, Bengaluru", avatar: "/founder-avatar-2.jpg" },
-  { metric: "14 hours", label: "saved per month", quote: "It answers the questions I used to spend an hour calculating.", author: "Priya M.", role: "Marketing Lead, Delhi", avatar: "/founder-avatar-3.jpg" },
-  { metric: "₹40,000", label: "vacation funded on autopilot", quote: "The rollover budgets made saving painless. I didn't even notice.", author: "Diego A.", role: "Teacher, Pune", avatar: "/founder-avatar-4.jpg" },
-  { metric: "0", label: "surprise charges since joining", quote: "Anomaly alerts caught a duplicate charge within an hour.", author: "Aisha B.", role: "Founder, Hyderabad", avatar: "/founder-avatar-5.jpg" },
-  { metric: "92%", label: "of goals hit on time", quote: "The forecasts are weirdly accurate. It just gets how I spend.", author: "Tom L.", role: "Analyst, Chennai", avatar: "/founder-avatar-6.jpg" },
+  { metric: "₹38,000", label: "potential savings in 3 months", quote: "FinCopilot could find subscriptions you forgot you had. That alone could pay for a decade.", author: "Illustrative", role: "Composite — Product Designer, Mumbai", avatar: "/testimonial-avatar-1.jpg" },
+  { metric: "31%", label: "potential net worth clarity", quote: "See everything in one place — no more spreadsheet Sundays.", author: "Illustrative", role: "Composite — Software Engineer, Bengaluru", avatar: "/testimonial-avatar-2.jpg" },
+  { metric: "14 hours", label: "potential time saved per month", quote: "Get answers to questions you used to spend an hour calculating.", author: "Illustrative", role: "Composite — Marketing Lead, Delhi", avatar: "/testimonial-avatar-3.jpg" },
+  { metric: "₹40,000", label: "vacation funded on autopilot (illustrative)", quote: "Rollover budgets could make saving painless. You might not even notice.", author: "Illustrative", role: "Composite — Teacher, Pune", avatar: "/testimonial-avatar-4.jpg" },
+  { metric: "0", label: "surprise charges (goal)", quote: "Anomaly alerts could catch a duplicate charge within an hour.", author: "Illustrative", role: "Composite — Founder, Hyderabad", avatar: "/testimonial-avatar-5.jpg" },
+  { metric: "92%", label: "of goals projected on time (target)", quote: "Forecasts aim to be accurate. We want it to just get how you spend.", author: "Illustrative", role: "Composite — Analyst, Chennai", avatar: "/testimonial-avatar-6.jpg" },
 ];
 
 // Indian banks + financial institutions + Account Aggregator ecosystem.
 export const integrations = [
-  { name: "HDFC Bank", logo: "/integration-logo-1.svg" },
-  { name: "ICICI Bank", logo: "/integration-logo-2.svg" },
-  { name: "State Bank of India", logo: "/integration-logo-3.svg" },
-  { name: "Axis Bank", logo: "/integration-logo-4.svg" },
-  { name: "Kotak 811", logo: "/integration-logo-5.svg" },
-  { name: "Yes Bank", logo: "/integration-logo-6.svg" },
-  { name: "IDFC First", logo: "/integration-logo-7.svg" },
-  { name: "IndusInd", logo: "/integration-logo-8.svg" },
-  { name: "CRED", logo: "/integration-logo-9.svg" },
-  { name: "Setu AA", logo: "/integration-logo-10.svg" },
-  { name: "Groww", logo: "/integration-logo-11.svg" },
-  { name: "Zerodha", logo: "/integration-logo-12.svg" },
+  { name: "HDFC Bank" }, // logo removed — uses first-letter avatar: "1.svg"
+  { name: "ICICI Bank" }, // logo removed — uses first-letter avatar: "2.svg"
+  { name: "State Bank of India" }, // logo removed — uses first-letter avatar: "3.svg"
+  { name: "Axis Bank" }, // logo removed — uses first-letter avatar: "4.svg"
+  { name: "Kotak 811" }, // logo removed — uses first-letter avatar: "5.svg"
+  { name: "Yes Bank" }, // logo removed — uses first-letter avatar: "6.svg"
+  { name: "IDFC First" }, // logo removed — uses first-letter avatar: "7.svg"
+  { name: "IndusInd" }, // logo removed — uses first-letter avatar: "8.svg"
+  { name: "CRED" }, // logo removed — uses first-letter avatar: "9.svg"
+  { name: "Setu AA" }, // logo removed — uses first-letter avatar: "10.svg"
+  { name: "Groww" }, // logo removed — uses first-letter avatar: "11.svg"
+  { name: "Zerodha" }, // logo removed — uses first-letter avatar: "12.svg"
 ];
 
 export const faqItems = [
-  { q: "Is FinCopilot safe to connect to my bank?", a: "Yes. We connect via the RBI-regulated Account Aggregator framework (Setu) — read-only, revocable consent. We can see your data; we cannot move your money. Connections are 256-bit AES encrypted and we're SOC 2 Type II audited." },
+  { q: "Is FinCopilot safe to connect to my bank?", a: "Yes. We connect via the RBI-regulated Account Aggregator framework (Setu) — read-only, revocable consent. We can see your data; we cannot move your money. Connections are 256-bit AES encrypted and we're 256-bit AES audited." },
   { q: "Can I try it free?", a: "Yes. The Free plan is free forever, no card needed. Paid plans have a 14-day free trial — cancel anytime, keep your data." },
   { q: "Do you sell my data?", a: "Never. Not to advertisers, not to data brokers, not to anyone. Our only revenue is your subscription. Read our privacy promise →" },
   { q: "What if my bank isn't supported?", a: "We support 300+ banks and NBFCs across India via the Account Aggregator framework. If yours isn't listed yet, search on signup — we add new connections every week as AA adoption grows." },
@@ -201,11 +204,11 @@ export const pressLogos = [
   "Bloomberg Quint",
 ];
 
-// Hero inline stats.
+// Hero inline stats — honest pre-launch messaging.
 export const heroInlineStats = [
-  { value: "₹2.4B+", label: "tracked" },
-  { value: "250K+", label: "users" },
-  { value: "4.9★", label: "Play Store" },
+  { value: "₹0 tracked", label: "— be among the first" },
+  { value: "Pre-launch", label: "join the waitlist" },
+  { value: "0★", label: "be the first review" },
 ];
 
 // Hero rotating phrases.
@@ -246,15 +249,15 @@ export const securityItems = [
   { iconKey: "Lock", title: "We never sell your data", body: "Not to advertisers, not to anyone. Your data is yours." },
 ];
 
-export const securityBadges = ["SOC 2 Type II", "ISO 27001", "AES-256", "Setu AA"];
+export const securityBadges = ["256-bit AES", "Read-only by design", "AES-256", "Setu AA"];
 
-// Stats for the trust marquee.
+// Stats — honest pre-launch messaging. No fabricated user counts or ratings.
 export const stats = [
-  { value: 2.4, prefix: "₹", suffix: "B+", label: "money tracked", format: "currency" as const },
-  { value: 250, suffix: "K+", label: "active users", format: "plain" as const },
-  { value: 4.9, suffix: "★", label: "Play Store rating", format: "plain" as const },
-  { value: 99.99, suffix: "%", label: "uptime", format: "percent" as const },
-  { value: 0, label: "SOC 2 Type II certified", format: "text" as const, prefix: "" },
+  { value: 0, prefix: "₹", suffix: " tracked", label: "— be among the first", format: "currency" as const },
+  { value: 0, suffix: "", label: "users — launching soon", format: "plain" as const },
+  { value: 0, suffix: "★", label: "no ratings yet — be first", format: "plain" as const },
+  { value: 100, suffix: "%", label: "read-only by design", format: "percent" as const },
+  { value: 0, label: "data ever sold", format: "text" as const, prefix: "" },
 ];
 
 // Pain points (3 cards in the problem section).
@@ -271,22 +274,22 @@ export const howItWorksSteps = [
   { iconKey: "Sparkles", title: "Copilot", body: "Ask anything. Get answers, forecasts, and one-tap actions — in plain English or Hindi." },
 ];
 
-// Bento features (7 tiles).
+// Bento features (7 tiles). Each tile links to a real CTA destination.
 export const bentoFeatures = [
-  { iconKey: "Sparkles", title: "Ask your money anything.", body: "FinCopilot AI answers in plain English — with charts, forecasts, and one-tap actions.", cta: "Try a question", span: "lg:col-span-2 lg:row-span-2", hasChat: true },
-  { iconKey: "PieChart", title: "Budgets that adapt to you.", body: "AI sets realistic budgets from your real spending, rolls over unspent amounts, and flags drift.", cta: "Track my spending" },
-  { iconKey: "Wallet", title: "All your money, one number.", body: "Banks, cards, brokerage, crypto, real estate — aggregated and updated daily.", cta: "See my net worth" },
-  { iconKey: "TrendingUp", title: "See 90 days ahead.", body: "AI projects your cash flow, predicts shortfalls, and surfaces safe-to-spend amounts.", cta: "Forecast my cash" },
-  { iconKey: "Search", title: "Find the ₹5,000 you forgot.", body: "FinCopilot flags unused subscriptions and cancels them in one tap.", cta: "Manage my subscriptions" },
-  { iconKey: "BarChart2", title: "Know if you're diversified.", body: "Allocation, risk, fees, and drift — explained without the jargon.", cta: "Analyze my portfolio", span: "lg:col-span-2" },
-  { iconKey: "Bell", title: "We watch so you don't.", body: "Double charges, fraud spikes, unusual categories — pushed before you notice.", cta: "Set my alerts" },
+  { iconKey: "Sparkles", title: "Ask your money anything.", body: "FinCopilot AI answers in plain English — with charts, forecasts, and one-tap actions.", cta: "Try a question", span: "lg:col-span-2 lg:row-span-2", hasChat: true, href: "/api/cta?dest=signup&source=bento-ai" },
+  { iconKey: "PieChart", title: "Budgets that adapt to you.", body: "AI sets realistic budgets from your real spending, rolls over unspent amounts, and flags drift.", cta: "Track my spending", href: "/api/cta?dest=signup&source=bento-budgets" },
+  { iconKey: "Wallet", title: "All your money, one number.", body: "Banks, cards, brokerage, crypto, real estate — aggregated and updated daily.", cta: "See my net worth", href: "/api/cta?dest=signup&source=bento-networth" },
+  { iconKey: "TrendingUp", title: "See 90 days ahead.", body: "AI projects your cash flow, predicts shortfalls, and surfaces safe-to-spend amounts.", cta: "Forecast my cash", href: "/api/cta?dest=signup&source=bento-forecast" },
+  { iconKey: "Search", title: "Find the ₹5,000 you forgot.", body: "FinCopilot flags unused subscriptions and cancels them in one tap.", cta: "Manage my subscriptions", href: "/api/cta?dest=signup&source=bento-subs" },
+  { iconKey: "BarChart2", title: "Know if you're diversified.", body: "Allocation, risk, fees, and drift — explained without the jargon.", cta: "Analyze my portfolio", span: "lg:col-span-2", href: "/api/cta?dest=signup&source=bento-portfolio" },
+  { iconKey: "Bell", title: "We watch so you don't.", body: "Double charges, fraud spikes, unusual categories — pushed before you notice.", cta: "Set my alerts", href: "/api/cta?dest=signup&source=bento-alerts" },
 ];
 
 // Footer columns.
 export const footerColumns = [
-  { title: "Product", links: ["Features", "Pricing", "Security", "Integrations", "Changelog"] },
-  { title: "Company", links: ["About", "Careers", "Blog", "Press", "Contact"] },
-  { title: "Legal", links: ["Privacy", "Terms", "Cookies", "Security overview", "Data promise"] },
+  { title: "Product", links: [{ label: "Features", href: "#features" }, { label: "Pricing", href: "#pricing" }, { label: "Security", href: "#security" }, { label: "Integrations", href: "#integrations" }, { label: "Changelog", href: "/api/cta?dest=contact" }] },
+  { title: "Company", links: [{ label: "About", href: "/api/cta?dest=contact" }, { label: "Careers", href: "/api/cta?dest=contact" }, { label: "Blog", href: "/api/cta?dest=contact" }, { label: "Press", href: "/api/cta?dest=contact" }, { label: "Contact", href: "/api/cta?dest=contact" }] },
+  { title: "Legal", links: [{ label: "Privacy", href: "/api/cta?dest=contact" }, { label: "Terms", href: "/api/cta?dest=contact" }, { label: "Cookies", href: "/api/cta?dest=contact" }, { label: "Security overview", href: "#security" }, { label: "Data promise", href: "/api/cta?dest=contact" }] },
 ];
 
 // Nav links.

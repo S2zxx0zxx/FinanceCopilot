@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   // 2. Allowlist valid SPA destinations (security: prevent open redirect).
   // The SPA's router (frontend/public/app.js) defines these routes.
-  const allowedDests = ["login", "dashboard", "onboarding", "contact", "pricing"];
+  const allowedDests = ["login", "signup", "dashboard", "onboarding", "contact", "pricing"];
   const safeDest = allowedDests.includes(dest) ? dest : "login";
 
   // 3. Build redirect URL — /app/<dest> (SPA route, NOT a static .html file).

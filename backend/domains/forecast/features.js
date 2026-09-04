@@ -38,11 +38,16 @@ export class ForecastFeatures {
         const upcomingCommitments = commitmentsRes.rows;
 
         // 3. Extract historical daily spending (for residuals & volatility) up to cutoff
+        // FIX (audit P1 #27): no `direction = 'debit'` filter meant income
+        // (credits) were summed together with spend, producing meaningless
+        // `daily_spend` numbers and an inflated rolling-median baseline.
         const spendingRes = await this.dbClient.query(
-            `SELECT DATE(observed_at) as t_date, SUM(amount_paise) as daily_spend
-             FROM transactions 
-             WHERE user_id = $1 
-               AND observed_at <= $2 
+            `SELECT DATE(observed_at) AS t_date, SUM(amount_paise) AS daily_spend
+             FROM transactions
+             WHERE user_id = $1
+               AND observed_at <= $2
+               AND direction = 'debit'
+               AND is_deleted = FALSE
                AND transaction_type NOT IN ('transfer_out', 'transfer_in')
                AND transfer_role IS NULL
              GROUP BY DATE(observed_at)

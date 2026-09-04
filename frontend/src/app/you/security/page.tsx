@@ -62,7 +62,7 @@ function getDeviceIcon(device: string): React.ReactNode {
 
 export default function SecurityPage() {
   const { securityData } = useAppData();
-  const [twoFA, setTwoFA] = React.useState(securityData.two_factor_enabled);
+  const twoFA = securityData.two_factor_enabled;
   const [sessions, setSessions] = React.useState(securityData.active_sessions);
   const [revoking, setRevoking] = React.useState<string | null>(null);
   const { toast } = useToast();
@@ -71,6 +71,17 @@ export default function SecurityPage() {
   const scoreColor = getScoreColor(score);
   const scoreLabel = getScoreLabel(score);
   const scoreBg = getScoreLightBg(score);
+
+  const handleToggle2FA = () => {
+    // 2FA cannot be toggled client-side — defer to Clerk's hosted profile UI.
+    toast({
+      title: "Manage 2FA in Clerk",
+      description: "Opening Clerk's secure profile page where you can enable or disable 2FA.",
+    });
+    if (typeof window !== "undefined") {
+      window.open("https://clerk.com/account", "_blank", "noopener,noreferrer");
+    }
+  };
 
   const handleRevoke = async (id: string) => {
     setRevoking(id);
@@ -198,10 +209,11 @@ export default function SecurityPage() {
             </p>
           </div>
           <button
-            onClick={() => setTwoFA((v) => !v)}
+            onClick={handleToggle2FA}
             role="switch"
             aria-checked={twoFA}
-            aria-label="Toggle 2FA"
+            aria-label="Toggle 2FA — opens Clerk"
+            title="Opens Clerk profile to manage 2FA"
             className="relative w-11 h-6 rounded-full transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
             style={{ background: twoFA ? "var(--accent)" : "var(--surface-active)" }}
           >
@@ -214,7 +226,7 @@ export default function SecurityPage() {
           </button>
         </div>
         <div className="mt-2 flex justify-end">
-          <button className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-accent hover:bg-[var(--accent-light)] rounded-[8px] transition-colors">
+          <button onClick={() => window.open("https://clerk.com/account", "_blank")} className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium text-accent hover:bg-[var(--accent-light)] rounded-[8px] transition-colors">
             Manage
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
@@ -341,7 +353,7 @@ export default function SecurityPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <button className="premium-card w-full p-5 flex items-center gap-3 hover:border-[var(--border-strong)] transition-colors text-left">
+        <button onClick={() => window.open("https://clerk.com/account/security", "_blank")} className="premium-card w-full p-5 flex items-center gap-3 hover:border-[var(--border-strong)] transition-colors text-left">
           <div className="w-10 h-10 rounded-[12px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
             <KeyRound className="w-5 h-5 text-accent" />
           </div>

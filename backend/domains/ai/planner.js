@@ -41,20 +41,33 @@ export class ContextPlanner {
     }
 
     async _getLatestFinancialState(userId) {
+        // FIX (audit P0 #7): financial_snapshots has NO columns named
+        // `current_balance_paise`, `safe_to_spend_paise`, `uncommitted_funds_paise`,
+        // or `as_of`. The canonical schema (migration 008) has a single
+        // `result_paise` BIGINT plus `computed_at` and `calculation_type`. We
+        // fetch the latest safe_to_spend snapshot and surface both the raw
+        // result and the structured inputs from input_snapshot.
         const res = await this.dbClient.query(
-            `SELECT current_balance_paise, safe_to_spend_paise, uncommitted_funds_paise, as_of 
-             FROM financial_snapshots 
-             WHERE user_id = $1 ORDER BY as_of DESC LIMIT 1`,
+            `SELECT snapshot_id, calculation_type, result_paise,
+                    input_snapshot, freshness_score, coverage_score,
+                    confidence_level, computed_at
+             FROM financial_snapshots
+             WHERE user_id = $1
+             ORDER BY computed_at DESC LIMIT 1`,
             [userId]
         );
         return res.rows[0] || null;
     }
 
     async _getLatestForecast(userId) {
+        // FIX (audit P0 #7): forecast_snapshots has NO `status` column
+        // (migration 010). Drop it from SELECT. `as_of` is real.
         const res = await this.dbClient.query(
-            `SELECT point_estimate_paise, lower_bound_paise, upper_bound_paise, horizon_days, status, trust_state
-             FROM forecast_snapshots 
-             WHERE user_id = $1 ORDER BY as_of DESC LIMIT 1`,
+            `SELECT point_estimate_paise, lower_bound_paise, upper_bound_paise,
+                    horizon_days, trust_state, as_of
+             FROM forecast_snapshots
+             WHERE user_id = $1
+             ORDER BY as_of DESC LIMIT 1`,
             [userId]
         );
         return res.rows[0] || null;
@@ -63,7 +76,7 @@ export class ContextPlanner {
     async _getActiveGoals(userId) {
         const res = await this.dbClient.query(
             `SELECT goal_id, name, target_amount_paise, current_amount_paise, target_date, status
-             FROM goals 
+             FROM goals
              WHERE user_id = $1 AND status != 'COMPLETED'`,
             [userId]
         );
@@ -71,13 +84,20 @@ export class ContextPlanner {
     }
 
     async _getRecentSpendingTotals(userId) {
-        // Just an aggregate, NEVER the full raw transaction list
+        // FIX (audit P0 #7): transactions.amount_paise has a CHECK (> 0) that
+        // FORBIDS negative values — the old `amount_paise < 0` filter would
+        // throw. Spend = `direction='debit'`. Also transactions has `observed_at`
+        // (not `date`). Group debits over the last 30 days.
         const res = await this.dbClient.query(
-            `SELECT SUM(amount_paise) as total_spend_paise 
-             FROM transactions 
-             WHERE user_id = $1 AND amount_paise < 0 AND date >= CURRENT_DATE - INTERVAL '30 days'`,
+            `SELECT SUM(amount_paise) AS total_spend_paise
+             FROM transactions
+             WHERE user_id = $1
+               AND direction = 'debit'
+               AND is_deleted = FALSE
+               AND observed_at >= NOW() - INTERVAL '30 days'`,
             [userId]
         );
-        return { last30DaysPaise: res.rows[0]?.total_spend_paise || 0 };
+        const total = res.rows[0]?.total_spend_paise;
+        return { last30DaysPaise: total == null ? 0 : Number(total) };
     }
 }

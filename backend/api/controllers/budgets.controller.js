@@ -109,7 +109,9 @@ export class BudgetsController {
                 `UPDATE budgets SET is_active = false, updated_at = NOW() WHERE budget_id = $2 AND user_id = $1`,
                 [userId, id]
             );
-            res.status(204).json({ status: 'OK' });
+            // FIX (audit P1 #35): 204 must NOT carry a JSON body. Use 200 so
+            // the frontend's fetch() can actually read { status: 'OK' }.
+            res.status(200).json({ status: 'OK' });
         } catch (err) {
             next(err);
         }

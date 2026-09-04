@@ -38,8 +38,11 @@ export const requireFeatureFlag = (flagName) => {
                 });
             }
 
-            // Attach cohort to request for downstream telemetry use
-            req.betaCohort = assignment.cohort;
+            // Attach cohort to request for downstream telemetry use.
+            // FIX (audit P0 #2): null-safe — assignment may legitimately be null when
+            // the user has no persisted cohort record yet. Default to 'NONE' instead of
+            // crashing on `assignment.cohort`.
+            req.betaCohort = assignment?.cohort || 'NONE';
             next();
         } catch (err) {
             logger.error('[FLAGS] Error evaluating feature flag', { flag: flagName, err: err.message });

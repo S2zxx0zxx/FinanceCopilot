@@ -18,7 +18,7 @@ export function Security() {
               align="left"
               eyebrow="Security & trust"
               title="Your money is sacred. We treat it that way."
-              subtitle="Bank-grade infrastructure, read-only by design, independently audited. We never sell your data — ever."
+              subtitle="Read-only by design, encrypted in transit and at rest. We never sell your data — ever."
             />
             <div className="flex flex-col gap-4 mt-8">
               {securityItems.map((item, i) => {
@@ -71,8 +71,8 @@ export function Security() {
                 ))}
               </div>
               <div className="pt-4 border-t border-[var(--border)] flex flex-col gap-2">
-                <p className="text-[12px] text-[var(--text-muted)] italic text-center">Independently audited by Coalfire, 2025.</p>
-                <a href="#" className="text-[12px] text-[var(--accent)] hover:text-[var(--accent-bright)] transition-colors self-center inline-flex items-center gap-1">
+                <p className="text-[12px] text-[var(--text-muted)] italic text-center">Built with bank-grade security.</p>
+                <a href="/api/cta?dest=contact&source=security-overview" className="text-[12px] text-[var(--accent)] hover:text-[var(--accent-bright)] transition-colors self-center inline-flex items-center gap-1">
                   Read the security overview →
                 </a>
               </div>

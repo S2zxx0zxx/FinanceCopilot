@@ -9,7 +9,7 @@ export const CashflowBar = React.memo(function CashflowBar() {
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={cashflowBarData} margin={{ top: 4, right: 4, left: 4, bottom: 4 }} barGap={2}>
         <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-        <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, ""]} />
+        <Tooltip formatter={(v: number) => [`₹${v.toLocaleString('en-IN')}`, ""]} />
         <Legend
           verticalAlign="top"
           height={20}

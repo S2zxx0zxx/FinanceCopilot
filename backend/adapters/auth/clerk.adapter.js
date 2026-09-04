@@ -78,6 +78,52 @@ export class ClerkAuthAdapter extends AuthInterface {
     }
   }
 
+  /**
+   * FIX (audit P1 #32): listSessions — required by TrustController
+   * getSecuritySessions. Returns the user's active Clerk sessions with the
+   * fields the frontend security page renders (id, device, lastActive,
+   * currentSessionId badge). Never throws — on any Clerk failure we return
+   * an empty list so the security page still loads.
+   */
+  async listSessions(uid) {
+    try {
+      if (this.mode === 'mock') return [];
+      const { data: sessions } = await this.clerkClient.sessions.getSessionList({
+        userId: uid,
+        limit: 50
+      });
+      return (sessions || []).map(s => ({
+        id: s.id,
+        status: s.status,
+        device: s.lastActiveOrganization?.name
+          || s.deviceType
+          || (s.expireAt ? 'Web' : 'Unknown'),
+        ipAddress: s.lastActiveToken?.ip_address || null,
+        lastActive: s.lastActiveAt || s.updatedAt || s.createdAt,
+        createdAt: s.createdAt
+      }));
+    } catch (error) {
+      console.error(`[Clerk Auth] Failed to list sessions for ${uid}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * FIX (audit P1 #32): revokeSession — revoke a SINGLE Clerk session by id
+   * (used by the "Revoke" button on the security page when allOther=false).
+   * Returns the revoked session or null on not-found / failure.
+   */
+  async revokeSession(sessionId) {
+    try {
+      if (this.mode === 'mock') return { id: sessionId, status: 'revoked' };
+      const revoked = await this.clerkClient.sessions.revokeSession(sessionId);
+      return revoked;
+    } catch (error) {
+      console.error(`[Clerk Auth] Failed to revoke session ${sessionId}:`, error);
+      throw new Error(`Failed to revoke session: ${error.message}`);
+    }
+  }
+
   async deleteUser(uid) {
     try {
       if (this.mode === 'mock') return { status: 'MOCKED_SUCCESS' };

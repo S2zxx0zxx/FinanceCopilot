@@ -54,7 +54,7 @@ export function FinalCTA() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="text-[16px] sm:text-[17px] text-[var(--text-secondary)] leading-[1.65] max-w-xl"
         >
-          Join 250,000+ people who stopped worrying about money. Free forever to start.
+          Join the waitlist for early access. Free forever to start — be among the first users when we launch.
         </motion.p>
 
         <motion.div
@@ -73,7 +73,7 @@ export function FinalCTA() {
             </div>
           </SignUpButton>
           <a
-            href="/app/contact.html"
+            href="/api/cta?dest=contact&source=final-cta-talk-to-us"
             className="inline-flex items-center gap-2 border border-[var(--border-strong)] text-[var(--text)] hover:bg-[var(--surface-2)] text-[13px] px-4 py-3 rounded-[10px] transition-colors"
           >
             Talk to us

@@ -70,7 +70,7 @@ export function ApiErrorState({
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-white text-[13px] font-semibold hover:opacity-90 transition-opacity"
+          className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-accent-foreground text-[13px] font-semibold hover:opacity-90 transition-opacity"
         >
           Retry
         </button>

@@ -74,7 +74,7 @@ export const SpendingTreemap = React.memo(function SpendingTreemap() {
         isAnimationActive
         animationDuration={1400}
       >
-        <Tooltip formatter={(v: number) => [`$${v}`, "Spend"]} />
+        <Tooltip formatter={(v: number) => [`₹${v}`, "Spend"]} />
       </Treemap>
     </ResponsiveContainer>
   );

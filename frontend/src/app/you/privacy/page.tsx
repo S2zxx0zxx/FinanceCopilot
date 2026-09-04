@@ -25,17 +25,16 @@ function ConsentToggle({
   description,
   enabled,
   onChange,
+  saving,
 }: {
   label: string;
   description: string;
   enabled: boolean;
   onChange: (next: boolean) => void;
+  saving?: boolean;
 }) {
-  const [on, setOn] = React.useState(enabled);
   const handle = () => {
-    const next = !on;
-    setOn(next);
-    onChange(next);
+    onChange(!enabled);
   };
   return (
     <div className="flex items-center gap-3 p-4 border-b border-(--border-subtle) last:border-b-0">
@@ -47,12 +46,13 @@ function ConsentToggle({
       </div>
       <button
         role="switch"
-        aria-checked={on}
+        aria-checked={enabled}
         aria-label={label}
+        disabled={saving}
         onClick={handle}
-        className="relative w-11 h-6 rounded-full transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+        className="relative w-11 h-6 rounded-full transition-colors shrink-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] disabled:opacity-60"
         style={{
-          background: on ? "var(--accent)" : "var(--surface-active)",
+          background: enabled ? "var(--accent)" : "var(--surface-active)",
         }}
       >
         <motion.span
@@ -60,7 +60,7 @@ function ConsentToggle({
           transition={{ type: "spring", stiffness: 700, damping: 30 }}
           className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm"
           style={{
-            transform: on ? "translateX(20px)" : "translateX(0)",
+            transform: enabled ? "translateX(20px)" : "translateX(0)",
           }}
         />
       </button>
@@ -71,12 +71,15 @@ function ConsentToggle({
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function PrivacyPage() {
-  const { privacyData } = useAppData();
+  const { privacyData, currentUser } = useAppData();
+  const { toast } = useToast();
   const [retention, setRetention] = React.useState(
     privacyData.data_retention_days
   );
   const [retentionOpen, setRetentionOpen] = React.useState(false);
+  const [retentionSaving, setRetentionSaving] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
   const [deleting, setDeleting] = React.useState(false);
   const [deleted, setDeleted] = React.useState(false);
 
@@ -85,6 +88,55 @@ export default function PrivacyPage() {
     analytics: privacyData.analytics_consent,
     aiSharing: privacyData.ai_sharing_consent,
   });
+  const [consentSaving, setConsentSaving] = React.useState<null | keyof typeof consents>(null);
+
+  const userEmail = currentUser?.email || "your email";
+
+  const persistConsent = async (key: keyof typeof consents, value: boolean) => {
+    setConsentSaving(key);
+    try {
+      await api.updatePrivacyConsent({
+        marketing_consent: key === "marketing" ? value : consents.marketing,
+        analytics_consent: key === "analytics" ? value : consents.analytics,
+        ai_sharing_consent: key === "aiSharing" ? value : consents.aiSharing,
+      });
+      toast({
+        title: "Consent updated",
+        description: "Your privacy preference has been saved.",
+      });
+    } catch {
+      // Revert local state on failure so the UI doesn't lie.
+      setConsents((c) => ({ ...c, [key]: !value }));
+      toast({
+        title: "Update failed",
+        description: "Could not save consent. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setConsentSaving(null);
+    }
+  };
+
+  const persistRetention = async (days: number) => {
+    setRetentionSaving(true);
+    try {
+      await api.updatePreferences({ data_retention_days: days });
+      setRetention(days);
+      toast({
+        title: "Retention updated",
+        description: `Data will be retained for ${days} days.`,
+      });
+    } catch {
+      toast({
+        title: "Update failed",
+        description: "Could not save retention preference.",
+        variant: "destructive",
+      });
+    } finally {
+      setRetentionSaving(false);
+      setRetentionOpen(false);
+    }
+  };
 
   const retentionOptions = [
     { value: 30, label: "30 days" },
@@ -101,6 +153,12 @@ export default function PrivacyPage() {
     } catch {
       // Show inline error — deletion failed
       setDeleting(false);
+      setDeleteConfirmText("");
+      toast({
+        title: "Deletion failed",
+        description: "Could not request deletion. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -123,11 +181,11 @@ export default function PrivacyPage() {
           <p className="text-[13px] text-(--text-secondary) max-w-sm leading-[1.6]">
             Your account data has been queued for permanent deletion. This
             usually completes within 30 days. You'll receive an email
-            confirmation at <strong>{`arjun.sharma@fincopilot.in`}</strong>.
+            confirmation at <strong>{userEmail}</strong>.
           </p>
           <Link
             href="/you"
-            className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-white text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
+            className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors"
           >
             Back to Settings
           </Link>
@@ -214,19 +272,31 @@ export default function PrivacyPage() {
             label="Marketing communications"
             description="Product updates, tips, and promotional offers via email."
             enabled={consents.marketing}
-            onChange={(v) => setConsents((c) => ({ ...c, marketing: v }))}
+            saving={consentSaving === "marketing"}
+            onChange={(v) => {
+              setConsents((c) => ({ ...c, marketing: v }));
+              void persistConsent("marketing", v);
+            }}
           />
           <ConsentToggle
             label="Anonymous analytics"
             description="Help us improve FinCopilot with anonymous usage data."
             enabled={consents.analytics}
-            onChange={(v) => setConsents((c) => ({ ...c, analytics: v }))}
+            saving={consentSaving === "analytics"}
+            onChange={(v) => {
+              setConsents((c) => ({ ...c, analytics: v }));
+              void persistConsent("analytics", v);
+            }}
           />
           <ConsentToggle
             label="AI processing"
             description="Allow our AI to analyze your transactions to generate insights."
             enabled={consents.aiSharing}
-            onChange={(v) => setConsents((c) => ({ ...c, aiSharing: v }))}
+            saving={consentSaving === "aiSharing"}
+            onChange={(v) => {
+              setConsents((c) => ({ ...c, aiSharing: v }));
+              void persistConsent("aiSharing", v);
+            }}
           />
         </div>
       </motion.section>
@@ -247,7 +317,8 @@ export default function PrivacyPage() {
           <div className="relative">
             <button
               onClick={() => setRetentionOpen((o) => !o)}
-              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-subtle)] text-[13px] font-medium hover:border-[var(--border-strong)] transition-colors"
+              disabled={retentionSaving}
+              className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface-subtle)] text-[13px] font-medium hover:border-[var(--border-strong)] transition-colors disabled:opacity-60"
               aria-haspopup="listbox"
               aria-expanded={retentionOpen}
             >
@@ -268,10 +339,8 @@ export default function PrivacyPage() {
                 {retentionOptions.map((opt) => (
                   <button
                     key={opt.value}
-                    onClick={() => {
-                      setRetention(opt.value);
-                      setRetentionOpen(false);
-                    }}
+                    onClick={() => void persistRetention(opt.value)}
+                    disabled={retentionSaving}
                     className={`w-full text-left px-3 py-2 rounded-[8px] text-[13px] flex items-center justify-between hover:bg-(--surface-subtle) transition-colors ${
                       opt.value === retention
                         ? "text-accent font-semibold"
@@ -385,20 +454,25 @@ export default function PrivacyPage() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
                   placeholder="Type DELETE"
                   className="flex-1 px-3 py-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--negative)]"
                 />
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setConfirmDelete(false)}
+                    onClick={() => {
+                      setConfirmDelete(false);
+                      setDeleteConfirmText("");
+                    }}
                     className="px-3 py-2 rounded-[10px] text-[13px] font-medium text-(--text-secondary) hover:bg-(--surface-subtle) transition-colors"
                   >
                     Cancel
                   </button>
                   <button
-                    disabled={deleting}
+                    disabled={deleting || deleteConfirmText !== "DELETE"}
                     onClick={handleDelete}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[13px] font-semibold text-white bg-[var(--negative)] hover:opacity-90 transition-opacity disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[13px] font-semibold text-white bg-[var(--negative)] hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {deleting ? (
                       <>

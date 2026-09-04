@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   authors: [{ name: "FinCopilot, Inc." }],
   creator: "FinCopilot, Inc.",
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/favicon.svg",
   },
   openGraph: {
     title: "FinCopilot — The AI co-pilot for your money",
@@ -69,18 +69,13 @@ const jsonLd = {
   "@type": "SoftwareApplication",
   name: "FinCopilot",
   applicationCategory: "FinanceApplication",
-  operatingSystem: "Web, iOS, Android",
+  operatingSystem: "Web",
   description:
     "AI-powered personal finance copilot. Track spending, build smart budgets, forecast cash flow, and chat with your money.",
   offers: {
     "@type": "Offer",
     price: "0",
-    priceCurrency: "USD",
-  },
-  aggregateRating: {
-    "@type": "AggregateRating",
-    ratingValue: "4.9",
-    ratingCount: "250000",
+    priceCurrency: "INR",
   },
 };
 
@@ -90,7 +85,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           id="json-ld"
@@ -105,7 +100,7 @@ export default function RootLayout({
           <ThemeProvider
           attribute="class"
           defaultTheme="dark"
-          enableSystem={false}
+          enableSystem
           disableTransitionOnChange
           >
           {children}

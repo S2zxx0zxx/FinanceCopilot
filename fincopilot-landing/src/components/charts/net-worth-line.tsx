@@ -16,7 +16,7 @@ export const NetWorthLine = React.memo(function NetWorthLine() {
         </defs>
         <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
         <Tooltip
-          formatter={(v: number) => [`$${v.toLocaleString()}`, "Net worth"]}
+          formatter={(v: number) => [`₹${v.toLocaleString('en-IN')}`, "Net worth"]}
         />
         <Line
           type="monotone"

@@ -51,7 +51,7 @@ export default function AIChatPage() {
         <AnimatePresence>
           {messages.map((msg, i) => (
             <motion.div key={`msg-${i}`} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${msg.role === "user" ? "bg-accent text-white rounded-br-lg" : "bg-(--surface-subtle) text-foreground rounded-bl-lg"}`}>
+              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${msg.role === "user" ? "bg-accent text-accent-foreground rounded-br-lg" : "bg-(--surface-subtle) text-foreground rounded-bl-lg"}`}>
                 <p className="text-[14px] leading-normal">{msg.content}</p>
                 {msg.insight && (
                   <div className="mt-2 p-2.5 rounded-[10px] bg-(--accent-light) border border-(--accent)/20">
@@ -74,7 +74,7 @@ export default function AIChatPage() {
 
       <div className="flex gap-2">
         <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask about your money..." className="flex-1 px-4 py-3 rounded-[12px] bg-(--surface) border border-border text-[14px] focus:border-accent outline-none transition-colors" />
-        <button onClick={send} disabled={!input.trim()} className="w-12 h-12 rounded-[12px] bg-accent text-white flex items-center justify-center hover:bg-(--accent-hover) disabled:opacity-40 transition-all"><Send className="w-5 h-5" /></button>
+        <button onClick={send} disabled={!input.trim()} className="w-12 h-12 rounded-[12px] bg-accent text-accent-foreground flex items-center justify-center hover:bg-(--accent-hover) disabled:opacity-40 transition-all"><Send className="w-5 h-5" /></button>
       </div>
     </div>
   );

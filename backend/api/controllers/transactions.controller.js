@@ -217,12 +217,23 @@ export class TransactionsController {
 
                 const originalTx = txResult.rows[0];
 
-                if (amount_paise >= originalTx.amount_paise) {
+                // FIX (audit P1 #26): Postgres BIGINT columns return as STRINGS.
+                // The old `amount_paise >= originalTx.amount_paise` comparison
+                // was lexicographic string comparison ('2' > '100' is TRUE),
+                // which silently rejected valid splits. Coerce to Number for
+                // all arithmetic / comparison.
+                const origPaise = Number(originalTx.amount_paise);
+                const splitPaise = Number(amount_paise);
+                if (!Number.isFinite(origPaise) || !Number.isFinite(splitPaise)) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ error: 'Invalid amount' });
+                }
+                if (splitPaise >= origPaise) {
                     await client.query('ROLLBACK');
                     return res.status(400).json({ error: 'Split amount must be less than original amount' });
                 }
 
-                const remainder = originalTx.amount_paise - amount_paise;
+                const remainder = origPaise - splitPaise;
 
                 // Update original — schema has merchant_raw (not merchant_original), no is_split column, observed_at (not posting_date)
                 await client.query(
@@ -238,7 +249,7 @@ export class TransactionsController {
                         posting_status, duplicate_status
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
                     [
-                        userId, originalTx.account_id, amount_paise, originalTx.direction, originalTx.currency,
+                        userId, originalTx.account_id, splitPaise, originalTx.direction, originalTx.currency,
                         originalTx.observed_at, originalTx.merchant_raw, merchant_normalized || originalTx.merchant_normalized,
                         category2 || originalTx.transaction_type, originalTx.posting_status, originalTx.duplicate_status
                     ]
@@ -248,7 +259,7 @@ export class TransactionsController {
                 const { Telemetry } = await import('../../utils/telemetry.js');
                 Telemetry.trackEvent(userId, 'TRANSACTION_SPLIT', {
                     tx_id: txId,
-                    split_ratio: amount_paise / originalTx.amount_paise
+                    split_ratio: origPaise > 0 ? splitPaise / origPaise : 0
                 });
 
                 await client.query('COMMIT');

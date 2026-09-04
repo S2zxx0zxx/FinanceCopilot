@@ -16,22 +16,35 @@ export class ForecastEngine {
      * Generates a forecast for a specific user and horizon.
      */
     async generateForecast(userId, horizonDays, asOfDate = new Date()) {
-        
+
         // 1. Point-in-time Feature Extraction
         const features = await this.featureExtractor.extractPointInTimeFeatures(userId, asOfDate);
 
         // 2. Assess Data Trust / Quality (Cold-Start Policy)
         let trustState = 'HIGH';
-        const historyDays = features.historicalDailySpending.length;
-        
-        if (historyDays < 15) {
+        // FIX (audit P1 #49): `historyDays` was the row COUNT — a user with
+        // 5 transactions on the same day would report `historyDays = 5` and
+        // pass the `>= 15` threshold spuriously. Compute the actual span
+        // (latest observed_at − earliest observed_at) in days so the
+        // LIMITED_HISTORY / LOW trust gating reflects real history length.
+        let historySpanDays = 0;
+        if (features.historicalDailySpending.length > 0) {
+            const dates = features.historicalDailySpending
+                .map(r => new Date(r.date).getTime())
+                .filter(t => !Number.isNaN(t));
+            if (dates.length > 0) {
+                historySpanDays = Math.round(
+                    (Math.max(...dates) - Math.min(...dates)) / (1000 * 60 * 60 * 24)
+                );
+            }
+        }
+
+        if (historySpanDays < 15) {
             trustState = 'LIMITED_HISTORY';
         } else {
-            // Check spending volatility vs median.
-            // If volatility is abnormally high relative to general spending behavior, downgrade trust.
-            const medianSpend = ForecastBaselines.rollingMedian(features, 1).pointEstimatePaise;
-            // Since pointEstimate is the balance - median - commitments, we need to extract median spend.
-            // A quick surrogate: if daily volatility exceeds 5000 INR (500000 paise), flag as LOW.
+            // Check spending volatility. If daily volatility is abnormally
+            // high, downgrade trust. (FIX audit P1 #50: dead `medianSpend`
+            // branch removed — the variable was computed and never used.)
             if (features.spendingVolatilityPaise > 500000) {
                 trustState = 'LOW'; // Highly unpredictable spending behavior
             }

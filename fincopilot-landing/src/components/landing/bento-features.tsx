@@ -62,7 +62,7 @@ export function BentoFeatures() {
                     )}
 
                     <a
-                      href="#"
+                      href={feature.href ?? "/api/cta?dest=signup"}
                       className="mt-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--accent)] hover:text-[var(--accent-bright)] transition-colors self-start group/cta"
                     >
                       {feature.cta}

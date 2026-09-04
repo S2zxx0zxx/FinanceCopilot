@@ -40,7 +40,7 @@ export function Pricing() {
               )}
             >
               Yearly
-              <span className="text-[10px] font-mono text-[var(--gold)]">Save ~40%</span>
+              <span className="text-[10px] font-mono text-[var(--gold)]">Save up to 40%</span>
             </button>
           </div>
         </div>
@@ -81,7 +81,7 @@ export function Pricing() {
                     <p className="text-[13px] text-[var(--text-secondary)] leading-[1.5]">{tier.pitch}</p>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="font-display font-bold text-[40px] leading-none">${price}</span>
+                    <span className="font-display font-bold text-[40px] leading-none">₹{price}</span>
                     <span className="text-[13px] text-[var(--text-muted)]">/mo</span>
                   </div>
 
@@ -122,7 +122,7 @@ export function Pricing() {
         </div>
 
         <p className="text-center mt-8 text-[12px] text-[var(--text-muted)]">
-          All plans: Bank-level 256-bit AES · SOC 2 Type II · No ads · Cancel anytime · 14-day free trial on paid plans
+          All plans: Bank-level 256-bit AES · Bank-grade · No ads · Cancel anytime · 14-day free trial on paid plans
         </p>
       </div>
     </section>

@@ -51,7 +51,11 @@ export class CashflowService {
                AND t.is_deleted = FALSE
                AND t.duplicate_status IN ('unique', 'primary')
                AND t.transfer_role IS NULL
-               AND t.settlement_role != 'settlement'
+               -- FIX (audit P0 #21): "settlement_role != 'settlement'" excludes
+               -- NULL rows in PostgreSQL (NULL != 'x' is NULL, not TRUE). That
+               -- silently dropped every ordinary transaction from the sum and
+               -- made balances read ~0. Include NULL rows explicitly.
+               AND (t.settlement_role IS NULL OR t.settlement_role != 'settlement')
                AND t.posting_status = 'posted'`,
             [userId]
         ).catch(() => ({ rows: [{ net_balance_paise: 0 }] }));

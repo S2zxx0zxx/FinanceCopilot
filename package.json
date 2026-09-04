@@ -14,7 +14,7 @@
     "start:all": "node backend/server.js & node backend/worker.js",
     "test": "node --test \"backend/tests/**/*.test.js\"",
     "lint": "eslint backend",
-    "migrate": "node --env-file=.env backend/db/migrations/run.js"
+    "migrate": "node --env-file=.env backend/db/run-migrations.js"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

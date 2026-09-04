@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /app/
-Disallow: /api/
-
-Sitemap: https://example.com/sitemap.xml

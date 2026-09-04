@@ -28,10 +28,10 @@ export const ForecastCombo = React.memo(function ForecastCombo() {
           tick={{ fontSize: 10 }}
           axisLine={false}
           tickLine={false}
-          tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+          tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
           domain={["dataMin - 1000", "dataMax + 1000"]}
         />
-        <Tooltip formatter={(v: number) => (v ? [`$${v.toLocaleString()}`, ""] : ["—", ""])} />
+        <Tooltip formatter={(v: number) => (v ? [`₹${v.toLocaleString('en-IN')}`, ""] : ["—", ""])} />
         <Legend
           verticalAlign="top"
           height={20}

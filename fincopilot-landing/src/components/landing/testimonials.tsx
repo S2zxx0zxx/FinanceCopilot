@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Star } from "lucide-react";
 import { testimonials } from "@/lib/landing-data";
 import { SectionHeading } from "@/components/bits/section-heading";
 import { GlassCard } from "@/components/bits/glass-card";
@@ -11,9 +10,9 @@ export function Testimonials() {
     <section id="reviews" className="py-20 md:py-28 scroll-mt-20">
       <div className="max-w-7xl mx-auto px-5 sm:px-8">
         <SectionHeading
-          eyebrow="Loved by people who hate their bank app"
-          title="Real users. Real outcomes. Real numbers."
-          subtitle="Every testimonial comes with a quantified outcome — because vague praise doesn't pay the bills."
+          eyebrow="Illustrative scenarios"
+          title="What FinCopilot could do for you."
+          subtitle="Pre-launch, these composite scenarios show the kinds of outcomes we aim to deliver. Not real customer claims — yet."
         />
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
@@ -45,17 +44,13 @@ export function Testimonials() {
                     alt={`${t.author}, ${t.role}`}
                     width={36}
                     height={36}
-                    className="w-9 h-9 rounded-full object-cover shrink-0 border border-[var(--border)]"
+                    className="w-9 h-9 rounded-full object-cover shrink-0 border border-[var(--border)] opacity-80"
                   />
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-[13px] font-semibold text-[var(--text)] truncate">{t.author}</span>
                     <span className="text-[11px] text-[var(--text-muted)] truncate">{t.role}</span>
                   </div>
-                  <div className="ml-auto flex gap-0.5">
-                    {[0, 1, 2, 3, 4].map((s) => (
-                      <Star key={s} className="w-3 h-3 fill-[var(--gold)] text-[var(--gold)]" />
-                    ))}
-                  </div>
+                  {/* No star rating — these are illustrative composites, not real customer reviews. */}
                 </div>
               </GlassCard>
             </motion.div>

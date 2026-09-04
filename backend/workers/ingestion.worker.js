@@ -94,12 +94,16 @@ export class IngestionWorker {
         }
 
         // 3. Extract Raw Records
+        // FIX (audit P0 #20): Excel/CSV parsers expect a Buffer, not a string.
+        // The old code converted every non-csv upload via `fileBuffer.toString()`,
+        // which corrupts binary .xlsx files. Only the PDF (LLM) parser wants
+        // string input — pass Buffer for everything else.
         let extractedRecords;
         try {
-            if (job.job_type === 'csv') {
-                extractedRecords = await parser.parseRawStatement(fileBuffer);
+            if (job.job_type === 'pdf') {
+                extractedRecords = await parser.parseRawStatement(fileBuffer.toString('utf8'));
             } else {
-                extractedRecords = await parser.parseRawStatement(fileBuffer.toString());
+                extractedRecords = await parser.parseRawStatement(fileBuffer);
             }
         } catch (err) {
             console.error(`[WORKER] Parser failed: ${err.message}`);

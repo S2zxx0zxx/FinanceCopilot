@@ -253,7 +253,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <button
             onClick={() => setFabOpen(!fabOpen)}
             aria-label="Quick actions"
-            className={cn("w-14 h-14 rounded-full bg-accent text-white flex items-center justify-center shadow-[var(--shadow-lg),var(--shadow-glow)] hover:bg-(--accent-hover) transition-all hover:scale-105", fabOpen && "rotate-45")}
+            className={cn("w-14 h-14 rounded-full bg-accent text-accent-foreground flex items-center justify-center shadow-[var(--shadow-lg),var(--shadow-glow)] hover:bg-(--accent-hover) transition-all hover:scale-105", fabOpen && "rotate-45")}
           >
             <Plus className="w-6 h-6" strokeWidth={2.2} />
           </button>
