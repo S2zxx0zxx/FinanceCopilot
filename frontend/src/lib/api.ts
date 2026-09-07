@@ -227,4 +227,7 @@ export const api = {
   // ── Onboarding ──────────────────────────────────────────────────────────────
   completeOnboarding: (data: any) =>
     apiFetch("/auth/onboarding-complete", { method: "POST", body: JSON.stringify(data) }),
+
+  // ── Dev ─────────────────────────────────────────────────────────────────────
+  seedDemoData: () => apiFetch("/dev/seed", { method: "POST" }),
 };

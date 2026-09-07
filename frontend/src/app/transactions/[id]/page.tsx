@@ -9,7 +9,7 @@ import { Badge, EmptyState } from "@/components/shared";
 import type { Transaction } from "@/lib/data";
 import { api, ApiError } from "@/lib/api";
 
-export default function TransactionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function TransactionDetailPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const { id } = React.use(params);
   const [tx, setTx] = React.useState<Transaction | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -17,7 +17,6 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
 
   React.useEffect(() => {
     let mounted = true;
-    setLoading(true);
     api
       .getTransactionDetail(id)
       .then((res: any) => {
@@ -47,7 +46,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
           <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">Transaction</h1>
         </div>
         <div className="premium-card p-6 flex items-center justify-center">
-          <span className="w-6 h-6 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" />
+          <span className="w-6 h-6 rounded-full border-2 border-accent border-t-transparent animate-spin" />
         </div>
       </div>
     );
@@ -67,7 +66,7 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
           title="Not found"
           description={error || "We couldn't find this transaction."}
           action={
-            <Link href="/transactions" className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-colors">
+            <Link href="/transactions" className="mt-2 px-4 py-2 rounded-[10px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-(--accent-hover) transition-colors">
               Back to transactions
             </Link>
           }
@@ -91,10 +90,10 @@ export default function TransactionDetailPage({ params }: { params: Promise<{ id
         <div className="flex items-center gap-2"><Badge label={tx.category} variant="neutral" />{tx.pending && <Badge label="Pending" variant="warning" />}</div>
       </motion.div>
       <div className="premium-card p-5 flex flex-col gap-3">
-        <div className="flex justify-between"><span className="text-[13px] text-(--text-tertiary)">Date</span><span className="text-[13px] font-medium">{formatDate(tx.date, { style: "long" })}</span></div>
+        <div className="flex justify-between"><span className="text-[13px] text-(--text-tertiary)">Date</span><span className="text-[13px] font-medium">{formatDate(tx.date || tx.observed_at, { style: "long" })}</span></div>
         <div className="flex justify-between"><span className="text-[13px] text-(--text-tertiary)">Category</span><span className="text-[13px] font-medium capitalize">{tx.category}</span></div>
         <div className="flex justify-between"><span className="text-[13px] text-(--text-tertiary)">Direction</span><span className="text-[13px] font-medium capitalize">{tx.direction}</span></div>
-        <div className="flex justify-between"><span className="text-[13px] text-(--text-tertiary)">Source</span><span className="text-[13px] font-medium capitalize">{tx.source.replace("_", " ")}</span></div>
+        <div className="flex justify-between"><span className="text-[13px] text-(--text-tertiary)">Source</span><span className="text-[13px] font-medium capitalize">{(tx.source || "manual").replace("_", " ")}</span></div>
         {tx.notes && <div className="flex justify-between"><span className="text-[13px] text-(--text-tertiary)">Notes</span><span className="text-[13px] font-medium text-(--warning)">{tx.notes}</span></div>}
       </div>
     </div>

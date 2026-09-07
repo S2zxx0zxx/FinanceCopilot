@@ -22,6 +22,7 @@ import { BudgetsController } from './controllers/budgets.controller.js';
 import { NotificationsController } from './controllers/notifications.controller.js';
 import { GamificationController } from './controllers/gamification.controller.js';
 import { InsightsController } from './controllers/insights.controller.js';
+import { DevController } from './controllers/dev.controller.js';
 
 // Internal webhook validation — rejects requests without a valid service token
 function validateInternalWebhook(req, res, next) {
@@ -162,6 +163,9 @@ export function setupRoutes(app, dependencies) {
     router.get('/internal/data-quality',                requireAuth, requireFeatureFlag('new_trust_dashboard'), DataQualityController.getQualityMetrics);
     // Public alias — frontend calls this path
     router.get('/data-quality',                         requireAuth, DataQualityController.getQualityMetrics);
+
+    // ── Dev ───────────────────────────────────────────────────────────────────
+    router.post('/dev/seed',                            requireAuth, DevController.seedUser);
 
     // ── Auth Profile & Security (frontend expects /auth/* paths) ─────────────
     router.get('/auth/me',                              requireAuth, async (req, res, next) => {

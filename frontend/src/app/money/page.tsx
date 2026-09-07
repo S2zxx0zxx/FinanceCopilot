@@ -1,16 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { accounts, financialStateMoney } from "@/lib/data";
+import { api } from "@/lib/api";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, TrendingUp, TrendingDown, Shield, Sparkles, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, TrendingUp, TrendingDown, Shield, Sparkles, Eye, EyeOff, Loader2 } from "lucide-react";
 import { SectionHeader, Badge, FreshnessBadge, CountUp } from "@/components/shared";
 import { Sparkline } from "@/components/charts/sparkline";
 import { type Account } from "@/lib/data";
 import { bankCardGradients } from "@/lib/merchant-data";
 import { formatPaise, formatDate } from "@/lib/format";
-import { netWorthHistory } from "@/lib/data";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -24,8 +23,7 @@ function isRecentlySynced(lastSyncedAt: string): boolean {
 }
 
 // ── 3D Currency Note Card ─────────────────────────────────────────────────
-function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; posted: number; pending: number }) {
-  ;
+function CurrencyNoteCard({ netWorth, posted, pending, coverage }: { netWorth: number; posted: number; pending: number; coverage: any }) {
   const [showDetails, setShowDetails] = React.useState(false);
   return (
     <motion.div
@@ -59,14 +57,14 @@ function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; pos
               <span className="text-[11px] text-white/60">All accounts</span>
             </div>
           </div>
-          <Badge label={`${financialStateMoney.coverage.synced_accounts}/${financialStateMoney.coverage.total_accounts} Synced`} variant="positive" />
+          <Badge label={`${coverage?.synced_accounts || 0}/${coverage?.total_accounts || 0} Synced`} variant="positive" />
         </div>
 
         {/* Big amount */}
         <div className="relative">
           <CountUp
             value={netWorth / 100}
-            format={(v) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+            format={(v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
             duration={2000}
             className="font-display font-bold text-[40px] sm:text-[48px] leading-none tracking-[-0.03em]"
           />
@@ -159,8 +157,33 @@ function BankCard3D({ account }: { account: Account }) {
 }
 
 export default function MoneyPage() {
-  ;
-  const net = financialStateMoney?.net_position ?? { available_balance_paise: 0, posted_balance_paise: 0, pending_balance_paise: 0 };
+  const [data, setData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+  
+  React.useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      api.getMoneyState(),
+      api.getAccounts(),
+      api.getNetWorthHistory()
+    ]).then(([money, accs, nw]) => {
+      if (mounted) setData({ money, accounts: accs.accounts || [], netWorthHistory: nw.history || [] });
+    }).catch(() => {
+      // ignore
+    }).finally(() => {
+      if (mounted) setLoading(false);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading) {
+    return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-(--accent)" /></div>;
+  }
+
+  const net = data?.money?.net_position ?? { available_balance_paise: 0, posted_balance_paise: 0, pending_balance_paise: 0 };
+  const coverage = data?.money?.coverage;
+  const accounts = data?.accounts || [];
+  const nwHistory = data?.netWorthHistory || [];
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
@@ -170,7 +193,7 @@ export default function MoneyPage() {
       </motion.header>
 
       {/* 3D Currency Note Card */}
-      <CurrencyNoteCard netWorth={net.available_balance_paise} posted={net.posted_balance_paise} pending={net.pending_balance_paise} />
+      <CurrencyNoteCard netWorth={net.available_balance_paise} posted={net.posted_balance_paise} pending={net.pending_balance_paise} coverage={coverage} />
 
       {/* Net Worth Trend mini chart */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }} className="premium-card p-4">
@@ -179,7 +202,7 @@ export default function MoneyPage() {
           <span className="text-[12px] text-(--positive) flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +38% YoY</span>
         </div>
         <div className="h-20">
-          <Sparkline data={netWorthHistory.map(d => d.value / 100)} color="var(--accent)" fill height={80} />
+          <Sparkline data={nwHistory.map((d: any) => d.value / 100)} color="var(--accent)" fill height={80} />
         </div>
       </motion.div>
 
@@ -187,7 +210,8 @@ export default function MoneyPage() {
       <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
         <SectionHeader title="Connected Accounts" action={<Link href="/accounts" className="text-[12px] font-medium text-accent hover:text-(--accent-hover) flex items-center gap-1 transition-colors">View All <ArrowRight className="w-3.5 h-3.5" /></Link>} />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {accounts.map((acc) => <BankCard3D key={acc.account_id} account={acc} />)}
+          {accounts.length === 0 && <div className="text-sm text-(--text-tertiary) p-2">No connected accounts.</div>}
+          {accounts.map((acc: any) => <BankCard3D key={acc.account_id} account={acc} />)}
         </div>
       </motion.section>
 

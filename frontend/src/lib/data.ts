@@ -41,8 +41,9 @@ export interface Transaction {
   amount_paise: number;       // negative = expense, positive = income
   direction: "debit" | "credit";
   date: string;               // ISO
+  observed_at?: string;       // Fallback DB column
   pending: boolean;
-  source: "imported" | "manual" | "ai_inferred";
+  source: "imported" | "manual" | "ai_inferred" | string;
   confidence?: number;        // 0-1 for AI-inferred
   notes?: string;
 }

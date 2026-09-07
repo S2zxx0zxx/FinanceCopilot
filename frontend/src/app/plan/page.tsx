@@ -1,7 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { forecastData, cashflowData, goals, budgets, financialHealth, recurringSeries, calendarEvents, peerComparison, gamification, accounts } from "@/lib/data";
+import { api } from "@/lib/api";
+import { Loader2 } from "lucide-react";
+
+// Global vars to avoid rewriting the whole file
+let forecastData: any = { timeline: [], horizons: [{ days: 30, confidence: 0.8 }] }, 
+    cashflowData: any = [], 
+    goals: any = [], 
+    budgets: any = [], 
+    financialHealth: any = {}, 
+    recurringSeries: any = [], 
+    calendarEvents: any = [], 
+    peerComparison: any = {}, 
+    gamification: any = { milestones: [], badges: [], xp: 0, xp_to_next_level: 1000, tracking_streak_days: 0 }, 
+    accounts: any = [];
 import Link from "next/link";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import {
@@ -645,6 +658,42 @@ function SavingsHeatmap() {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function PlanPage() {
+  const [loading, setLoading] = React.useState(true);
+  
+  React.useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      api.getForecast().catch(() => ({ timeline: [], horizons: [{ days: 30, confidence: 0.8 }] })),
+      api.getCashflow().catch(() => []),
+      api.getGoals().catch(() => ({ goals: [] })),
+      api.getBudgets().catch(() => ({ budgets: [] })),
+      api.getFinancialHealth().catch(() => ({})),
+      api.getRecurring().catch(() => ({ series: [] })),
+      api.getCalendarEvents().catch(() => ({ events: [] })),
+      api.getPeerComparison().catch(() => ({})),
+      api.getGamification().catch(() => ({ milestones: [], badges: [], xp: 0, xp_to_next_level: 1000, tracking_streak_days: 0 })),
+      api.getAccounts().catch(() => ({ accounts: [] }))
+    ]).then(([f, c, g, b, fh, r, ce, pc, gam, acc]) => {
+      if (!mounted) return;
+      forecastData = f;
+      cashflowData = Array.isArray(c) ? c : (c.cashflow || []);
+      goals = g.goals || [];
+      budgets = b.budgets || [];
+      financialHealth = fh;
+      recurringSeries = r.series || [];
+      calendarEvents = ce.events || [];
+      peerComparison = pc;
+      gamification = gam;
+      accounts = acc.accounts || [];
+      setLoading(false);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading) {
+    return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-(--accent)" /></div>;
+  }
+
   const [expandedBudget, setExpandedBudget] = React.useState<string | null>(null);
   const [debtStrategy, setDebtStrategy] = React.useState<"snowball" | "avalanche">(
     "avalanche",
