@@ -1,14 +1,14 @@
 "use client";
 import * as React from "react";
 import { motion } from "framer-motion";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPaise } from "@/lib/format";
 import { MiniBarChart } from "@/components/charts/sparkline";
 import { SectionHeader } from "@/components/shared";
+import { spendingStory } from "@/lib/data";
 
 export default function SpendingStoryPage() {
-  const { spendingStory } = useAppData();
+  ;
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <div><h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">Spending Story</h1><p className="text-[14px] text-(--text-secondary) mt-1">{spendingStory.period}</p></div>

@@ -3,7 +3,6 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { formatPaise } from "@/lib/format";
 
@@ -67,14 +66,8 @@ export function NewGoalDialog({
     }
     setSubmitting(true);
     try {
-      await api.createGoal({
-        name: name.trim(),
-        goal_type: goalType,
-        target_amount_paise: targetPaise,
-        current_amount_paise: 0,
-        monthly_contribution_paise: monthlyPaise,
-        target_date: new Date(targetDate).toISOString(),
-      });
+      // Local-only stub (no API call) — simulates goal creation.
+      await new Promise((r) => setTimeout(r, 600));
       toast({
         title: "Goal created",
         description: `"${name.trim()}" has been added to your goals.`,
@@ -83,7 +76,7 @@ export function NewGoalDialog({
       setOpen(false);
       onCreated?.();
     } catch (err: unknown) {
-      const message = err instanceof ApiError ? err.message : "Could not create goal. Try again.";
+      const message = err instanceof Error ? err.message : "Could not create goal. Try again.";
       toast({ title: "Create failed", description: message, variant: "destructive" });
     } finally {
       setSubmitting(false);

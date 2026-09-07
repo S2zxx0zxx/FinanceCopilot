@@ -11,9 +11,9 @@ import {
 import {
   SectionHeader, Badge, CountUp,
 } from "@/components/shared";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { timeAgo } from "@/lib/format";
+import { dataCoverage, privacyData } from "@/lib/data";
 
 // Map account type to icon
 function accountTypeIcon(type: string) {
@@ -82,7 +82,7 @@ function dataIcon(category: string) {
 }
 
 export default function DataCoveragePage() {
-  const { dataCoverage, privacyData } = useAppData();
+  ;
   const coveragePct = Math.round(dataCoverage.coverage_pct * 100);
   const accountsData = dataCoverage.accounts;
   const lastSync = accountsData

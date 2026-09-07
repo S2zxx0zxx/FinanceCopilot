@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
 
 import { Badge, EmptyState } from "@/components/shared";
 import { timeAgo } from "@/lib/format";

@@ -3,7 +3,6 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
 
 import { formatPaise, formatDate } from "@/lib/format";
 import { FreshnessBadge, EmptyState } from "@/components/shared";

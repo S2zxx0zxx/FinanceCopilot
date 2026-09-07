@@ -3,13 +3,13 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPaise } from "@/lib/format";
 import { Badge } from "@/components/shared";
+import { incomeData } from "@/lib/data";
 
 export default function IncomePage() {
-  const { incomeData } = useAppData();
+  ;
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <div className="flex items-center gap-3"><Link href="/money" className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-(--surface-subtle) transition-colors"><ArrowLeft className="w-5 h-5" /></Link><h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">Income</h1></div>

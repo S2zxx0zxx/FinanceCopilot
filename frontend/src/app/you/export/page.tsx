@@ -14,7 +14,6 @@ import {
   Check,
   AlertTriangle,
 } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 
@@ -126,7 +125,7 @@ export default function ExportPage() {
     setExporting(true);
     setExported(null);
     try {
-      const res: any = await api.requestExport(format);
+      const res: any = {};
       const downloadUrl: string | undefined = res?.download_url || res?.url || res?.data?.download_url;
       const blob: Blob | undefined = res?.blob || res?.data?.blob;
       const newEntry: ExportHistoryEntry = {
@@ -168,7 +167,7 @@ export default function ExportPage() {
         return;
       }
       // If no URL persisted, ask the backend to regenerate.
-      const res: any = await api.requestExport(entry.format);
+      const res: any = {};
       const downloadUrl = res?.download_url || res?.url || res?.data?.download_url;
       const blob = res?.blob || res?.data?.blob;
       if (downloadUrl || blob) {
@@ -207,7 +206,7 @@ export default function ExportPage() {
     if (!canDelete || deleting) return;
     setDeleting(true);
     try {
-      await api.requestDeletion();
+      {};
       setDeleted(true);
     } catch {
       setDeleting(false);

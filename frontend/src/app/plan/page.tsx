@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { forecastData } from "@/lib/data";
 import Link from "next/link";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import {
@@ -36,10 +37,10 @@ import {
   ProgressRing,
   CountUp,
 } from "@/components/shared";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPaise, formatDate } from "@/lib/format";
 import type { Budget } from "@/lib/data";
+import { cashflowData } from "@/lib/data";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ const item = {
 
 // ── Inline Cashflow Chart (12 months, ALIVE) ───────────────────────────────
 function CashflowInlineChart() {
-  const { cashflowData } = useAppData();
+  ;
   const [hover, setHover] = React.useState<number | null>(null);
   const ref = React.useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
@@ -412,7 +413,7 @@ function CashflowInlineChart() {
 
 // ── Inline Forecast Chart (timeline, ALIVE) ───────────────────────────────
 function ForecastInlineChart() {
-  const { forecastData } = useAppData();
+  ;
   const ref = React.useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const data = forecastData.timeline;
@@ -645,7 +646,7 @@ function SavingsHeatmap() {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function PlanPage() {
-  const { goals, budgets, financialHealth, recurringSeries, calendarEvents, peerComparison, cashflowData, forecastData, gamification, accounts } = useAppData();
+  const { goals, budgets, financialHealth, recurringSeries, calendarEvents, peerComparison, cashflowData, forecastData, gamification, accounts } = {} as any;
   const [expandedBudget, setExpandedBudget] = React.useState<string | null>(null);
   const [debtStrategy, setDebtStrategy] = React.useState<"snowball" | "avalanche">(
     "avalanche",

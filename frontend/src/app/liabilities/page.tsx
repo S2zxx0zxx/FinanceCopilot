@@ -1,12 +1,12 @@
 "use client";
 import * as React from "react";
 import { motion } from "framer-motion";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPaise, formatDate } from "@/lib/format";
+import { liabilities } from "@/lib/data";
 
 export default function LiabilitiesPage() {
-  const { liabilities } = useAppData();
+  ;
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <div><h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">Liabilities</h1><p className="text-[14px] text-(--text-secondary) mt-1">What you owe and upcoming payments</p></div>

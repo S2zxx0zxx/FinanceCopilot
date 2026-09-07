@@ -2,7 +2,6 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Wallet, Sparkles } from "lucide-react";
-import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Page() {
@@ -25,9 +24,7 @@ export default function Page() {
     setAnalyzing(true);
     setResult(null);
     try {
-      const res: any = await api.runAISimulate({
-        type: isLeaks ? "leaks" : "afford",
-        query: query.trim(),
+      const res: any = {},
       });
       const summary =
         res?.summary || res?.data?.summary || res?.answer || res?.message;

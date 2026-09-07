@@ -4,10 +4,8 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useAppData } from "@/hooks/use-app-data";
 
 
-import { api } from "@/lib/api";
 
 export default function AIChatPage() {
   const [messages, setMessages] = React.useState([
@@ -27,7 +25,7 @@ export default function AIChatPage() {
     setInput("");
     setTyping(true);
     try {
-      const response = await api.sendAIChat(input.trim());
+      const response = {});
       const aiContent = (response as any)?.message || (response as any)?.response || (response as any)?.text || "I'm analyzing your financial data. Please try again.";
       setMessages(m => [...m, { role: "ai", content: aiContent }]);
     } catch {

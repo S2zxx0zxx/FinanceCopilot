@@ -1,33 +1,30 @@
 {
-  "name": "fincopilot",
+  "name": "fincopilot-backend",
   "version": "0.1.0",
-  "description": "AI Financial Life Manager — Modular monolith backend + web frontend",
-  "private": true,
-  "engines": {
-    "node": ">=20.0.0"
-  },
+  "description": "AI Financial Life Manager Backend API",
+  "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev:all": "node dev.js",
-    "dev": "node backend/server.js",
-    "worker": "node backend/worker.js",
-    "start:all": "node backend/server.js & node backend/worker.js",
-    "test": "node --test \"backend/tests/**/*.test.js\"",
-    "lint": "eslint backend",
-    "migrate": "node --env-file=.env backend/db/run-migrations.js"
-  },
-  "devDependencies": {
-    "concurrently": "^10.0.5",
-    "eslint": "^9.0.0"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test --test-concurrency=1 tests/**/*.test.js",
+    "migrate": "node --env-file=.env backend/db/run-migrations.js",
+    "dev:all": "node dev.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",
     "@aws-sdk/s3-request-presigner": "^3.1116.0",
+    "@clerk/backend": "^3.17.0",
+    "@clerk/clerk-sdk-node": "^4.13.23",
+    "@google/genai": "^2.21.0",
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "firebase-admin": "^14.3.0",
+    "express-rate-limit": "^7.3.1",
     "helmet": "^7.1.0",
-    "pg": "^8.11.5"
+    "openai": "^7.9.0",
+    "pg": "^8.12.0",
+    "xlsx": "^0.18.5"
   }
 }

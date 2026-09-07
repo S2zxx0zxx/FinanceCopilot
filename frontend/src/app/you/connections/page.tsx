@@ -12,11 +12,10 @@ import {
   AlertTriangle,
   ShieldCheck,
 } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
-import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { type Account } from "@/lib/data";
 import { formatPaise, timeAgo } from "@/lib/format";
+import { accounts } from "@/lib/data";
 
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -68,7 +67,7 @@ const SYNC_STATUS_CONFIG: Record<
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function ConnectionsPage() {
-  const { accounts } = useAppData();
+  ;
   const [accountList, setAccountList] = React.useState<Account[]>(accounts);
   const [disconnecting, setDisconnecting] = React.useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = React.useState<string | null>(null);
@@ -100,7 +99,7 @@ export default function ConnectionsPage() {
   const handleDisconnect = async (accountId: string) => {
     setDisconnecting(accountId);
     try {
-      await api.disconnectConnection(accountId);
+      {};
       setAccountList((list) =>
         list.map((a) =>
           a.account_id === accountId ? { ...a, is_active: false } : a

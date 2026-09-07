@@ -12,10 +12,9 @@ import {
   Check,
   ChevronDown,
 } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
-import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, timeAgo } from "@/lib/format";
+import { privacyData, currentUser } from "@/lib/data";
 
 
 // ── Toggle ─────────────────────────────────────────────────────────────────
@@ -71,7 +70,7 @@ function ConsentToggle({
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function PrivacyPage() {
-  const { privacyData, currentUser } = useAppData();
+  ;
   const { toast } = useToast();
   const [retention, setRetention] = React.useState(
     privacyData.data_retention_days
@@ -95,11 +94,7 @@ export default function PrivacyPage() {
   const persistConsent = async (key: keyof typeof consents, value: boolean) => {
     setConsentSaving(key);
     try {
-      await api.updatePrivacyConsent({
-        marketing_consent: key === "marketing" ? value : consents.marketing,
-        analytics_consent: key === "analytics" ? value : consents.analytics,
-        ai_sharing_consent: key === "aiSharing" ? value : consents.aiSharing,
-      });
+      {};
       toast({
         title: "Consent updated",
         description: "Your privacy preference has been saved.",
@@ -120,7 +115,7 @@ export default function PrivacyPage() {
   const persistRetention = async (days: number) => {
     setRetentionSaving(true);
     try {
-      await api.updatePreferences({ data_retention_days: days });
+      {};
       setRetention(days);
       toast({
         title: "Retention updated",
@@ -148,7 +143,7 @@ export default function PrivacyPage() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      await api.requestDeletion();
+      {};
       setDeleted(true);
     } catch {
       // Show inline error — deletion failed

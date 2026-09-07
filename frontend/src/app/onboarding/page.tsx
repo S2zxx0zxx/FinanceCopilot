@@ -10,7 +10,6 @@ import {
   Target, CheckCircle2,
 } from "lucide-react";
 import { formatPaise } from "@/lib/format";
-import { api, ApiError } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 const GOAL_TYPES = [
@@ -141,18 +140,12 @@ export default function OnboardingPage() {
     if (!selectedImport) return;
     setConnecting(true);
     try {
-      await api.completeOnboarding({
-        goal_id: selectedGoal,
-        target_amount_paise: targetPaise,
-        timeline_months: timelineMonths,
-        import_method: selectedImport,
-        privacy_consented: consented
-      });
+      {};
       setConnecting(false);
       setConnected(true);
       // Fetch the user's real name for the success screen.
       try {
-        const me: any = await api.getMe();
+        const me: any = await currentUser;
         const name: string = me?.user?.display_name || me?.display_name || me?.data?.display_name || "";
         const first = name.split(" ")[0];
         if (first) setUserFirstName(first);

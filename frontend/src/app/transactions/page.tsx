@@ -3,12 +3,12 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPaise, formatDate, categoryIcon } from "@/lib/format";
+import { recentTransactions } from "@/lib/data";
 
 export default function TransactionsPage() {
-  const { recentTransactions } = useAppData();
+  ;
   const [filter, setFilter] = React.useState("");
   const filtered = recentTransactions.filter(t => t.merchant_name.toLowerCase().includes(filter.toLowerCase()) || t.category.toLowerCase().includes(filter.toLowerCase()));
   return (

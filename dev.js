@@ -1,37 +1,46 @@
-/* global process, console */
-import { spawn } from 'node:child_process';
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-function runProcess(name, args, cwd, color) {
-  // Use current Node executable directly to avoid PATH/shell issues completely
-  const child = spawn(process.execPath, args, { 
-    cwd, 
-    stdio: 'pipe' 
-  });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-  child.stdout.on('data', (data) => {
-    process.stdout.write(`\x1b[${color}m[${name}]\x1b[0m ${data}`);
-  });
+function startProcess(name, command, args, cwd) {
+    const proc = spawn(command, args, {
+        cwd: cwd,
+        shell: true,
+        stdio: 'pipe'
+    });
 
-  child.stderr.on('data', (data) => {
-    process.stderr.write(`\x1b[${color}m[${name}]\x1b[0m ${data}`);
-  });
+    proc.stdout.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim().length > 0);
+        lines.forEach(line => console.log(`[${name}] ${line}`));
+    });
 
-  child.on('error', (err) => {
-    console.error(`\x1b[31m[${name}] Failed to start:\x1b[0m`, err);
-  });
+    proc.stderr.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim().length > 0);
+        lines.forEach(line => console.error(`[${name}] ${line}`));
+    });
 
-  child.on('close', (code) => {
-    console.log(`\x1b[${color}m[${name}]\x1b[0m Exited with code ${code}`);
-  });
+    proc.on('close', (code) => {
+        console.log(`[${name}] Exited with code ${code}`);
+    });
+
+    return proc;
 }
 
-console.log("Starting all Fincopilot servers directly via Node...");
+console.log("Starting all FinCopilot services...");
 
-// Start Backend
-runProcess('BACKEND', ['--watch', 'server.js'], './backend', '34'); // Blue
+// Backend
+startProcess('BACKEND', 'node', ['--env-file=.env', 'backend/server.js'], __dirname);
 
-// Start Frontend
-runProcess('FRONTEND', ['./node_modules/next/dist/bin/next', 'dev', '-p', '3000'], './frontend', '32'); // Green
+// Frontend
+startProcess('FRONTEND', 'npm', ['run', 'dev'], path.join(__dirname, 'frontend'));
 
-// Start Landing
-runProcess('LANDING', ['./node_modules/next/dist/bin/next', 'dev', '-p', '3002'], './fincopilot-landing', '35'); // Magenta
+// Landing
+startProcess('LANDING', 'npm', ['run', 'dev'], path.join(__dirname, 'fincopilot-landing'));
+
+process.on('SIGINT', () => {
+    console.log("Shutting down all services...");
+    process.exit(0);
+});

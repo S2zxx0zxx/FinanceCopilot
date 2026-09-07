@@ -3,14 +3,14 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
 import { useToast } from "@/hooks/use-toast";
 import { formatPaise, formatDate } from "@/lib/format";
 import { Badge } from "@/components/shared";
 import { NewGoalDialog } from "@/components/shared/new-goal-dialog";
+import { goals } from "@/lib/data";
 
 export default function GoalsPage() {
-  const { goals, refetch } = useAppData();
+  ;
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = React.useState(false);
 

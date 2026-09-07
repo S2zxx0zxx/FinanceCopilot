@@ -5,12 +5,12 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Sparkles, MessageCircle, AlertTriangle, Wallet, TrendingUp } from "lucide-react";
 import { SectionHeader, Badge } from "@/components/shared";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { timeAgo } from "@/lib/format";
+import { aiHomeFeed, aiInsights } from "@/lib/data";
 
 export default function AIPage() {
-  const { aiHomeFeed, aiInsights } = useAppData();
+  ;
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>

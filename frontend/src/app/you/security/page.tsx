@@ -15,12 +15,11 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
-import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { ProgressRing } from "@/components/shared";
 
 import { timeAgo, formatDate } from "@/lib/format";
+import { securityData } from "@/lib/data";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -61,7 +60,7 @@ function getDeviceIcon(device: string): React.ReactNode {
 // ── Page ────────────────────────────────────────────────────────────────────
 
 export default function SecurityPage() {
-  const { securityData } = useAppData();
+  ;
   const twoFA = securityData.two_factor_enabled;
   const [sessions, setSessions] = React.useState(securityData.active_sessions);
   const [revoking, setRevoking] = React.useState<string | null>(null);
@@ -86,7 +85,7 @@ export default function SecurityPage() {
   const handleRevoke = async (id: string) => {
     setRevoking(id);
     try {
-      await api.revokeSession(id);
+      {};
       setSessions((s) => s.filter((sess) => sess.id !== id));
       toast({ title: "Session revoked", description: "The session has been signed out." });
     } catch {

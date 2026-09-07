@@ -2,10 +2,10 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPaise, formatDate } from "@/lib/format";
 import { FreshnessBadge } from "@/components/shared";
+import { accounts } from "@/lib/data";
 
 function isRecentlySynced(lastSyncedAt: string): boolean {
   try {
@@ -17,7 +17,7 @@ function isRecentlySynced(lastSyncedAt: string): boolean {
 }
 
 export default function AccountsPage() {
-  const { accounts } = useAppData();
+  ;
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       <div><h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">Accounts</h1><p className="text-[14px] text-(--text-secondary) mt-1">{accounts.length} accounts connected</p></div>

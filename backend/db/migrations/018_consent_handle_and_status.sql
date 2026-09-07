@@ -46,7 +46,7 @@ ALTER TABLE users
 -- Drop the unique constraint/index on firebase_uid since it can no longer be NOT NULL,
 -- but keep a partial unique index for the rows where it IS NOT NULL (legacy FB users).
 DROP INDEX IF EXISTS idx_users_firebase_uid;
-DROP INDEX IF EXISTS uq_users_firebase_uid;
+ALTER TABLE users DROP CONSTRAINT IF EXISTS uq_users_firebase_uid;
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_firebase_uid_live
     ON users (firebase_uid)

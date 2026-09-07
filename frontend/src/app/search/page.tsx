@@ -7,11 +7,10 @@ import {
   Search, ArrowLeft, X, TrendingUp, Wallet, Target,
   Clock, Sparkles, ArrowUpRight,
 } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
-import { api } from "@/lib/api";
 
 import { formatPaise, formatDate, timeAgo, categoryIcon } from "@/lib/format";
 import { Badge, EmptyState } from "@/components/shared";
+import { recentTransactions, accounts, goals } from "@/lib/data";
 
 const SUGGESTED_SEARCHES = [
   "BigBasket",
@@ -25,7 +24,7 @@ const SUGGESTED_SEARCHES = [
 ];
 
 export default function SearchPage() {
-  const { recentTransactions, accounts, goals } = useAppData();
+  ;
   const [query, setQuery] = React.useState("");
   const [recent, setRecent] = React.useState<string[]>([
     "Netflix",
@@ -90,7 +89,7 @@ export default function SearchPage() {
     }
     const handle = setTimeout(async () => {
       try {
-        const res: any = await api.search(q);
+        const res: any = await [];
         const tx = res?.transactions || res?.data?.transactions || [];
         const accts = res?.accounts || res?.data?.accounts || [];
         const gls = res?.goals || res?.data?.goals || [];

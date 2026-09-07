@@ -10,11 +10,11 @@ import {
   Minus,
   ShieldCheck,
 } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPaise, formatPct } from "@/lib/format";
 import { ForecastComboChart } from "@/components/charts/recharts";
 import {
+import { forecastData } from "@/lib/data";
   SectionHeader,
   Badge,
   FreshnessBadge,
@@ -49,7 +49,7 @@ const ASSUMPTIONS = [
 ];
 
 export default function ForecastPage() {
-  const { forecastData } = useAppData();
+  ;
   const [horizonIdx, setHorizonIdx] = React.useState(1); // default 30 days
   const [showAssumptions, setShowAssumptions] = React.useState(false);
 

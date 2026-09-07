@@ -3,11 +3,11 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { ArrowDownLeft, ArrowUpRight, Scale, Lightbulb } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPaise } from "@/lib/format";
 import { CashflowBarChart } from "@/components/charts/recharts";
 import { SectionHeader } from "@/components/shared";
+import { cashflowData } from "@/lib/data";
 
 type PeriodId = "7d" | "30d" | "90d" | "12mo";
 
@@ -19,7 +19,7 @@ const PERIODS: { id: PeriodId; label: string; months: number; note: string }[] =
 ];
 
 export default function CashflowPage() {
-  const { cashflowData } = useAppData();
+  ;
   const [period, setPeriod] = React.useState<PeriodId>("12mo");
   const selected = PERIODS.find((p) => p.id === period)!;
 

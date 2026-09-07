@@ -1,15 +1,16 @@
 "use client";
 
 import * as React from "react";
+import { accounts, financialStateMoney } from "@/lib/data";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, TrendingUp, TrendingDown, Shield, Sparkles, Eye, EyeOff } from "lucide-react";
 import { SectionHeader, Badge, FreshnessBadge, CountUp } from "@/components/shared";
 import { Sparkline } from "@/components/charts/sparkline";
-import { useAppData } from "@/hooks/use-app-data";
 import { type Account } from "@/lib/data";
 import { bankCardGradients } from "@/lib/merchant-data";
 import { formatPaise, formatDate } from "@/lib/format";
+import { netWorthHistory } from "@/lib/data";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ function isRecentlySynced(lastSyncedAt: string): boolean {
 
 // ── 3D Currency Note Card ─────────────────────────────────────────────────
 function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; posted: number; pending: number }) {
-  const { netWorthHistory = [], financialStateMoney } = useAppData();
+  ;
   const [showDetails, setShowDetails] = React.useState(false);
   return (
     <motion.div
@@ -158,7 +159,7 @@ function BankCard3D({ account }: { account: Account }) {
 }
 
 export default function MoneyPage() {
-  const { accounts, financialStateMoney, netWorthHistory = [] } = useAppData();
+  ;
   const net = financialStateMoney?.net_position ?? { available_balance_paise: 0, posted_balance_paise: 0, pending_balance_paise: 0 };
 
   return (

@@ -11,9 +11,9 @@ import {
 import {
   SectionHeader, Badge, ProgressRing, CountUp,
 } from "@/components/shared";
-import { useAppData } from "@/hooks/use-app-data";
 
 import { formatPct } from "@/lib/format";
+import { financialHealth, peerComparison } from "@/lib/data";
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ function prettifyStatus(status: string): string {
 // ── Page ──────────────────────────────────────────────────
 
 export default function FinancialHealthPage() {
-  const { financialHealth, peerComparison } = useAppData();
+  ;
   const metrics = [
     {
       key: "cash_buffer",

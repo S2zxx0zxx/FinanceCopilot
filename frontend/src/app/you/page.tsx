@@ -10,12 +10,12 @@ import {
   HelpCircle, MessageSquare, Info, LogOut, Crown, Calendar, MessageCircle,
   Zap, Award, Sparkles, Check, TrendingUp, type LucideIcon,
 } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
 import { useClerk } from "@clerk/nextjs";
 
 import { formatDate, formatPct } from "@/lib/format";
 import { Badge, ProgressRing, CountUp } from "@/components/shared";
 import { useToast } from "@/hooks/use-toast";
+import { currentUser, securityData, gamification, privacyData, accounts } from "@/lib/data";
 
 // ── Motion variants ───────────────────────────────────────────────────────
 const container: Variants = {
@@ -172,7 +172,7 @@ function ThemeSwitch() {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function YouPage() {
-  const { currentUser, securityData, gamification, privacyData, accounts } = useAppData();
+  ;
   const { toast } = useToast();
   const score = securityData.security_score;
   const scoreColor = securityColor(score);

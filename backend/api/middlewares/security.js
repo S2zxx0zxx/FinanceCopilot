@@ -55,22 +55,6 @@ async function ensureBetaCohortAssigned(userId, userRecord) {
     }
 }
 
-// Strict In-Memory Cache to prevent Auth DB spam at 10k scale
-const authCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-function getCachedUser(clerkUid) {
-    const cached = authCache.get(clerkUid);
-    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-        return cached.user;
-    }
-    return null;
-}
-
-function setCachedUser(clerkUid, user) {
-    authCache.set(clerkUid, { user, timestamp: Date.now() });
-}
-
 export const requireAuth = [
     (req, res, next) => {
         // Dev bypass — ONLY allowed in non-production environments.
@@ -109,13 +93,6 @@ export const requireAuth = [
 
         if (req.auth?.userId) {
             try {
-                // Check Cache First
-                const cachedUser = getCachedUser(req.auth.userId);
-                if (cachedUser) {
-                    req.user = cachedUser;
-                    return next();
-                }
-
                 const result = await dbClient.query(
                     'SELECT user_id, email, display_name FROM users WHERE clerk_uid = $1 OR firebase_uid = $1',
                     [req.auth.userId]
@@ -162,9 +139,6 @@ export const requireAuth = [
                         displayName
                     };
                 }
-
-                // Cache the user for 5 minutes to prevent DB spam
-                setCachedUser(req.auth.userId, req.user);
 
                 // FIX (audit P0 #18): ensure a beta cohort is persisted so
                 // feature-flag middleware can gate /forecast/* correctly.

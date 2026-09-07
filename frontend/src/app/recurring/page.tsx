@@ -3,11 +3,10 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { Sparkles, ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react";
-import { useAppData } from "@/hooks/use-app-data";
-import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { formatPaise, formatDate, categoryIcon } from "@/lib/format";
 import { Badge, SectionHeader } from "@/components/shared";
+import { recurringSeries } from "@/lib/data";
 
 
 const evidenceVariant: Record<
@@ -36,7 +35,7 @@ function confidenceColor(c: number): string {
 }
 
 export default function RecurringPage() {
-  const { recurringSeries, refetch } = useAppData();
+  ;
   const { toast } = useToast();
   const [detecting, setDetecting] = React.useState(false);
   const active = recurringSeries.filter((s) => s.status === "active");
@@ -49,7 +48,7 @@ export default function RecurringPage() {
   const handleDetect = async () => {
     setDetecting(true);
     try {
-      await api.detectRecurring();
+      {};
       toast({ title: "Detection complete", description: "Refreshed your recurring series with the latest patterns." });
       // Refetch so the list reflects newly detected series.
       await refetch?.();
