@@ -102,11 +102,11 @@ export function Comparison() {
                       {row.feature}
                     </div>
                     <div className="relative">
-                      {row.finpilot === true && (
+                      {row.fincopilot === true && (
                         <div className="absolute inset-0 -m-1 rounded-[10px] bg-[var(--accent-dim)] pointer-events-none" />
                       )}
                       <div className="relative">
-                        <ValueCell value={row.finpilot} />
+                        <ValueCell value={row.fincopilot} />
                       </div>
                     </div>
                     {row.others.map((o) => (
@@ -134,7 +134,7 @@ export function Comparison() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-mono text-[var(--accent)] font-bold">FC</span>
-                      <ValueCell value={row.finpilot} />
+                      <ValueCell value={row.fincopilot} />
                     </div>
                     {row.others.slice(0, 1).map((o) => (
                       <div key={o.name} className="flex items-center gap-2">

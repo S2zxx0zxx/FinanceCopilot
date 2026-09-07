@@ -8,10 +8,12 @@ import { formatPaise, formatDate } from "@/lib/format";
 import { Badge } from "@/components/shared";
 import { NewGoalDialog } from "@/components/shared/new-goal-dialog";
 import { goals } from "@/lib/data";
+import { useAppData } from "@/hooks/use-app-data";
 
 export default function GoalsPage() {
   ;
   const { toast } = useToast();
+  const { refetch } = useAppData();
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
   return (
@@ -23,7 +25,7 @@ export default function GoalsPage() {
           onOpenChange={setDialogOpen}
           onCreated={async () => {
             toast({ title: "Goal created", description: "Refreshing your goals…" });
-            await refetch?.();
+            await refetch();
           }}
         />
       </div>

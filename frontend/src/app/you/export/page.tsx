@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
+import { api, ApiError } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -125,7 +126,7 @@ export default function ExportPage() {
     setExporting(true);
     setExported(null);
     try {
-      const res: any = {};
+      const res: any = await api.requestExport(format);
       const downloadUrl: string | undefined = res?.download_url || res?.url || res?.data?.download_url;
       const blob: Blob | undefined = res?.blob || res?.data?.blob;
       const newEntry: ExportHistoryEntry = {
@@ -167,7 +168,7 @@ export default function ExportPage() {
         return;
       }
       // If no URL persisted, ask the backend to regenerate.
-      const res: any = {};
+      const res: any = await api.requestExport(entry.format);
       const downloadUrl = res?.download_url || res?.url || res?.data?.download_url;
       const blob = res?.blob || res?.data?.blob;
       if (downloadUrl || blob) {
@@ -206,14 +207,15 @@ export default function ExportPage() {
     if (!canDelete || deleting) return;
     setDeleting(true);
     try {
-      {};
+      await api.requestDeletion();
       setDeleted(true);
-    } catch {
+    } catch (err: unknown) {
       setDeleting(false);
       setConfirmText("");
+      const msg = err instanceof ApiError ? err.message : "Could not request account deletion. Please try again.";
       toast({
         title: "Deletion failed",
-        description: "Could not request account deletion. Please try again.",
+        description: msg,
         variant: "destructive",
       });
     }
@@ -263,7 +265,7 @@ export default function ExportPage() {
         className="premium-card-glow p-4 flex items-center gap-3"
       >
         <div className="w-10 h-10 rounded-[12px] bg-accent flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-5 h-5 text-white" />
+          <ShieldCheck className="w-5 h-5 text-accent-foreground" />
         </div>
         <p className="text-[13px] font-medium leading-normal">
           Your data is yours.{" "}
@@ -325,7 +327,7 @@ export default function ExportPage() {
                     </p>
                     {selected && (
                       <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-white" />
+                        <Check className="w-2.5 h-2.5 text-accent-foreground" />
                       </div>
                     )}
                   </button>

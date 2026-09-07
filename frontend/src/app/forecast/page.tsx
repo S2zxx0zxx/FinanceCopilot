@@ -14,12 +14,12 @@ import {
 import { formatPaise, formatPct } from "@/lib/format";
 import { ForecastComboChart } from "@/components/charts/recharts";
 import {
-import { forecastData } from "@/lib/data";
   SectionHeader,
   Badge,
   FreshnessBadge,
   CountUp,
 } from "@/components/shared";
+import { forecastData } from "@/lib/data";
 
 const driverIcon = {
   positive: TrendingUp,
@@ -105,7 +105,7 @@ export default function ForecastPage() {
             onClick={() => setHorizonIdx(i)}
             className={`relative px-4 py-1.5 rounded-full text-[12px] font-medium transition-colors ${
               horizonIdx === i
-                ? "text-white"
+                ? "text-accent-foreground"
                 : "text-(--text-secondary) hover:text-foreground"
             }`}
           >
@@ -267,9 +267,10 @@ export default function ForecastPage() {
         />
         <div className="premium-card overflow-hidden">
           {forecastData.drivers.map((d, i, arr) => {
-            const Icon = driverIcon[d.type];
-            const color = driverColor[d.type];
-            const bg = driverBg[d.type];
+            const key = d.type as "positive" | "negative" | "neutral";
+            const Icon = driverIcon[key];
+            const color = driverColor[key];
+            const bg = driverBg[key];
             return (
               <motion.div
                 key={d.label}

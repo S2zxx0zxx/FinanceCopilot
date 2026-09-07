@@ -24,3 +24,22 @@ coverage/
 
 # Turbopack / Next.js cache
 .next/dev/cache/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Backup files (P2 cleanup — never commit stale .bak artifacts)
+*.bak
+
+# Cloudflare Wrangler local state (workers dev sessions, cache, logs)
+# NOTE: wrangler.toml at the repo root is INTENTIONALLY committed as a
+#       non-functional reference stub — see its in-file comments.
+.wrangler/
+
+# Agent / IDE skill libraries — large, vendored, not part of the product
+# source. Each engineer's environment may keep its own copy locally.
+.agents/skills/
+
+# Reference snapshots from preview environments (HTML dumps, screenshots).
+# Useful for local diffing but bloats the repo if committed.
+PREVIEW_REFERENCE/

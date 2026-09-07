@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { formatPaise } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
+import { api, ApiError } from "@/lib/api";
 
 const GOAL_TYPES = [
   {
@@ -140,13 +141,44 @@ export default function OnboardingPage() {
     if (!selectedImport) return;
     setConnecting(true);
     try {
-      {};
+      // 1. Persist the chosen goal (if any) before completing onboarding.
+      if (selectedGoal) {
+        try {
+          await api.createGoal({
+            name: GOAL_TYPES.find((g) => g.id === selectedGoal)?.name || selectedGoal,
+            goal_type: selectedGoal,
+            target_amount_paise: targetPaise,
+            monthly_contribution_paise: Math.ceil(targetPaise / Math.max(1, timelineMonths)),
+            target_date: new Date(Date.now() + timelineMonths * 30 * 86400000).toISOString().slice(0, 10),
+          });
+        } catch (err) {
+          // Goal creation is non-fatal — we still complete onboarding.
+          const msg = err instanceof ApiError ? err.message : "Couldn't save your goal.";
+          toast({ title: "Goal not saved", description: msg, variant: "destructive" });
+        }
+      }
+      // 2. Tell the backend onboarding is complete (records consent + source).
+      try {
+        await api.completeOnboarding({
+          consented,
+          goal_type: selectedGoal,
+          data_source: selectedImport,
+        });
+      } catch (err) {
+        // Non-fatal in preview mode — surface a toast but continue so the user
+        // still sees the success screen.
+        const msg = err instanceof ApiError ? err.message : undefined;
+        toast({
+          title: "Onboarding sync issue",
+          description: msg || "We saved your choices locally; we'll retry in the background.",
+        });
+      }
       setConnecting(false);
       setConnected(true);
       // Fetch the user's real name for the success screen.
       try {
-        const me: any = await currentUser;
-        const name: string = me?.user?.display_name || me?.display_name || me?.data?.display_name || "";
+        const me: any = await api.getMe();
+        const name: string = me?.user?.display_name || me?.display_name || me?.data?.display_name || me?.user?.displayName || "";
         const first = name.split(" ")[0];
         if (first) setUserFirstName(first);
       } catch {
@@ -257,7 +289,7 @@ export default function OnboardingPage() {
                     transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
                     className="w-20 h-20 rounded-3xl bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shadow-[var(--shadow-glow)]"
                   >
-                    <span className="font-display font-bold text-white text-[36px]">F</span>
+                    <span className="font-display font-bold text-accent-foreground text-[36px]">F</span>
                   </motion.div>
                   <div className="flex flex-col gap-3 max-w-md">
                     <motion.h1
@@ -683,7 +715,7 @@ export default function OnboardingPage() {
                         transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
                         className="w-20 h-20 rounded-full bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shadow-[var(--shadow-glow)]"
                       >
-                        <CheckCircle2 className="w-10 h-10 text-white" strokeWidth={2} />
+                        <CheckCircle2 className="w-10 h-10 text-accent-foreground" strokeWidth={2} />
                       </motion.div>
                       <div className="flex flex-col gap-2 max-w-md">
                         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">

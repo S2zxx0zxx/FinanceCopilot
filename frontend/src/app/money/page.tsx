@@ -94,8 +94,8 @@ function CurrencyNoteCard({ netWorth, posted, pending }: { netWorth: number; pos
         {/* Expandable details */}
         {showDetails && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="relative mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-4">
-            <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Assets</span><p className="text-[14px] font-semibold tabular-nums text-[#34D399]">+{formatPaise(2497000 + 1240000, { style: "compact" })}</p></div>
-            <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Liabilities</span><p className="text-[14px] font-semibold tabular-nums text-red-400">{formatPaise(45000, { style: "compact" })}</p></div>
+            <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Assets</span><p className="text-[14px] font-semibold tabular-nums" style={{ color: "#34D399" }}>+{formatPaise(2497000 + 1240000, { style: "compact" })}</p></div>
+            <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Liabilities</span><p className="text-[14px] font-semibold tabular-nums" style={{ color: "var(--negative-light)" }}>{formatPaise(45000, { style: "compact" })}</p></div>
             <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Investments</span><p className="text-[14px] font-semibold tabular-nums">{formatPaise(1240000, { style: "compact" })}</p></div>
             <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Cash</span><p className="text-[14px] font-semibold tabular-nums">{formatPaise(2497000, { style: "compact" })}</p></div>
           </motion.div>

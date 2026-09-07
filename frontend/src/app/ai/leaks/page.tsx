@@ -3,6 +3,7 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, Wallet, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { api, ApiError } from "@/lib/api";
 
 export default function Page() {
   const isLeaks = "ai/leaks".includes("leaks");
@@ -24,8 +25,7 @@ export default function Page() {
     setAnalyzing(true);
     setResult(null);
     try {
-      const res: any = {},
-      });
+      const res: any = await api.runAISimulate({ query: query.trim(), kind: isLeaks ? "leaks" : "afford" });
       const summary =
         res?.summary || res?.data?.summary || res?.answer || res?.message;
       if (typeof summary === "string") {

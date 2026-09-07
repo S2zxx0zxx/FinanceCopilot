@@ -1,6 +1,25 @@
 import { dbClient } from '../../db/client.js';
 
 /**
+ * FIX (audit P1 #43): the user's "today" must be in IST (Asia/Kolkata),
+ * not UTC. Without this, a user who opens the app at 23:30 IST gets
+ * "today" = the previous UTC day, so `last_active_date === today` is
+ * FALSE and the streak increments a day early — and the user who opens
+ * the app at 00:30 IST gets "yesterday" in UTC and the streak resets
+ * incorrectly. Falls back to UTC slice on environments without Intl.
+ */
+function toIstDateString(date) {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        }).format(date);
+    } catch {
+        return date.toISOString().split('T')[0];
+    }
+}
+
+/**
  * Gamification Controller — streaks, XP, levels, badges, milestones
  * Gamification ONLY rewards positive financial actions (per 11fs regulatory guidance).
  */
@@ -135,7 +154,8 @@ export class GamificationController {
     static async tickStreak(req, res, next) {
         try {
             const userId = req.user.userId;
-            const today = new Date().toISOString().split('T')[0];
+            // FIX (audit P1 #43): use IST date, NOT UTC. See toIstDateString above.
+            const today = toIstDateString(new Date());
 
             const state = await dbClient.query(`SELECT * FROM gamification_state WHERE user_id = $1`, [userId]);
             if (state.rowCount === 0) {
@@ -143,7 +163,12 @@ export class GamificationController {
             }
 
             const current = state.rows[0];
-            const lastActive = current.last_active_date ? new Date(current.last_active_date).toISOString().split('T')[0] : null;
+            // FIX (audit P1 #43): last_active_date is stored in TIMESTAMPTZ but we
+            // compare it against the IST calendar date. Coerce via IST formatter
+            // so a 23:30 IST entry from yesterday doesn't match today's UTC string.
+            const lastActive = current.last_active_date
+                ? toIstDateString(new Date(current.last_active_date))
+                : null;
 
             let newStreak = parseInt(current.tracking_streak_days, 10);
             let xpAwarded = 0;

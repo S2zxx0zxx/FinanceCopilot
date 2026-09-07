@@ -55,7 +55,7 @@ function CustomTreemapContent(props: {
             opacity={0.75}
             fontFamily="var(--font-geist-mono)"
           >
-            ${size}
+            ₹{size?.toLocaleString('en-IN')}
           </text>
         </>
       )}
@@ -74,7 +74,7 @@ export const SpendingTreemap = React.memo(function SpendingTreemap() {
         isAnimationActive
         animationDuration={1400}
       >
-        <Tooltip formatter={(v: number) => [`₹${v}`, "Spend"]} />
+        <Tooltip formatter={(v: number) => [`₹${v.toLocaleString('en-IN')}`, "Spend"]} />
       </Treemap>
     </ResponsiveContainer>
   );

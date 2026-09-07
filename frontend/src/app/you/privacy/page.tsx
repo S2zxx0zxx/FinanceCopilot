@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, timeAgo } from "@/lib/format";
 import { privacyData, currentUser } from "@/lib/data";
+import { api, ApiError } from "@/lib/api";
 
 
 // ── Toggle ─────────────────────────────────────────────────────────────────
@@ -94,17 +95,23 @@ export default function PrivacyPage() {
   const persistConsent = async (key: keyof typeof consents, value: boolean) => {
     setConsentSaving(key);
     try {
-      {};
+      const fieldMap: Record<keyof typeof consents, string> = {
+        marketing: "marketing_consent",
+        analytics: "analytics_consent",
+        aiSharing: "ai_sharing_consent",
+      };
+      await api.updatePrivacyConsent({ [fieldMap[key]]: value });
       toast({
         title: "Consent updated",
         description: "Your privacy preference has been saved.",
       });
-    } catch {
+    } catch (err: unknown) {
       // Revert local state on failure so the UI doesn't lie.
       setConsents((c) => ({ ...c, [key]: !value }));
+      const msg = err instanceof ApiError ? err.message : "Could not save consent. Please try again.";
       toast({
         title: "Update failed",
-        description: "Could not save consent. Please try again.",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -115,16 +122,17 @@ export default function PrivacyPage() {
   const persistRetention = async (days: number) => {
     setRetentionSaving(true);
     try {
-      {};
+      await api.updatePreferences({ data_retention_days: days });
       setRetention(days);
       toast({
         title: "Retention updated",
         description: `Data will be retained for ${days} days.`,
       });
-    } catch {
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : "Could not save retention preference.";
       toast({
         title: "Update failed",
-        description: "Could not save retention preference.",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -143,15 +151,16 @@ export default function PrivacyPage() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      {};
+      await api.requestDeletion();
       setDeleted(true);
-    } catch {
+    } catch (err: unknown) {
       // Show inline error — deletion failed
       setDeleting(false);
       setDeleteConfirmText("");
+      const msg = err instanceof ApiError ? err.message : "Could not request deletion. Please try again.";
       toast({
         title: "Deletion failed",
-        description: "Could not request deletion. Please try again.",
+        description: msg,
         variant: "destructive",
       });
     }
@@ -201,7 +210,7 @@ export default function PrivacyPage() {
         className="premium-card-glow p-6 flex items-start gap-4"
       >
         <div className="w-12 h-12 rounded-[14px] bg-accent flex items-center justify-center shrink-0">
-          <Shield className="w-6 h-6 text-white" />
+          <Shield className="w-6 h-6 text-accent-foreground" />
         </div>
         <div>
           <h2 className="font-display font-semibold text-[17px]">

@@ -423,7 +423,7 @@ export default function DataCoveragePage() {
           <div className="relative flex flex-col gap-5">
             <div className="flex items-start gap-3">
               <div className="w-12 h-12 rounded-[14px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-6 h-6 text-white" />
+                <ShieldCheck className="w-6 h-6 text-accent-foreground" />
               </div>
               <div>
                 <h3 className="font-display font-bold text-[18px] tracking-[-0.01em]">

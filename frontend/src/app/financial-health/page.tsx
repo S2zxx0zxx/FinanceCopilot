@@ -515,7 +515,7 @@ export default function FinancialHealthPage() {
           className="premium-card p-4 flex items-center gap-3 group hover:border-accent transition-colors"
         >
           <div className="w-10 h-10 rounded-[12px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shrink-0">
-            <TrendingUp className="w-5 h-5 text-white" />
+            <TrendingUp className="w-5 h-5 text-accent-foreground" />
           </div>
           <div className="flex-1">
             <p className="text-[14px] font-semibold">Track your progress monthly</p>

@@ -385,5 +385,80 @@ export const NormalizationRepo = {
         `;
         const res = await dbClient.query(text, [sourceRecordId, reason]);
         return res.rows[0];
+    },
+
+    /**
+     * FIX (audit P1 #47): expose a real `connect()` so LedgerService (and
+     * any other domain service that needs an atomic multi-statement
+     * transaction) can check out a single PG client without reaching
+     * across the repo boundary into dbClient.pool.connect().
+     */
+    async connect() {
+        return await dbClient.connect();
+    }
+};
+
+/**
+ * FIX (audit P1 #47): UserRepository — concrete implementation of the
+ * identity-service contract (getUserByAuthUid, createUser,
+ * markUserForDeletion). The previous IdentityService referenced methods
+ * that didn't exist on any repository. These methods now use the canonical
+ * schema columns (clerk_uid as primary auth uid, firebase_uid as legacy
+ * nullable per migration 018).
+ */
+export const UserRepository = {
+    /**
+     * Look up a user by their auth-provider uid. Tries clerk_uid first,
+     * then falls back to firebase_uid for legacy accounts that have not
+     * yet been migrated. Returns the canonical user_id + profile fields.
+     */
+    async getUserByAuthUid(authUid) {
+        const res = await dbClient.query(
+            `SELECT user_id, clerk_uid, firebase_uid, email, display_name,
+                    onboarding_done, onboarding_step, is_active, is_deleted
+             FROM users
+             WHERE clerk_uid = $1 OR firebase_uid = $1
+             LIMIT 1`,
+            [authUid]
+        );
+        return res.rows[0] || null;
+    },
+
+    /**
+     * Creates a new user account shell. clerk_uid is the canonical
+     * identifier; firebase_uid is left NULL (the column is nullable per
+     * migration 018_consent_handle_and_status.sql).
+     *
+     * Concurrent first-logins resolve via the partial unique index
+     * `uq_users_clerk_uid` if it exists, or via ON CONFLICT DO NOTHING.
+     */
+    async createUser({ clerk_uid, email = null, display_name = null, locale = 'en-IN', currency = 'INR', timezone = 'Asia/Kolkata' }) {
+        const res = await dbClient.query(
+            `INSERT INTO users (clerk_uid, email, display_name, locale, currency, timezone)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT DO NOTHING
+             RETURNING user_id, clerk_uid, email, display_name`,
+            [clerk_uid, email, display_name, locale, currency, timezone]
+        );
+        return res.rows[0] || (await this.getUserByAuthUid(clerk_uid));
+    },
+
+    /**
+     * Soft-deletes the user per ADR-006 (30-day grace window before the
+     * row is hard-deleted by a separate scheduled job). Hard-delete is
+     * NEVER performed inline here.
+     */
+    async markUserForDeletion(userId) {
+        const res = await dbClient.query(
+            `UPDATE users
+             SET is_deleted = TRUE,
+                 deleted_at = NOW(),
+                 is_active = FALSE,
+                 updated_at = NOW()
+             WHERE user_id = $1 AND is_deleted = FALSE
+             RETURNING user_id, deleted_at`,
+            [userId]
+        );
+        return res.rows[0] || null;
     }
 };

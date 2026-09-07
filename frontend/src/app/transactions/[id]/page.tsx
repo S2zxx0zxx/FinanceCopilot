@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { formatPaise, formatDate, categoryIcon } from "@/lib/format";
 import { Badge, EmptyState } from "@/components/shared";
 import type { Transaction } from "@/lib/data";
+import { api, ApiError } from "@/lib/api";
 
 export default function TransactionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);

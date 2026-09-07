@@ -113,7 +113,7 @@ export const currentUser: User = {
 
 // ── Helper: now and timestamps ───────────────────────────────────────────────
 
-const now = new Date("2026-09-01T12:00:00Z");
+const now = new Date();
 const daysAgo = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
 const daysAhead = (d: number) => new Date(now.getTime() + d * 86400000).toISOString();
 

@@ -4,7 +4,7 @@ import { forwardRef, useRef } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-interface MagneticButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface MagneticButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd" | "onAnimationEnd" | "onTransitionEnd"> {
   variant?: "primary" | "ghost";
   strength?: number;
 }
@@ -28,7 +28,7 @@ export const MagneticButton = forwardRef<HTMLButtonElement, MagneticButtonProps>
         className={cn(
           "relative inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-colors duration-200 cursor-pointer select-none px-4 py-2 text-[13px]",
           variant === "primary"
-            ? "bg-[var(--accent)] text-[#0A0F0D] hover:bg-[var(--accent-bright)] shadow-[0_4px_24px_-4px_var(--accent-glow),0_0_0_1px_rgba(52,211,153,0.2)] hover:shadow-[0_8px_32px_-4px_var(--accent-glow),0_0_40px_var(--accent-glow)]"
+            ? "bg-[var(--accent)] text-accent-foreground hover:bg-[var(--accent-bright)] shadow-[0_4px_24px_-4px_var(--accent-glow),0_0_0_1px_rgba(52,211,153,0.2)] hover:shadow-[0_8px_32px_-4px_var(--accent-glow),0_0_40px_var(--accent-glow)]"
             : "border border-[var(--border-strong)] text-[var(--text)] hover:bg-[var(--surface-2)] hover:border-[var(--accent)]",
           className
         )}

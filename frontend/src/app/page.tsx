@@ -34,7 +34,7 @@ export default function HomePage() {
   const firstName = user.displayName.split(" ")[0];
   const sts = home.safe_to_spend_paise;
   const stsStatus = home.safe_to_spend_status;
-  const stsColor = stsStatus === "safe" ? "#047857" : stsStatus === "moderate" ? "#D97706" : "#DC2626";
+  const stsColor = stsStatus === "safe" ? "var(--positive)" : stsStatus === "moderate" ? "var(--warning)" : "var(--negative)";
 
   return (
     <div className="flex flex-col gap-5 max-w-5xl">
@@ -43,7 +43,7 @@ export default function HomePage() {
           <h1 className="font-display font-bold text-[26px] tracking-[-0.02em] text-[var(--text)]">Dashboard</h1>
           <p className="text-[13px] text-[var(--text-secondary)] mt-0.5">Manage your money, track spending, and plan ahead.</p>
         </div>
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center text-[#0A0F0D] font-bold text-[14px]">{firstName.charAt(0)}</div>
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center text-accent-foreground font-bold text-[14px]">{firstName.charAt(0)}</div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -60,7 +60,7 @@ export default function HomePage() {
           </div>
           <div className="flex gap-3 mb-5">
             <button className="px-4 py-2.5 rounded-[12px] bg-[var(--surface-subtle)] border border-[var(--border)] text-[13px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] transition-colors">Deposit</button>
-            <button className="px-4 py-2.5 rounded-[12px] bg-gradient-to-r from-[var(--accent)] to-[var(--accent-bright)] text-[#0A0F0D] text-[13px] font-semibold hover:shadow-[0_4px_20px_-4px_var(--accent-glow)] transition-shadow">Transfer</button>
+            <button className="px-4 py-2.5 rounded-[12px] bg-gradient-to-r from-[var(--accent)] to-[var(--accent-bright)] text-accent-foreground text-[13px] font-semibold hover:shadow-[0_4px_20px_-4px_var(--accent-glow)] transition-shadow">Transfer</button>
           </div>
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[var(--border)]">
             <div><p className="text-[11px] text-[var(--text-muted)] font-mono uppercase tracking-wider">Main Balance</p><p className="text-[18px] font-bold tabular-nums text-[var(--text)] mt-1">{formatPaise(home.available_balance_paise - 45000)}</p></div>
@@ -84,7 +84,7 @@ export default function HomePage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="relative overflow-hidden rounded-[20px] p-5" style={{ background: `linear-gradient(135deg, ${stsColor} 0%, #0A0F0D 60%, #B08D57 100%)` }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="relative overflow-hidden rounded-[20px] p-5" style={{ background: `linear-gradient(135deg, ${stsColor} 0%, var(--surface-elevated) 60%, var(--gold) 100%)` }}>
           <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
           <div className="relative">
             <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-white" style={{ animation: "pulse-dot 2s ease-in-out infinite" }} /><span className="text-[11px] font-mono uppercase tracking-[0.12em] text-white/70">Safe to Spend</span></div>
@@ -100,7 +100,7 @@ export default function HomePage() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} className="bg-gradient-to-br from-[var(--accent-dim)] to-[var(--gold-light)] border border-[var(--border)] rounded-[20px] p-5">
-          <div className="flex items-center justify-between mb-2"><span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-muted)]">Your Streak</span><div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center"><Flame className="w-4 h-4 text-[#0A0F0D]" /></div></div>
+          <div className="flex items-center justify-between mb-2"><span className="text-[11px] font-mono uppercase tracking-[0.08em] text-[var(--text-muted)]">Your Streak</span><div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center"><Flame className="w-4 h-4 text-accent-foreground" /></div></div>
           <p className="font-display font-bold text-[24px] tabular-nums tracking-[-0.02em] text-[var(--text)]">{game.tracking_streak_days} days</p>
           <p className="text-[12px] text-[var(--text-secondary)] mt-1">Level {game.level}: {game.level_name}</p>
         </motion.div>
@@ -128,7 +128,7 @@ export default function HomePage() {
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[20px] p-5 relative overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
             <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-[var(--accent-glow)] opacity-20 blur-2xl pointer-events-none" />
             <div className="flex items-start gap-3 relative">
-              <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center shrink-0"><Sparkles className="w-5 h-5 text-[#0A0F0D]" /></div>
+              <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[var(--accent)] to-[var(--gold)] flex items-center justify-center shrink-0"><Sparkles className="w-5 h-5 text-accent-foreground" /></div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1"><h3 className="font-semibold text-[14px] text-[var(--text)]">{insights[0]?.title || "Spending Alert"}</h3><Badge label={`${insights[0]?.confidence || 92}%`} variant="ai" /></div>
                 <p className="text-[13px] text-[var(--text-secondary)] leading-[1.5]">{insights[0]?.summary || "Your dining spend is 22% above average."}</p>

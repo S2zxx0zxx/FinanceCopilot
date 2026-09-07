@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-
+import { api, ApiError } from "@/lib/api";
 
 export default function AIChatPage() {
   const [messages, setMessages] = React.useState([
@@ -25,11 +25,14 @@ export default function AIChatPage() {
     setInput("");
     setTyping(true);
     try {
-      const response = {});
-      const aiContent = (response as any)?.message || (response as any)?.response || (response as any)?.text || "I'm analyzing your financial data. Please try again.";
+      const response: any = await api.sendAIChat(userMsg.content);
+      const aiContent = response?.message || response?.response || response?.text || response?.answer || "I'm analyzing your financial data. Please try again.";
       setMessages(m => [...m, { role: "ai", content: aiContent }]);
-    } catch {
-      setMessages(m => [...m, { role: "ai", content: "Sorry, I couldn't process your request. Please try again." }]);
+    } catch (err: unknown) {
+      const fallback = err instanceof ApiError
+        ? err.message
+        : "Sorry, I couldn't process your request. Please try again.";
+      setMessages(m => [...m, { role: "ai", content: fallback }]);
     } finally {
       setTyping(false);
     }
@@ -40,7 +43,7 @@ export default function AIChatPage() {
       <header className="flex items-center gap-3 mb-4">
         <Link href="/ai" className="w-9 h-9 rounded-[10px] flex items-center justify-center hover:bg-(--surface-subtle) transition-colors"><ArrowLeft className="w-5 h-5" /></Link>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-[10px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center"><Sparkles className="w-4 h-4 text-white" /></div>
+          <div className="w-8 h-8 rounded-[10px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center"><Sparkles className="w-4 h-4 text-accent-foreground" /></div>
           <div><h1 className="font-display font-semibold text-[18px]">AI Chat</h1><p className="text-[11px] text-(--text-tertiary) flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-(--positive)" style={{ animation: "pulse-dot 2s infinite" }} /> Online</p></div>
         </div>
       </header>

@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { formatPaise, formatDate } from "@/lib/format";
 import { FreshnessBadge, EmptyState } from "@/components/shared";
 import type { Account } from "@/lib/data";
+import { api, ApiError } from "@/lib/api";
 
 function isRecentlySynced(lastSyncedAt: string): boolean {
   try {

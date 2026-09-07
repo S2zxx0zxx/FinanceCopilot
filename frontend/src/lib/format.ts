@@ -71,3 +71,22 @@ export function categoryIcon(category: string): string {
   };
   return icons[category] || "💸";
 }
+
+/**
+ * Maps a 0–100 score (security, financial health, etc.) to a human label.
+ * Uses the same thresholds as the security page so every surface is consistent.
+ */
+export function getScoreLabel(score: number): string {
+  if (score >= 80) return "Strong";
+  if (score >= 50) return "Fair";
+  return "Needs attention";
+}
+
+/**
+ * Returns the CSS var for a score's color (positive / warning / negative).
+ */
+export function getScoreColor(score: number): string {
+  if (score >= 80) return "var(--positive)";
+  if (score >= 50) return "var(--warning)";
+  return "var(--negative)";
+}

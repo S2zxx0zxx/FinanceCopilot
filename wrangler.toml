@@ -1,0 +1,55 @@
+# ============================================================================
+# wrangler.toml — ⚠️ NON-FUNCTIONAL — KEPT FOR REFERENCE ONLY
+# ----------------------------------------------------------------------------
+# This file documents why the FinCopilot backend CANNOT run on Cloudflare
+# Workers, despite earlier intentions to do so.
+#
+# WHY IT DOES NOT WORK:
+#   1. The backend (`backend/server.js`) is an Express.js app that depends on
+#      the Node.js runtime: `node:http`, `node:fs`, `node:path`, `pg` (raw TCP
+#      sockets to PostgreSQL), `xlsx`, `csv-parser`, etc. None of these are
+#      available in the Cloudflare Workers runtime (which is V8 isolates with
+#      a Web-Request/Response API and no Node compat by default).
+#   2. Cloudflare Workers have a 1 MB compressed bundle limit and a 128 MB
+#      memory ceiling. Express + pg + xlsx + @google/genai exceeds both.
+#   3. Workers do not support long-lived TCP connections to PostgreSQL; you
+#      would need Hyperdrive (preview) or external connection poolers.
+#
+# WHAT TO DO INSTEAD:
+#   • Run the backend on a Node.js host (Fly.io, Render, Railway, AWS ECS, a
+#     VPS, or `node:20-alpine` in Docker via the included Dockerfile).
+#   • Use Cloudflare Workers only for edge concerns (e.g. a thin auth proxy
+#     in front of Clerk) — not for the Express API.
+#   • Background jobs run via `backend/worker.js` (Node) — see `dev.js`.
+#
+# This file is intentionally kept (not deleted) so engineers understand the
+# history and the reasoning. Do NOT deploy with `wrangler deploy`.
+# ============================================================================
+
+name = "fincopilot-backend"
+main = "backend/server.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# ⚠️ This will FAIL at deploy time with:
+#   "Your worker has reached its size limit"  (bundle > 1 MB)
+#   "Module not found: node:fs"                (no fs in Workers)
+#   "Module not found: node:net"               (pg needs raw TCP)
+#
+# Do not enable. Use the Dockerfile / Node host instead.
+
+# [vars]
+# NODE_ENV = "production"
+
+# [[r2_buckets]]
+# binding = "STATEMENTS"
+# bucket_name = "fincopilot-statements"
+
+# [[queues.producers]]
+# binding = "JOBS"
+# queue = "fincopilot-jobs"
+
+# [[queues.consumers]]
+# queue = "fincopilot-jobs"
+# max_batch_size = 10
+# max_concurrency = 1

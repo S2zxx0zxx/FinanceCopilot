@@ -11,6 +11,7 @@ import {
 import { formatPaise, formatDate, timeAgo, categoryIcon } from "@/lib/format";
 import { Badge, EmptyState } from "@/components/shared";
 import { recentTransactions, accounts, goals } from "@/lib/data";
+import { api } from "@/lib/api";
 
 const SUGGESTED_SEARCHES = [
   "BigBasket",
@@ -89,7 +90,7 @@ export default function SearchPage() {
     }
     const handle = setTimeout(async () => {
       try {
-        const res: any = await [];
+        const res: any = await api.search(q);
         const tx = res?.transactions || res?.data?.transactions || [];
         const accts = res?.accounts || res?.data?.accounts || [];
         const gls = res?.goals || res?.data?.goals || [];

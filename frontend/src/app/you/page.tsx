@@ -3,6 +3,7 @@
 import * as React from "react";
 import { motion, type Variants } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   ShieldCheck, Lock, EyeOff, Download, Bell, User, ChevronRight,
@@ -10,9 +11,8 @@ import {
   HelpCircle, MessageSquare, Info, LogOut, Crown, Calendar, MessageCircle,
   Zap, Award, Sparkles, Check, TrendingUp, type LucideIcon,
 } from "lucide-react";
-import { useClerk } from "@clerk/nextjs";
 
-import { formatDate, formatPct } from "@/lib/format";
+import { formatDate, formatPct, getScoreLabel } from "@/lib/format";
 import { Badge, ProgressRing, CountUp } from "@/components/shared";
 import { useToast } from "@/hooks/use-toast";
 import { currentUser, securityData, gamification, privacyData, accounts } from "@/lib/data";
@@ -32,15 +32,25 @@ const itemQuick: Variants = {
 };
 
 // ── Real Sign-Out Button ──────────────────────────────────────────────────
+// Clerk isn't wired up in the preview build, so we clear the dev bypass and
+// bounce the browser to /sign-in — which renders the sign-in page. In a
+// production deploy with ClerkProvider mounted, this can be swapped back to
+// `useClerk().signOut({ redirectUrl: "/sign-in" })` without touching the UI.
 function SignOutButton() {
-  const { signOut } = useClerk();
+  const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
 
   const handleSignOut = async () => {
     setLoading(true);
     try {
-      await signOut({ redirectUrl: "/sign-in" });
+      // Clear any dev-bypass hints the API client set on localStorage.
+      if (typeof window !== "undefined") {
+        try { window.localStorage.removeItem("clerk_db_jwt"); } catch { /* noop */ }
+      }
+      toast({ title: "Signed out", description: "You've been signed out." });
+      // Small delay so the toast is visible before the navigation.
+      setTimeout(() => router.push("/sign-in"), 250);
     } catch {
       toast({ title: "Sign out failed", description: "Please try again.", variant: "destructive" });
       setLoading(false);
@@ -134,9 +144,7 @@ function securityColor(score: number): string {
 }
 
 function securityLabel(score: number): string {
-  if (score >= 80) return "Strong";
-  if (score >= 50) return "Fair";
-  return "Needs attention";
+  return getScoreLabel(score);
 }
 
 // ── Theme switch (spring thumb) ──────────────────────────────────────────
@@ -248,7 +256,7 @@ export default function YouPage() {
               aria-hidden
             />
             <div
-              className="relative w-20 h-20 rounded-full flex items-center justify-center text-white font-display font-bold text-[30px] shrink-0 shadow-md"
+              className="relative w-20 h-20 rounded-full flex items-center justify-center text-accent-foreground font-display font-bold text-[30px] shrink-0 shadow-md"
               style={{ background: "linear-gradient(135deg, var(--accent), var(--gold))" }}
             >
               {currentUser.displayName?.charAt(0) || "U"}

@@ -74,7 +74,7 @@ export default function CashflowPage() {
             onClick={() => setPeriod(p.id)}
             className={`relative px-4 py-1.5 rounded-full text-[12px] font-medium transition-colors ${
               period === p.id
-                ? "text-white"
+                ? "text-accent-foreground"
                 : "text-(--text-secondary) hover:text-foreground"
             }`}
           >

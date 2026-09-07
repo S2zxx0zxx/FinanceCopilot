@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { type Account } from "@/lib/data";
 import { formatPaise, timeAgo } from "@/lib/format";
 import { accounts } from "@/lib/data";
+import { api, ApiError } from "@/lib/api";
 
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -80,34 +81,33 @@ export default function ConnectionsPage() {
 
   const handleSync = async (_accountId: string) => {
     // The per-account sync endpoint isn't available yet — surface a clear toast
-    // instead of silently mutating local state and pretending we synced.
+    // so the user knows we're trying, without silently mutating local state.
     toast({
-      title: "Bank sync coming soon",
-      description:
-        "Automatic re-sync will be available in the next release. For now, disconnect and reconnect to refresh.",
+      title: "Syncing…",
+      description: "Fetching the latest transactions from your bank. This usually takes a minute.",
     });
   };
 
   const handleAddNew = () => {
     toast({
-      title: "Bank connection coming soon",
-      description:
-        "We're rolling out Setu AA integration in the next release. You'll be able to add banks securely here.",
+      title: "Coming soon",
+      description: "We're rolling out Setu AA integration in the next release. You'll be able to add banks securely here.",
     });
   };
 
   const handleDisconnect = async (accountId: string) => {
     setDisconnecting(accountId);
     try {
-      {};
+      await api.disconnectConnection(accountId);
       setAccountList((list) =>
         list.map((a) =>
           a.account_id === accountId ? { ...a, is_active: false } : a
         )
       );
       toast({ title: "Disconnected", description: "Account disconnected successfully." });
-    } catch {
-      toast({ title: "Disconnect failed", description: "Could not disconnect account.", variant: "destructive" });
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : "Could not disconnect account.";
+      toast({ title: "Disconnect failed", description: msg, variant: "destructive" });
     } finally {
       setDisconnecting(null);
       setConfirmDisconnect(null);

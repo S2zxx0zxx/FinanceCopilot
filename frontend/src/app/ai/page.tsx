@@ -16,7 +16,7 @@ export default function AIPage() {
       <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-[12px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
+            <Sparkles className="w-5 h-5 text-accent-foreground" />
           </div>
           <div>
             <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">AI</h1>
@@ -67,7 +67,7 @@ export default function AIPage() {
             <Link key={insight.insight_id} href={`/ai/insight/${insight.insight_id}`} className="premium-card p-5 group hover:border-accent/30 transition-colors">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-[12px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shrink-0">
-                  <Sparkles className="w-5 h-5 text-white" />
+                  <Sparkles className="w-5 h-5 text-accent-foreground" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">

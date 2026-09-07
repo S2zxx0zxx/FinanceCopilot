@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { forecastData } from "@/lib/data";
+import { forecastData, cashflowData, goals, budgets, financialHealth, recurringSeries, calendarEvents, peerComparison, gamification, accounts } from "@/lib/data";
 import Link from "next/link";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import {
@@ -40,7 +40,6 @@ import {
 
 import { formatPaise, formatDate } from "@/lib/format";
 import type { Budget } from "@/lib/data";
-import { cashflowData } from "@/lib/data";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -646,7 +645,6 @@ function SavingsHeatmap() {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function PlanPage() {
-  const { goals, budgets, financialHealth, recurringSeries, calendarEvents, peerComparison, cashflowData, forecastData, gamification, accounts } = {} as any;
   const [expandedBudget, setExpandedBudget] = React.useState<string | null>(null);
   const [debtStrategy, setDebtStrategy] = React.useState<"snowball" | "avalanche">(
     "avalanche",
@@ -769,8 +767,8 @@ export default function PlanPage() {
   );
 
   // Cashflow totals
-  const totalIncome = cashflowData.reduce((s, d) => s + d.income, 0) * 100;
-  const totalExpense = cashflowData.reduce((s, d) => s + d.expense, 0) * 100;
+  const totalIncome = cashflowData.reduce((s: number, d: { income: number; expense: number }) => s + d.income, 0) * 100;
+  const totalExpense = cashflowData.reduce((s: number, d: { income: number; expense: number }) => s + d.expense, 0) * 100;
   const totalNet = totalIncome - totalExpense;
 
   // Debt payoff math — computed from real credit-card accounts when available.

@@ -77,19 +77,30 @@ async function runMigrations() {
 
             logger.info(`[MIGRATION] Applying: ${filename} (Checksum: ${checksum.substring(0, 8)})...`);
             
-            // Execute the migration and record it in a transaction
-            await dbClient.query('BEGIN');
+            // FIX (audit P0 #13): the old code called `dbClient.query('BEGIN')`
+            // then `dbClient.query(sql)` then `dbClient.query('INSERT ...')` then
+            // `dbClient.query('COMMIT')`. Each `dbClient.query(...)` checks out
+            // a DIFFERENT connection from the pool, so the COMMIT/ROLLBACK was
+            // operating on a different connection than the BEGIN — the migration
+            // SQL and the schema_migrations INSERT were NOT atomic. A crash
+            // between the two would mark the migration as unapplied while the
+            // schema change was already live. We now check out a single client
+            // and run BEGIN / SQL / INSERT / COMMIT on it explicitly.
+            const client = await dbClient.connect();
             try {
-                await dbClient.query(sql);
-                await dbClient.query(
+                await client.query('BEGIN');
+                await client.query(sql);
+                await client.query(
                     'INSERT INTO schema_migrations (filename, checksum) VALUES ($1, $2)',
                     [filename, checksum]
                 );
-                await dbClient.query('COMMIT');
+                await client.query('COMMIT');
                 logger.info(`[MIGRATION] Successfully applied: ${filename}`);
             } catch (err) {
-                await dbClient.query('ROLLBACK');
+                try { await client.query('ROLLBACK'); } catch { /* ignore rollback failures */ }
                 throw err;
+            } finally {
+                client.release();
             }
         }
         

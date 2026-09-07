@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { formatPaise, formatDate } from "@/lib/format";
 import { Badge, ProgressRing, EmptyState } from "@/components/shared";
 import type { Goal } from "@/lib/data";
+import { api, ApiError } from "@/lib/api";
 
 export default function GoalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);

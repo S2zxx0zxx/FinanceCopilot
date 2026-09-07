@@ -71,7 +71,7 @@ export function SpendingTreemap() {
         animationDuration={1400}
       >
         <Tooltip
-          formatter={(v: number, _name: string, entry: { payload: TreemapItem }) => [
+          formatter={(v: number, _name: string, entry: { payload?: TreemapItem }) => [
             `₹${v.toLocaleString("en-IN")}`,
             entry?.payload?.name ?? "",
           ]}

@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPaise, formatDate, categoryIcon } from "@/lib/format";
 import { Badge, SectionHeader } from "@/components/shared";
 import { recurringSeries } from "@/lib/data";
+import { api, ApiError } from "@/lib/api";
+import { useAppData } from "@/hooks/use-app-data";
 
 
 const evidenceVariant: Record<
@@ -37,6 +39,7 @@ function confidenceColor(c: number): string {
 export default function RecurringPage() {
   ;
   const { toast } = useToast();
+  const { refetch } = useAppData();
   const [detecting, setDetecting] = React.useState(false);
   const active = recurringSeries.filter((s) => s.status === "active");
   const debits = active.filter((s) => s.direction === "debit");
@@ -48,12 +51,13 @@ export default function RecurringPage() {
   const handleDetect = async () => {
     setDetecting(true);
     try {
-      {};
+      await api.detectRecurring();
       toast({ title: "Detection complete", description: "Refreshed your recurring series with the latest patterns." });
       // Refetch so the list reflects newly detected series.
-      await refetch?.();
-    } catch {
-      toast({ title: "Detection failed", description: "Could not start detection. Try again.", variant: "destructive" });
+      await refetch();
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : "Could not start detection. Try again.";
+      toast({ title: "Detection failed", description: msg, variant: "destructive" });
     } finally {
       setDetecting(false);
     }

@@ -7,6 +7,7 @@ import { ArrowLeft, Sparkles } from "lucide-react";
 
 import { Badge, EmptyState } from "@/components/shared";
 import { timeAgo } from "@/lib/format";
+import { api, ApiError } from "@/lib/api";
 
 type InsightAction = { label: string; href: string };
 type Insight = {
@@ -56,7 +57,7 @@ export default function InsightDetailPage({ params }: { params: Promise<{ id: st
         </Link>
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-[10px] bg-linear-to-br from-accent to-(--gold) flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-[#0A0F0D]" />
+            <Sparkles className="w-4 h-4 text-accent-foreground" />
           </div>
           <div>
             <h1 className="font-display font-bold text-[18px] leading-tight">AI Insight</h1>
