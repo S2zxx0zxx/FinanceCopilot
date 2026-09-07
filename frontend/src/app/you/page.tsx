@@ -13,9 +13,11 @@ import {
 } from "lucide-react";
 
 import { formatDate, formatPct, getScoreLabel } from "@/lib/format";
+import { useUser, useClerk } from "@clerk/nextjs";
 import { Badge, ProgressRing, CountUp } from "@/components/shared";
 import { useToast } from "@/hooks/use-toast";
-import { currentUser, securityData, gamification, privacyData, accounts } from "@/lib/data";
+import { securityData, gamification as mockGamification, privacyData, accounts } from "@/lib/data";
+import { api } from "@/lib/api";
 
 // ── Motion variants ───────────────────────────────────────────────────────
 const container: Variants = {
@@ -32,25 +34,19 @@ const itemQuick: Variants = {
 };
 
 // ── Real Sign-Out Button ──────────────────────────────────────────────────
-// Clerk isn't wired up in the preview build, so we clear the dev bypass and
-// bounce the browser to /sign-in — which renders the sign-in page. In a
-// production deploy with ClerkProvider mounted, this can be swapped back to
-// `useClerk().signOut({ redirectUrl: "/sign-in" })` without touching the UI.
 function SignOutButton() {
   const router = useRouter();
+  const { signOut } = useClerk();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
 
   const handleSignOut = async () => {
     setLoading(true);
     try {
-      // Clear any dev-bypass hints the API client set on localStorage.
       if (typeof window !== "undefined") {
         try { window.localStorage.removeItem("clerk_db_jwt"); } catch { /* noop */ }
       }
-      toast({ title: "Signed out", description: "You've been signed out." });
-      // Small delay so the toast is visible before the navigation.
-      setTimeout(() => router.push("/sign-in"), 250);
+      await signOut(() => router.push("/sign-in"));
     } catch {
       toast({ title: "Sign out failed", description: "Please try again.", variant: "destructive" });
       setLoading(false);
@@ -180,8 +176,24 @@ function ThemeSwitch() {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function YouPage() {
-  ;
   const { toast } = useToast();
+  const { user } = useUser();
+  const [gamification, setGamification] = React.useState<any>(mockGamification);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let mounted = true;
+    api.getGamification()
+      .then((res: any) => {
+        if (mounted) setGamification(res);
+      })
+      .catch((err) => console.error("Failed to load gamification", err))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
+
   const score = securityData.security_score;
   const scoreColor = securityColor(score);
   const scorePct = Math.min(score, 100);
@@ -255,34 +267,38 @@ export default function YouPage() {
               style={{ background: "linear-gradient(135deg, var(--accent), var(--gold))" }}
               aria-hidden
             />
-            <div
-              className="relative w-20 h-20 rounded-full flex items-center justify-center text-accent-foreground font-display font-bold text-[30px] shrink-0 shadow-md"
-              style={{ background: "linear-gradient(135deg, var(--accent), var(--gold))" }}
-            >
-              {currentUser.displayName?.charAt(0) || "U"}
-            </div>
+            {user?.imageUrl ? (
+              <img src={user.imageUrl} alt="Avatar" className="relative w-20 h-20 rounded-full object-cover shadow-md z-10" />
+            ) : (
+              <div
+                className="relative w-20 h-20 rounded-full flex items-center justify-center text-accent-foreground font-display font-bold text-[30px] shrink-0 shadow-md"
+                style={{ background: "linear-gradient(135deg, var(--accent), var(--gold))" }}
+              >
+                {user?.firstName?.charAt(0) || user?.emailAddresses?.[0]?.emailAddress?.charAt(0)?.toUpperCase() || "U"}
+              </div>
+            )}
           </div>
 
           {/* Identity */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-display font-bold text-[22px] tracking-[-0.01em] text-foreground truncate">
-                {currentUser.displayName}
+                {user?.fullName || "FinCopilot User"}
               </h2>
-              <Badge label={`Level ${gamification.level}`} variant="gold" />
+              <Badge label={`Level ${gamification.level || 1}`} variant="gold" />
             </div>
             <div className="flex flex-col gap-0.5 mt-1.5 text-[13px] text-(--text-secondary)">
               <span className="flex items-center gap-1.5 truncate">
                 <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">email</span>
-                <span className="truncate">{currentUser.email}</span>
+                <span className="truncate">{user?.primaryEmailAddress?.emailAddress || "—"}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">phone</span>
-                <span>{currentUser.phone || "—"}</span>
+                <span>{user?.primaryPhoneNumber?.phoneNumber || "—"}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">member</span>
-                <span>Since {formatDate(currentUser.createdAt, { style: "long" })}</span>
+                <span>Since {user ? formatDate(user.createdAt!.toISOString(), { style: "long" }) : "—"}</span>
               </span>
             </div>
           </div>
