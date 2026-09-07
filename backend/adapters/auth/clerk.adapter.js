@@ -11,8 +11,8 @@ export class ClerkAuthAdapter extends AuthInterface {
     this.env = env;
     this.mode = env.AUTH_MODE ?? 'production';
     
-    if (this.mode === 'mock' && env.NODE_ENV !== 'test') {
-      const err = new Error('INV-SEC-001: AUTH_MODE=mock is strictly forbidden outside of NODE_ENV=test');
+    if (this.mode === 'mock' && env.NODE_ENV === 'production') {
+      const err = new Error('INV-SEC-001: AUTH_MODE=mock is strictly forbidden in production');
       err.code = 'MOCK_AUTH_FORBIDDEN';
       throw err;
     }

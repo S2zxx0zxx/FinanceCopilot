@@ -40,7 +40,6 @@ async function seedMigrations() {
     } catch (err) {
         console.error("Error seeding:", err);
     } finally {
-        await dbClient.end();
         process.exit(0);
     }
 }

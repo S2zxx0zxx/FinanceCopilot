@@ -169,7 +169,7 @@ export function setupRoutes(app, dependencies) {
             const { dbClient } = await import('../db/client.js');
             const { rows } = await dbClient.query(
                 'SELECT user_id, email, display_name, created_at FROM users WHERE user_id = $1',
-                [req.user.id]
+                [req.user.userId]
             );
             if (!rows.length) return res.status(404).json({ error: 'User not found' });
             res.json(rows[0]);
@@ -182,11 +182,11 @@ export function setupRoutes(app, dependencies) {
 
             await dbClient.query(
                 'UPDATE users SET onboarding_done = true, onboarding_step = \'completed\', updated_at = NOW() WHERE user_id = $1',
-                [req.user.id]
+                [req.user.userId]
             );
             await dbClient.query(
                 'INSERT INTO ai_user_budgets (user_id) VALUES ($1) ON CONFLICT DO NOTHING',
-                [req.user.id]
+                [req.user.userId]
             );
             res.json({ status: 'COMPLETED' });
         } catch (err) { next(err); }
@@ -217,14 +217,14 @@ export function setupRoutes(app, dependencies) {
                 `SELECT account_id, institution_name as account_name, account_type
                  FROM financial_accounts
                  WHERE user_id = $1 AND account_type IN ('credit_card', 'loan') AND is_active = true`,
-                [req.user.id]
+                [req.user.userId]
             );
             
             const liabilities = [];
             let totalLiabilitiesPaise = 0;
             
             for (const acc of rows) {
-                const balances = await FinancialStateRepo.getAccountBalances(req.user.id, acc.account_id);
+                const balances = await FinancialStateRepo.getAccountBalances(req.user.userId, acc.account_id);
                 // Credit/Loan means debits minus credits is the outstanding balance
                 const balance_paise = Number(balances.posted_debits) - Number(balances.posted_credits);
                 if (balance_paise > 0) {
@@ -246,8 +246,8 @@ export function setupRoutes(app, dependencies) {
 
     // ── NOTIFICATIONS (Phase: v988) ───────────────────────────────────────────
     router.get('/notifications',            requireAuth, NotificationsController.listNotifications);
-    router.put('/notifications/:id/read',   requireAuth, NotificationsController.markRead);
     router.put('/notifications/read-all',  requireAuth, NotificationsController.markAllRead);
+    router.put('/notifications/:id/read',   requireAuth, NotificationsController.markRead);
     router.post('/notifications',           requireAuth, NotificationsController.createNotification);
     router.delete('/notifications/:id',    requireAuth, NotificationsController.deleteNotification);
 
