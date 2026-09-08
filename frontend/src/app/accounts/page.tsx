@@ -1,41 +1,29 @@
 "use client";
-import * as React from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-
-import { formatPaise, formatDate } from "@/lib/format";
-import { FreshnessBadge } from "@/components/shared";
-import { accounts } from "@/lib/data";
-
-function isRecentlySynced(lastSyncedAt: string): boolean {
-  try {
-    const diff = Date.now() - new Date(lastSyncedAt).getTime();
-    return diff < 24 * 3600 * 1000;
-  } catch {
-    return false;
-  }
-}
-
-export default function AccountsPage() {
-  ;
-  return (
-    <div className="flex flex-col gap-6 max-w-4xl">
-      <div><h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">Accounts</h1><p className="text-[14px] text-(--text-secondary) mt-1">{accounts.length} accounts connected</p></div>
-      <div className="flex flex-col gap-3">
-        {accounts.map((acc: any, i: number) => {
-          const typeIcons: Record<string, string> = { savings: "🏦", current: "💳", credit_card: "💳", loan: "📋", investment: "📈" };
-          const isCredit = acc.account_type === "credit_card";
-          return (
-            <motion.div key={acc.account_id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: i * 0.05 }}>
-              <Link href={`/accounts/${acc.account_id}`} className="premium-card p-5 flex items-center gap-4 group">
-                <div className="w-12 h-12 rounded-[12px] bg-[var(--surface-subtle)] flex items-center justify-center text-[20px] shrink-0">{typeIcons[acc.account_type] || "🏦"}</div>
-                <div className="flex-1"><div className="flex items-center gap-2"><h3 className="text-[16px] font-semibold">{acc.institution_name}</h3><span className="text-[12px] text-(--text-tertiary) capitalize">{acc.account_type.replace("_", " ")}</span></div><p className="text-[12px] text-(--text-tertiary) mt-0.5">•••• {acc.account_number_last4} · Synced {formatDate(acc.last_synced_at, { style: "relative" })}</p></div>
-                <div className="text-right"><p className={`text-[18px] font-display font-semibold tabular-nums ${isCredit ? "text-(--negative)" : ""}`}>{formatPaise(acc.balances.available_balance_paise)}</p><FreshnessBadge status={isRecentlySynced(acc.last_synced_at) ? "live" : "recent"} /></div>
-              </Link>
-            </motion.div>
-          );
-        })}
-      </div>
-    </div>
-  );
+import { Landmark, Search, Plus, ArrowUpRight, Wallet, CreditCard } from "lucide-react";
+import { formatPaise } from "@/lib/format";
+import { api } from "@/lib/api";
+import { useResource } from "@/hooks/use-resource";
+import { ResourceState } from "@/components/shared/resource-state";
+import { amount, label, object, rows } from "@/lib/response";
+const loadAccounts=async()=>rows(object(await api.getAccounts()).accounts);
+const types=['savings','current','credit_card','loan','investment','wallet','cash'];
+export default function AccountsPage(){
+ const state=useResource(loadAccounts);
+ const [query,setQuery]=useState('');const [type,setType]=useState('all');
+ const [adding,setAdding]=useState(false);const [saving,setSaving]=useState(false);const [error,setError]=useState<string|null>(null);
+ const [institution,setInstitution]=useState('');const [newType,setNewType]=useState('savings');const [lastFour,setLastFour]=useState('');
+ const accounts=state.data??[];
+ const filtered=accounts.filter(account=>(type==='all'||account.account_type===type)&&`${label(account.institution_name)} ${label(account.account_number_last4,'')}`.toLowerCase().includes(query.toLowerCase()));
+ const save=async(event:React.FormEvent)=>{event.preventDefault();if(saving)return;setSaving(true);setError(null);try{await api.createAccount({institution_name:institution,account_type:newType,account_number_last4:lastFour||undefined});setAdding(false);setInstitution('');setLastFour('');state.reload();}catch(error){setError(error instanceof Error?error.message:'Account could not be saved.');}finally{setSaving(false);}};
+ return <div className="flex flex-col gap-6 max-w-5xl pb-10">
+  <header className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-[.18em] text-accent">Your money, organised</p><h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">Account vault</h1><p className="text-sm text-(--text-secondary) mt-2">Banks, cards and cash accounts, with a clear place for every statement.</p></div><button onClick={()=>setAdding(value=>!value)} aria-expanded={adding} className="min-h-11 px-4 rounded-xl bg-accent text-accent-foreground flex items-center gap-2"><Plus className="w-4 h-4"/>Add account</button></header>
+  {adding&&<motion.form initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} onSubmit={save} className="premium-card p-5 grid sm:grid-cols-2 gap-4"><h2 className="font-semibold sm:col-span-2">Create an account for your imported records</h2><label className="text-sm">Institution<input required maxLength={120} value={institution} onChange={e=>setInstitution(e.target.value)} className="block w-full mt-2 p-3 rounded-xl border border-(--border) bg-(--surface)" placeholder="Bank or wallet name"/></label><label className="text-sm">Account type<select value={newType} onChange={e=>setNewType(e.target.value)} className="block w-full mt-2 p-3 rounded-xl border border-(--border) bg-(--surface)">{types.map(value=><option key={value} value={value}>{value.replaceAll('_',' ')}</option>)}</select></label><label className="text-sm">Last four digits (optional)<input inputMode="numeric" pattern="[0-9]{4}" maxLength={4} value={lastFour} onChange={e=>setLastFour(e.target.value)} className="block w-full mt-2 p-3 rounded-xl border border-(--border) bg-(--surface)"/></label><div className="flex items-end gap-3"><button disabled={saving||!institution.trim()} className="min-h-11 rounded-xl bg-accent text-accent-foreground px-5 disabled:opacity-50">{saving?'Saving...':'Create account'}</button><button type="button" onClick={()=>setAdding(false)} className="min-h-11 px-3">Cancel</button></div>{error&&<p role="alert" className="text-red-500 sm:col-span-2">{error}</p>}</motion.form>}
+  <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>
+  {state.data&&<><section className="grid grid-cols-2 sm:grid-cols-3 gap-3">{[{title:'Accounts',value:accounts.length,Icon:Landmark},{title:'Active',value:accounts.filter(a=>a.is_active===true).length,Icon:Wallet},{title:'Account types',value:new Set(accounts.map(a=>a.account_type)).size,Icon:CreditCard}].map(({title,value,Icon})=><div key={title} className="premium-card p-5"><Icon className="w-5 h-5 text-accent"/><p className="font-display text-3xl font-semibold mt-3">{value}</p><p className="text-xs text-(--text-secondary) mt-1">{title}</p></div>)}</section>
+  <div className="flex flex-col sm:flex-row gap-3"><label className="relative flex-1"><Search className="absolute left-3 top-3.5 w-4 h-4 text-(--text-tertiary)"/><input aria-label="Search accounts" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a bank or last four digits" className="w-full min-h-11 pl-10 pr-3 rounded-xl bg-(--surface) border border-(--border)"/></label><select aria-label="Filter by account type" value={type} onChange={e=>setType(e.target.value)} className="min-h-11 px-3 rounded-xl bg-(--surface) border border-(--border)"><option value="all">All account types</option>{types.map(value=><option key={value} value={value}>{value.replaceAll('_',' ')}</option>)}</select></div>
+  <div className="flex flex-col gap-3">{filtered.map((account,index)=>{const balance=amount(object(account.balances).available_balance_paise);const id=label(account.account_id);return <motion.article key={id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{delay:Math.min(index,5)*.04}} className="premium-card p-4 sm:p-5"><Link href={`/accounts/${id}`} className="flex items-center gap-3 sm:gap-4"><div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0"><Landmark className="w-6 h-6 text-accent"/></div><div className="flex-1 min-w-0"><h2 className="font-semibold truncate">{label(account.institution_name)}</h2><p className="text-xs text-(--text-secondary) mt-1 capitalize">{label(account.account_type).replaceAll('_',' ')}{account.account_number_last4?` · ${label(account.account_number_last4)}`:''}</p></div><ArrowUpRight className="w-4 h-4 shrink-0"/></Link><div className="mt-4 pt-4 border-t border-(--border) flex flex-wrap items-end justify-between gap-3"><div><p className="text-[11px] text-(--text-secondary)">Recorded net activity</p><p className="text-xl font-display font-semibold tabular-nums">{balance===null?'Unavailable':formatPaise(balance)}</p><p className="text-[10px] text-(--text-tertiary) mt-1">Opening balance is not included.</p></div>{account.is_active===true?<Link href={`/transactions?account=${encodeURIComponent(id)}`} className="min-h-11 px-3 rounded-xl bg-(--surface-subtle) text-accent text-xs flex items-center">Import statement</Link>:<span className="text-xs text-(--text-tertiary)">Inactive account</span>}</div></motion.article>;})}{filtered.length===0&&<div className="premium-card p-8 text-center"><Landmark className="w-8 h-8 mx-auto text-accent"/><h2 className="font-semibold mt-4">{accounts.length?'No matching accounts':'Give your money a home'}</h2><p className="text-sm text-(--text-secondary) mt-2">{accounts.length?'Try a different search or account type.':'Add your first account, then import a statement to build your activity history.'}</p></div>}</div></>}
+ </div>;
 }

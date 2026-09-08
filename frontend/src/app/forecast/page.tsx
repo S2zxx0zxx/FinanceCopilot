@@ -19,7 +19,12 @@ import {
   FreshnessBadge,
   CountUp,
 } from "@/components/shared";
-import { forecastData } from "@/lib/data";
+import { api } from "@/lib/api";
+import { useResource } from "@/hooks/use-resource";
+import { ResourceState } from "@/components/shared/resource-state";
+import { object,rows,label,amount } from "@/lib/response";
+const loadForecast=async()=>{const [forecast,money]=await Promise.all([api.getForecast(),api.getMoneyState()]);return {outlook:object(object(forecast).outlook),balance:amount(object(object(money).net_position).available_balance_paise)};};
+function ForecastAmount({value,...props}:{value:number|null;className?:string;duration?:number;format:(value:number)=>string}){return value===null?<span className={props.className}>Not enough data</span>:<CountUp value={value} {...props}/>;}
 
 const driverIcon = {
   positive: TrendingUp,
@@ -39,42 +44,20 @@ const driverBg = {
   neutral: "var(--surface-subtle)",
 } as const;
 
-const ASSUMPTIONS = [
-  "Salary credits continue at the current monthly rate.",
-  "Recurring subscriptions (Netflix, Cult.fit, Jio) remain active at current prices.",
-  "Average discretionary spend trends forward at the 30-day trailing average.",
-  "Investment SIPs continue on schedule with no early redemptions.",
-  "No major one-time events — bonuses, large purchases, or medical emergencies.",
-  "Investment returns follow historical averages; no market shock modelled.",
-];
-
 export default function ForecastPage() {
-  ;
+  const state=useResource(loadForecast);
   const [horizonIdx, setHorizonIdx] = React.useState(1); // default 30 days
   const [showAssumptions, setShowAssumptions] = React.useState(false);
 
-  const horizon = forecastData.horizons[horizonIdx];
-
-  // timeline `actual`/`projected` are rupees. Convert to paise for formatPaise.
-  // projected_balance_paise is already paise — DO NOT multiply again.
-  const currentBalance =
-    [...forecastData.timeline]
-      .reverse()
-      .find((t) => t.actual !== null)?.actual ?? 0;
-
-  const projectedBalancePaise = horizon.projected_balance_paise;
-  const projectedDelta = projectedBalancePaise - currentBalance * 100;
-  const confidenceVariant =
-    horizon.confidence >= 0.85
-      ? "positive"
-      : horizon.confidence >= 0.7
-        ? "warning"
-        : "negative";
-
-  const totalDriversImpact = forecastData.drivers.reduce(
-    (s, d) => s + d.impact_paise,
-    0,
-  );
+  if(!state.data)return <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>;
+  const horizons=['7d','30d','90d'].map(key=>{const row=object(state.data!.outlook[key]);return {days:Number.parseInt(key,10),label:key.replace('d',' days'),raw:row,projected_balance_paise:row.status==='FORECAST_UNAVAILABLE'?null:amount(row.pointEstimatePaise),confidence:typeof row.intervalLevel==='number'?row.intervalLevel:null};});
+  const horizon=horizons[horizonIdx];
+  const forecastData={horizons,timeline:horizons.map(h=>({month:h.label,actual:null,projected:h.projected_balance_paise===null?null:h.projected_balance_paise/100,upper:amount(h.raw.upperBoundPaise)===null?null:amount(h.raw.upperBoundPaise)!/100,lower:amount(h.raw.lowerBoundPaise)===null?null:amount(h.raw.lowerBoundPaise)!/100})),drivers:rows(horizon.raw.drivers??[]).map(row=>{const impact=amount(row.impactPaise);return {label:label(row.description),impact_paise:impact,type:impact===null||impact===0?'neutral':impact>0?'positive':'negative'};})};
+  const currentBalance=state.data.balance;
+  const projectedDelta=horizon.projected_balance_paise!==null&&currentBalance!==null?horizon.projected_balance_paise-currentBalance:null;
+  const ASSUMPTIONS=Object.entries(object(horizon.raw.assumptions??{})).map(([key,value])=>`${key.replace(/([a-z])([A-Z])/g,'$1 $2')}: ${String(value)}`);
+  const totalDriversImpact=forecastData.drivers.reduce((sum,driver)=>sum+(driver.impact_paise??0),0);
+  const confidenceVariant='neutral' as const;
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
@@ -87,10 +70,10 @@ export default function ForecastPage() {
       >
         <div>
           <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
-            Forecast
+            Future outlook
           </h1>
           <p className="text-[14px] text-(--text-secondary) mt-1">
-            Your financial future, predicted
+            Explore estimates, ranges and the assumptions behind them
           </p>
         </div>
         <FreshnessBadge status="estimated" />
@@ -130,16 +113,16 @@ export default function ForecastPage() {
           className="premium-card p-6 flex flex-col gap-1"
         >
           <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
-            Current Balance
+            Recorded net activity
           </span>
-          <CountUp
-            value={currentBalance * 100}
+          <ForecastAmount
+            value={currentBalance}
             format={(v) => formatPaise(v)}
             duration={1500}
             className="font-display font-bold text-[32px] tabular-nums tracking-[-0.02em]"
           />
           <span className="text-[12px] text-(--text-tertiary) mt-1">
-            As of latest sync
+            Opening balances are not included
           </span>
         </motion.div>
 
@@ -154,11 +137,11 @@ export default function ForecastPage() {
               Projected in {horizon.label}
             </span>
             <Badge
-              label={`${formatPct(horizon.confidence)} conf.`}
+              label={label(horizon.raw.trustState).replaceAll("_"," ")}
               variant={confidenceVariant}
             />
           </div>
-          <CountUp
+          <ForecastAmount
             value={horizon.projected_balance_paise}
             format={(v) => formatPaise(v)}
             duration={1500}
@@ -166,13 +149,13 @@ export default function ForecastPage() {
           />
           <span
             className={`text-[12px] font-medium tabular-nums ${
-              projectedDelta >= 0
+              (projectedDelta??0) >= 0
                 ? "text-(--positive)"
                 : "text-(--negative)"
             }`}
           >
-            {projectedDelta >= 0 ? "↑" : "↓"}{" "}
-            {formatPaise(Math.abs(projectedDelta), { style: "signed" })} vs
+            {(projectedDelta??0) >= 0 ? "↑" : "↓"}{" "}
+            {projectedDelta===null?"Comparison unavailable":formatPaise(Math.abs(projectedDelta), { style: "signed" })} vs
             today
           </span>
         </motion.div>
@@ -191,34 +174,34 @@ export default function ForecastPage() {
             style={{ color: "var(--accent)" }}
           />
           <span className="text-[12px] font-mono uppercase tracking-wider text-(--text-tertiary)">
-            Forecast confidence
+            Prediction interval level
           </span>
         </div>
         <div className="flex-1 h-2 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${horizon.confidence * 100}%` }}
+            animate={{ width: `${(horizon.confidence??0) * 100}%` }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="h-full rounded-full"
             style={{
               background:
-                horizon.confidence >= 0.85
+                (horizon.confidence??0) >= 0.85
                   ? "var(--positive)"
-                  : horizon.confidence >= 0.7
+                  : (horizon.confidence??0) >= 0.7
                     ? "var(--warning)"
                     : "var(--negative)",
             }}
           />
         </div>
         <span className="text-[13px] font-semibold tabular-nums shrink-0 w-12 text-right">
-          {formatPct(horizon.confidence)}
+          {horizon.confidence===null?"Unavailable":formatPct(horizon.confidence)}
         </span>
       </motion.div>
 
       {/* Chart */}
       <section>
         <SectionHeader
-          title="Balance Trajectory"
+          title="Estimates by horizon"
           action={
             <span className="text-[12px] font-mono text-(--text-tertiary)">
               6 months actual · 3 months projected
@@ -232,7 +215,7 @@ export default function ForecastPage() {
           transition={{ duration: 0.5 }}
           className="premium-card p-5"
         >
-          <ForecastComboChart data={forecastData.timeline} />
+          <ForecastComboChart data={forecastData.timeline} /><p className="text-xs text-(--text-secondary) mt-3">Each point is a separate horizon estimate. Lines connect those estimates; they are not daily predictions.</p>
           <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-(--border-subtle) flex-wrap">
             <span className="flex items-center gap-2 text-[11px] font-mono text-(--text-secondary)">
               <span className="w-3 h-0.5" style={{ background: "var(--chart-1)" }} /> Actual
@@ -261,7 +244,7 @@ export default function ForecastPage() {
           title="Forecast Drivers"
           action={
             <span className="text-[12px] font-mono text-(--text-tertiary)">
-              net {formatPaise(totalDriversImpact, { style: "signed" })}/mo
+              net {formatPaise(totalDriversImpact, { style: "signed" })} across this horizon
             </span>
           }
         />
@@ -297,8 +280,8 @@ export default function ForecastPage() {
                   className="text-[14px] font-semibold tabular-nums shrink-0"
                   style={{ color }}
                 >
-                  {d.impact_paise >= 0 ? "+" : "−"}
-                  {formatPaise(Math.abs(d.impact_paise))}
+                  {(d.impact_paise??0) >= 0 ? "+" : "−"}
+                  {d.impact_paise===null?"Unavailable":formatPaise(Math.abs(d.impact_paise))}
                 </span>
               </motion.div>
             );
@@ -333,6 +316,7 @@ export default function ForecastPage() {
               className="overflow-hidden"
             >
               <ul className="px-4 pb-4 flex flex-col gap-2">
+                {ASSUMPTIONS.length===0&&<li className="text-sm text-(--text-secondary)">No assumptions were returned for this horizon.</li>}
                 {ASSUMPTIONS.map((a, i) => (
                   <li
                     key={i}
@@ -353,11 +337,11 @@ export default function ForecastPage() {
         <div className="flex items-center gap-2 min-w-0">
           <ShieldCheck className="w-4 h-4 text-accent shrink-0" />
           <span className="text-[13px] text-(--text-secondary) truncate">
-            Based on 12 months of synced transactions
+            Estimates depend on available account history
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Badge label="85% coverage" variant="ai" />
+          <Badge label={label(horizon.raw.trustState).replaceAll("_"," ")} variant="ai" />
           <FreshnessBadge status="estimated" />
         </div>
       </section>

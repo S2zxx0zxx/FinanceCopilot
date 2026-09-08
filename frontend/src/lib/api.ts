@@ -1,3 +1,4 @@
+import { object, rows } from "./response";
 // ============================================================================
 // FinCopilot API Client — Real API calls to backend with Clerk auth
 // ============================================================================
@@ -90,13 +91,21 @@ export const api = {
   // ── Transactions ────────────────────────────────────────────────────────────
   getTransactions: (params?: Record<string, string>) => {
     const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
-    return apiFetch(`/transactions${qs}`);
+    return apiFetch(`/transactions${qs}`).then(value => {
+      const response=object(value);
+      return {...response, transactions:rows(response.data).map(row=>({...row,
+        merchant_name:row.merchant_normalized,
+        category:row.transaction_type,
+        pending:row.posting_status==='pending',
+      }))};
+    });
   },
   getTransactionDetail: (id: string) => apiFetch(`/transactions/${id}`),
 
   // ── Goals ───────────────────────────────────────────────────────────────────
   getGoals: () => apiFetch("/goals"),
   getGoalDetail: (id: string) => apiFetch(`/goals/${id}`),
+  addGoalContribution: (id:string,amountPaise:number,idempotencyKey:string) => apiFetch(`/goals/${id}/contributions`,{method:'POST',headers:{'Idempotency-Key':idempotencyKey},body:JSON.stringify({amount_paise:amountPaise,source_type:'manual'})}),
   createGoal: (data: any) =>
     apiFetch("/goals", { method: "POST", body: JSON.stringify(data) }),
   updateGoal: (id: string, data: any) =>
@@ -137,6 +146,7 @@ export const api = {
     apiFetch("/forecast/scenario", { method: "POST", body: JSON.stringify(data) }),
 
   // ── Cashflow ────────────────────────────────────────────────────────────────
+  getCashflowHistory: (period:string) => apiFetch(`/financial/cashflow/history?period=${encodeURIComponent(period)}`),
   getCashflow: (period?: string) =>
     apiFetch(`/financial/cashflow${period ? `?period=${period}` : ""}`),
 

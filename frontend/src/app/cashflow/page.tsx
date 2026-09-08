@@ -7,47 +7,42 @@ import { ArrowDownLeft, ArrowUpRight, Scale, Lightbulb } from "lucide-react";
 import { formatPaise } from "@/lib/format";
 import { CashflowBarChart } from "@/components/charts/recharts";
 import { SectionHeader } from "@/components/shared";
-import { cashflowData } from "@/lib/data";
+import { api } from "@/lib/api";
+import { useResource } from "@/hooks/use-resource";
+import { ResourceState } from "@/components/shared/resource-state";
+import { object,rows,amount,label } from "@/lib/response";
 
 type PeriodId = "7d" | "30d" | "90d" | "12mo";
 
 const PERIODS: { id: PeriodId; label: string; months: number; note: string }[] = [
-  { id: "7d", label: "7d", months: 1, note: "Current month" },
+  { id: "7d", label: "7d", months: 1, note: "Last 7 days" },
   { id: "30d", label: "30d", months: 1, note: "Last 30 days" },
-  { id: "90d", label: "90d", months: 3, note: "Last quarter" },
-  { id: "12mo", label: "12mo", months: 12, note: "Trailing 12 months" },
+  { id: "90d", label: "90d", months: 3, note: "Last 90 days" },
+  { id: "12mo", label: "12mo", months: 12, note: "12 calendar months including this month" },
 ];
 
 export default function CashflowPage() {
-  ;
+
   const [period, setPeriod] = React.useState<PeriodId>("12mo");
+  const loader=React.useCallback(async()=>rows(object(await api.getCashflowHistory(period)).history).map(row=>{
+    const income=amount(row.income_paise),expense=amount(row.expense_paise);
+    if(income===null||expense===null)throw new Error('Cashflow amounts are unavailable.');
+    return {month:label(row.month),income:income/100,expense:expense/100};
+  }),[period]);
+  const state=useResource(loader);
+  const cashflowData=state.data??[];
   const selected = PERIODS.find((p) => p.id === period)!;
 
   // cashflowData income/expense are in RUPEES — multiply by 100 to convert to
   // paise for formatPaise so the displayed amounts match the chart's ₹K/L axis.
-  const summaryData = cashflowData.slice(-selected.months);
+  const summaryData = cashflowData;
   const totalIncome = summaryData.reduce((s, m) => s + m.income, 0);
   const totalExpense = summaryData.reduce((s, m) => s + m.expense, 0);
   const netFlow = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? (netFlow / totalIncome) * 100 : 0;
 
-  const insight =
-    netFlow >= 0
-      ? `You earned ${formatPaise(
-          totalIncome * 100,
-          { style: "compact" },
-        )} and spent ${formatPaise(totalExpense * 100, {
-          style: "compact",
-        })} across ${selected.label} — a net surplus of ${formatPaise(
-          netFlow * 100,
-        )}. Your savings rate is ${savingsRate.toFixed(
-          0,
-        )}%, ${savingsRate >= 20 ? "above the 20% recommended minimum." : "below the 20% recommended target — consider trimming discretionary spend."}`
-      : `You spent ${formatPaise(totalExpense * 100)} against income of ${formatPaise(
-          totalIncome * 100,
-        )} in this period — a net deficit of ${formatPaise(
-          Math.abs(netFlow) * 100,
-        )}. Trim discretionary categories to restore positive flow.`;
+  const insight = `Posted income of ${formatPaise(Math.round(totalIncome*100))} and net spending of ${formatPaise(Math.round(totalExpense*100))} across this period. Transfers and records awaiting review are excluded.`;
+  if(!state.data)return <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>;
 
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
@@ -58,7 +53,7 @@ export default function CashflowPage() {
         transition={{ duration: 0.5 }}
       >
         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
-          Cashflow
+          Cashflow pulse
         </h1>
         <p className="text-[14px] text-(--text-secondary) mt-1">
           Income vs Expenses · {selected.note}

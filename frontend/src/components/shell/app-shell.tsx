@@ -8,34 +8,50 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Wallet, Layers, Sparkles, User, Plus, MessageCircle,
   Search, Target, Moon, Sun, ShieldCheck, Bell, Flame,
-  TrendingUp, TrendingDown, ArrowUpRight, Settings, HelpCircle,
+  TrendingUp, TrendingDown, ArrowUpRight, Settings, HelpCircle, Menu, Receipt, CalendarDays, SlidersHorizontal, Compass, Download, Cable, EyeOff, Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppData } from "@/hooks/use-app-data";
 import { timeAgo } from "@/lib/format";
-import { gamification as fallbackGame, notifications as fallbackNotifs } from "@/lib/data";
+import { api } from "@/lib/api";
+import { useResource } from "@/hooks/use-resource";
+import { object, rows } from "@/lib/response";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+const loadShellGrowth=async()=>object(await api.getGamification());
+const loadShellNotifications=async()=>rows(await api.getNotifications());
 
-const NAV_SECTIONS = [
-  {
-    label: "MAIN",
-    items: [
-      { href: "/", label: "Dashboard", icon: Home, exactMatch: true },
-      { href: "/money", label: "Accounts", icon: Wallet },
-      { href: "/transactions", label: "Transactions", icon: ArrowUpRight },
-      { href: "/spending-story", label: "Spending", icon: TrendingUp },
-      { href: "/plan", label: "Budgets", icon: Layers },
-      { href: "/goals", label: "Goals", icon: Target },
-      { href: "/recurring", label: "Bills", icon: Bell },
-    ],
-  },
-  {
-    label: "SETTINGS",
-    items: [
-      { href: "/you", label: "Settings", icon: Settings },
-      { href: "/ai", label: "AI Copilot", icon: Sparkles },
-      { href: "/help", label: "Help & Support", icon: HelpCircle },
-    ],
-  },
+type NavItem={href:string;label:string;icon:React.ComponentType<{className?:string;strokeWidth?:number}>;exactMatch?:boolean;description:string};
+const NAV_SECTIONS:{label:string;items:NavItem[]}[]=[
+ {label:"Your money",items:[
+  {href:"/",label:"Today at a glance",icon:Home,exactMatch:true,description:"Dashboard and your daily financial picture"},
+  {href:"/money",label:"Money overview",icon:Wallet,description:"All account balances in one place"},
+  {href:"/accounts",label:"Account vault",icon:Layers,description:"Your banks, cards and cash accounts"},
+  {href:"/transactions",label:"Activity journal",icon:ArrowUpRight,description:"Search transactions and import statements"},
+  {href:"/spending-story",label:"Spending lens",icon:TrendingDown,description:"Understand where your money goes"},
+  {href:"/income",label:"Income streams",icon:TrendingUp,description:"Sources, trends and recorded income"},
+  {href:"/cashflow",label:"Cashflow pulse",icon:Activity,description:"Money arriving and leaving"}]},
+ {label:"Build ahead",items:[
+  {href:"/plan",label:"Your game plan",icon:Compass,description:"Bring your financial plans together"},
+  {href:"/budgets",label:"Spending guardrails",icon:SlidersHorizontal,description:"Set and manage category budgets"},
+  {href:"/goals",label:"Dream milestones",icon:Target,description:"Create goals and record progress"},
+  {href:"/recurring",label:"Bills & rhythms",icon:CalendarDays,description:"Recurring payments and subscriptions"},
+  {href:"/liabilities",label:"Debt roadmap",icon:Receipt,description:"Understand outstanding obligations"},
+  {href:"/forecast",label:"Future outlook",icon:TrendingUp,description:"Explore estimates and scenarios"},
+  {href:"/financial-health",label:"Financial fitness",icon:Activity,description:"Understand your financial indicators"}]},
+ {label:"Copilot studio",items:[
+  {href:"/ai",label:"Copilot workspace",icon:Sparkles,exactMatch:true,description:"Insights and questions worth exploring"},
+  {href:"/ai/chat",label:"Ask your copilot",icon:MessageCircle,description:"Ask questions about your money"},
+  {href:"/ai/afford",label:"Purchase check",icon:Wallet,description:"Explore a planned purchase"},
+  {href:"/ai/leaks",label:"Savings detective",icon:Search,description:"Review potential savings opportunities"},
+  {href:"/search",label:"Find anything",icon:Search,description:"Search across your financial records"}]},
+ {label:"Your space",items:[
+  {href:"/you",label:"Personal hub",icon:User,exactMatch:true,description:"Profile, progress and account settings"},
+  {href:"/you/connections",label:"Connection center",icon:Cable,description:"Manage connected accounts"},
+  {href:"/you/privacy",label:"Privacy choices",icon:EyeOff,description:"Consent and data inventory"},
+  {href:"/you/security",label:"Security center",icon:ShieldCheck,description:"Sessions and sign-in protection"},
+  {href:"/you/export",label:"Your data library",icon:Download,description:"Export your financial records"},
+  {href:"/data-coverage",label:"Data confidence",icon:Layers,description:"Understand gaps in account coverage"},
+  {href:"/help",label:"Help & guidance",icon:HelpCircle,description:"Guides, answers and support"}]},
 ];
 
 const FAB_ACTIONS = [
@@ -67,9 +83,8 @@ function ThemeToggle() {
 }
 
 function NotificationBell() {
-  const { notifications: rawNotifs } = useAppData();
-  const notifData = rawNotifs || fallbackNotifs;
-  const arr = Array.isArray(notifData) ? notifData : (notifData?.notifications || []);
+  const notifications = useResource(loadShellNotifications);
+  const arr = notifications.data || [];
   const unreadNotificationsCount = arr.filter((n: any) => !(n.read ?? n.is_read)).length;
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
@@ -161,10 +176,20 @@ function NotificationBell() {
   );
 }
 
+const loadShellPreferences = async () => object(object(await api.getPreferences()).preferences);
+
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
-  const { gamification: rawGamification } = useAppData();
-  const gamification = rawGamification || fallbackGame;
+  const preferences = useResource(loadShellPreferences);
+  React.useEffect(() => {
+    document.documentElement.dataset.density = preferences.data?.density === 'compact' ? 'compact' : 'comfortable';
+  }, [preferences.data]);
+  const growth=useResource(loadShellGrowth);
+  const gamification=growth.data;
+  const [toolsOpen,setToolsOpen]=React.useState(false);
+  const [toolQuery,setToolQuery]=React.useState('');
+  React.useEffect(()=>{const handle=(event:KeyboardEvent)=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();setToolsOpen(value=>!value);}};document.addEventListener('keydown',handle);return()=>document.removeEventListener('keydown',handle);},[]);
+  const activeHref=NAV_SECTIONS.flatMap(group=>group.items).filter(item=>item.exactMatch?pathname===item.href:pathname===item.href||pathname.startsWith(item.href+'/')).sort((a,b)=>b.href.length-a.href.length)[0]?.href;
   const [fabOpen, setFabOpen] = React.useState(false);
   const fabRef = React.useRef<HTMLDivElement>(null);
   const fabHidden = ["/onboarding", "/ai/chat", "/ai/afford", "/ai/leaks"].some(p => pathname.startsWith(p));
@@ -189,6 +214,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
           <span className="font-display font-bold text-[17px] tracking-[-0.02em] text-[var(--text)]">FinCopilot</span>
         </div>
 
+        <button onClick={()=>setToolsOpen(true)} className="mx-4 mt-4 mb-1 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)] flex items-center gap-2 px-3 min-h-11 text-sm text-[var(--text-secondary)]"><Search className="w-4 h-4"/><span className="flex-1 text-left">Jump to a tool</span><kbd className="text-[10px] border border-[var(--border)] rounded px-1">Ctrl K</kbd></button>
         {/* Nav */}
         <nav className="flex-1 flex flex-col gap-0.5 p-3 overflow-y-auto" aria-label="Primary">
           {NAV_SECTIONS.map((section, si) => (
@@ -197,13 +223,13 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <p className="text-[10px] font-mono uppercase tracking-[0.08em] text-[var(--text-muted)] px-3 pb-1 pt-2 font-semibold">{section.label}</p>
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const active = item.exactMatch ? pathname === item.href : pathname.startsWith(item.href);
+                const active = item.href === activeHref;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-[14px] font-medium transition-all duration-200 group relative overflow-hidden",
+                      "flex items-center gap-3 px-3 py-2.5 min-h-11 rounded-[12px] text-[14px] font-medium transition-all duration-200 group relative overflow-hidden",
                       active
                         ? "bg-[var(--surface-subtle)] text-[var(--text)] font-semibold"
                         : "text-[var(--text-secondary)] hover:text-[var(--text)] hover:bg-[var(--surface-subtle)]",
@@ -238,8 +264,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
               <Flame className="w-4 h-4 text-[#0A0F0D]" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-[var(--text)]">{gamification.tracking_streak_days} day streak 🔥</p>
-              <p className="text-[10px] text-[var(--text-muted)] font-mono">Level {gamification.level}: {gamification.level_name}</p>
+              <p className="text-[12px] font-semibold text-[var(--text)]">{String(gamification?.tracking_streak_days ?? "\u2014")} day streak 🔥</p>
+              <p className="text-[10px] text-[var(--text-muted)] font-mono">Level {String(gamification?.level ?? "\u2014")}: {String(gamification?.level_name ?? "Loading progress")}</p>
             </div>
           </motion.div>
         </div>
@@ -279,9 +305,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       {/* ── Mobile bottom nav ── */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[var(--surface)] border-t border-[var(--border)] px-2 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile">
         <div className="flex items-center justify-around h-16">
-          {NAV_SECTIONS[0].items.slice(0, 5).map((item) => {
+          {[NAV_SECTIONS[0].items[0],NAV_SECTIONS[0].items[1],NAV_SECTIONS[1].items[0],NAV_SECTIONS[2].items[0]].map((item) => {
             const Icon = item.icon;
-            const active = item.exactMatch ? pathname === item.href : pathname.startsWith(item.href);
+            const active = item.href === activeHref;
             return (
               <Link
                 key={item.href}
@@ -291,12 +317,15 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
                 aria-label={item.label}
               >
                 <Icon className="w-5 h-5" strokeWidth={active ? 2.2 : 1.8} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[10px] font-medium">{{"/":"Today","/money":"Money","/plan":"Plan","/ai":"Copilot"}[item.href]??item.label}</span>
               </Link>
             );
           })}
+          <button onClick={()=>setToolsOpen(true)} className="flex flex-col items-center justify-center gap-1 flex-1 h-full text-[var(--text-muted)]" aria-label="All tools"><Menu className="w-5 h-5"/><span className="text-[10px]">All tools</span></button>
         </div>
       </nav>
+
+      <Dialog open={toolsOpen} onOpenChange={setToolsOpen}><DialogContent className="max-w-2xl max-h-[85dvh] p-0 gap-0 overflow-hidden rounded-2xl"><div className="p-5 border-b border-[var(--border)]"><DialogTitle>Your financial toolkit</DialogTitle><DialogDescription>Find a workspace, start a task, or explore every tool.</DialogDescription><input autoFocus value={toolQuery} onChange={event=>setToolQuery(event.target.value)} placeholder="Search tools, budgets, accounts..." aria-label="Search tools" className="mt-4 w-full p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-subtle)]"/></div><div className="overflow-y-auto p-3">{NAV_SECTIONS.map(group=>{const items=group.items.filter(item=>(item.label+' '+item.description).toLowerCase().includes(toolQuery.toLowerCase()));return items.length?<section key={group.label}><h3 className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] px-3 py-3">{group.label}</h3><div className="grid sm:grid-cols-2 gap-1">{items.map(item=><Link key={item.href} href={item.href} onClick={()=>{setToolsOpen(false);setToolQuery('');}} className="flex items-center gap-3 p-3 min-h-14 rounded-xl hover:bg-[var(--surface-subtle)]"><item.icon className="h-5 w-5 text-[var(--accent)]"/><div><p className="font-medium text-sm">{item.label}</p><p className="text-xs text-[var(--text-muted)] mt-1">{item.description}</p></div></Link>)}</div></section>:null;})}</div></DialogContent></Dialog>
 
       {/* ── FAB ── */}
       {!fabHidden && (

@@ -348,3 +348,11 @@
 .recharts-tooltip-label { color: var(--foreground) !important; font-weight: 600 !important; }
 .recharts-tooltip-item { color: var(--text-secondary) !important; }
 .recharts-cartesian-grid line { stroke: var(--border-subtle) !important; }
+
+/* Keep compact density on larger screens; touch layouts retain generous spacing. */
+@media (min-width: 768px) {
+  html[data-density="compact"] .premium-card:is(.p-5, .p-6, .p-7, .p-8),
+  html[data-density="compact"] .premium-card-glow:is(.p-5, .p-6, .p-7, .p-8) {
+    padding-block: min(1rem, 3vw);
+  }
+}

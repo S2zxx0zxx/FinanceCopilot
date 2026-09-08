@@ -369,6 +369,9 @@ export class InsightsController {
         try {
             const userId = req.user.userId;
             const { currency, language, theme, density, notification_channels, notification_events, data_retention_days, ai_sharing_consent, analytics_consent, marketing_consent } = req.body;
+            if ((theme !== undefined && !['light','dark','system'].includes(theme)) || (density !== undefined && !['comfortable','compact'].includes(density)) || (currency !== undefined && currency !== 'INR') || (language !== undefined && language !== 'en')) return res.status(422).json({error:'Unsupported display preference.'});
+            if (notification_events !== undefined && (!notification_events || typeof notification_events !== 'object' || Array.isArray(notification_events) || Object.entries(notification_events).some(([key,value])=>!['bills','insights','goals','alerts','streaks'].includes(key)||typeof value!=='boolean'))) return res.status(422).json({error:'Invalid notification events.'});
+            await dbClient.query('INSERT INTO user_preferences(user_id) VALUES($1) ON CONFLICT DO NOTHING',[userId]);
 
             const result = await dbClient.query(
                 `UPDATE user_preferences SET

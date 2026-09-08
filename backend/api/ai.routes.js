@@ -96,7 +96,7 @@ const rateLimitMiddleware = async (req, res, next) => {
 
             // Fetch available insights
             const { rows: insights } = await db.query(
-                `SELECT insight_id, title, tags, confidence, generated_at
+                `SELECT insight_id, title, summary, tags, confidence, generated_at
                  FROM ai_insights
                  WHERE user_id = $1 AND status = 'active'
                  ORDER BY generated_at DESC LIMIT 5`,
@@ -113,6 +113,7 @@ const rateLimitMiddleware = async (req, res, next) => {
                 insights: insights.map(i => ({
                     id: i.insight_id,
                     title: i.title,
+                    summary: i.summary,
                     category: i.tags && i.tags.length > 0 ? i.tags[0] : 'Insight',
                     confidence: i.confidence,
                     createdAt: i.generated_at

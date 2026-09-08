@@ -21,7 +21,7 @@ export class AccountsController {
             const userId = req.user.userId;
             
             const query = `
-                SELECT account_id, account_type, institution_name, currency, is_active, created_at
+                SELECT account_id, account_type, institution_name, account_number_last4, currency, is_active, created_at
                 FROM financial_accounts
                 WHERE user_id = $1
                 ORDER BY created_at DESC
@@ -57,7 +57,7 @@ export class AccountsController {
             const accountId = req.params.id;
 
             const query = `
-                SELECT account_id, account_type, institution_name, currency, is_active, created_at
+                SELECT account_id, account_type, institution_name, account_number_last4, currency, is_active, created_at
                 FROM financial_accounts
                 WHERE user_id = $1 AND account_id = $2
             `;
