@@ -78,7 +78,7 @@ export function Nav() {
             )}
           </button>
 
-          <div className="hidden sm:inline-flex items-center gap-2">
+          <div className="hidden md:inline-flex items-center gap-2">
             {(!isLoaded || !userId) ? (
               <>
                 <SignInButton mode="modal">

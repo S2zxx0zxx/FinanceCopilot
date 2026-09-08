@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sparkles, Flame, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { Sparkles, Flame, TrendingUp } from "lucide-react";
 import { CountUp, Badge, SectionHeader } from "@/components/shared";
 import { getMerchantStyle } from "@/lib/merchant-data";
 import { formatPaise, timeAgo } from "@/lib/format";
@@ -46,6 +46,7 @@ function MerchantAvatar({ merchantName, size = 40 }: Readonly<{ merchantName: st
 export default function HomePage() {
   const state=useResource(loadDashboard);
   if(!state.data) return <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>;
+
   const {data,failures}=state.data;
   const {home:rawHome, spending:rawSpending, game, user:rawUser, money, income}=data;
   const home:Record<string,unknown>={...object(money.net_position??{}),...object(rawHome.safe_to_spend??{}),

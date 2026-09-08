@@ -180,6 +180,18 @@ const loadShellPreferences = async () => object(object(await api.getPreferences(
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
+
+  // Auth routes: render children directly, no shell chrome
+  const isAuthRoute = pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") || pathname.startsWith("/onboarding");
+  if (isAuthRoute) {
+    return <>{children}</>;
+  }
+
+  return <AppShellInner>{children}</AppShellInner>;
+}
+
+function AppShellInner({ children }: Readonly<{ children: React.ReactNode }>) {
+  const pathname = usePathname();
   const preferences = useResource(loadShellPreferences);
   React.useEffect(() => {
     document.documentElement.dataset.density = preferences.data?.density === 'compact' ? 'compact' : 'comfortable';
@@ -205,7 +217,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
   }, []);
 
   return (
-    <div className="min-h-screen flex bg-[var(--bg)]">
+    <div className="min-h-screen flex bg-background">
       {/* ── Desktop Sidebar (floating card design) ── */}
       <aside className="hidden md:flex flex-col w-[260px] shrink-0 fixed inset-y-3 left-3 z-30 rounded-[24px] bg-[var(--surface)] border border-[var(--border)] shadow-[0_4px_24px_rgba(0,0,0,0.06)] overflow-hidden">
         {/* Logo */}

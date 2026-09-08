@@ -125,7 +125,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.85, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-4 flex items-center gap-6"
+            className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3"
           >
             {heroInlineStats.map((s, i) => (
               <div key={i} className="flex flex-col">
