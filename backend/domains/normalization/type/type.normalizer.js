@@ -47,12 +47,12 @@ export class TypeNormalizer {
             return { type: 'cash_withdrawal', sub_type: 'atm' };
         }
 
-        if (text.includes('emi') && direction === 'debit') {
+        if (/\bemi\b/.test(text) && direction === 'debit') {
             return { type: 'emi', sub_type: 'loan_repayment' };
         }
 
         // UPI/Transfer indicators
-        if (text.includes('upi') || text.includes('neft') || text.includes('rtgs') || text.includes('imps')) {
+        if (/\b(self transfer|own account transfer|internal transfer)\b/.test(text)) {
             if (direction === 'debit') return { type: 'transfer_out', sub_type: 'peer_transfer' };
             if (direction === 'credit') return { type: 'transfer_in', sub_type: 'peer_transfer' };
         }

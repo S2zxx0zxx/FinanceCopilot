@@ -1,5 +1,5 @@
 import { AuthInterface } from './auth.interface.js';
-import { createClerkClient } from '@clerk/backend';
+import { createClerkClient, verifyToken } from '@clerk/backend';
 
 /**
  * Clerk Authentication Adapter.
@@ -40,7 +40,7 @@ export class ClerkAuthAdapter extends AuthInterface {
 
     try {
       // For Vite SPA, the token is passed as a Bearer token (JWT)
-      const decodedToken = await this.clerkClient.verifyToken(token, {
+      const decodedToken = await verifyToken(token, {
         secretKey: this.env.CLERK_SECRET_KEY
       });
       
@@ -104,7 +104,7 @@ export class ClerkAuthAdapter extends AuthInterface {
       }));
     } catch (error) {
       console.error(`[Clerk Auth] Failed to list sessions for ${uid}:`, error);
-      return [];
+      throw new Error('Session provider unavailable', { cause: error });
     }
   }
 

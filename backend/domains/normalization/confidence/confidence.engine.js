@@ -31,7 +31,8 @@ export class ConfidenceEngine {
      * @returns {{ score: number, needs_review: boolean, review_reasons: string[] }}
      */
     static calculateConfidence(extractionContext) {
-        let score = extractionContext.parserConfidence || 1.0;
+        const supplied = Number(extractionContext.parserConfidence ?? 0);
+        let score = Number.isFinite(supplied) ? Math.max(0, Math.min(1, supplied)) : 0;
         let needsReview = false;
         const reasons = [];
 

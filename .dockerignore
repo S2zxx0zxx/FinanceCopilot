@@ -1,0 +1,11 @@
+**/node_modules
+**/.next
+.git
+.agents
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+**/*.zip
+coverage
+work

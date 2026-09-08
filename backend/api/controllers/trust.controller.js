@@ -49,7 +49,7 @@ export class TrustController {
         try {
             const db = dbClient;
             const inventory = Object.values(PrivacyPolicies);
-            const { rows: consentOptions } = await db.query('SELECT consent_type as policy_id, consented as granted FROM consent_records WHERE user_id = $1', [req.user.userId]);
+            const { rows: consentOptions } = await db.query("SELECT DISTINCT ON (consent_type) consent_type as policy_id, (consented AND revoked_at IS NULL AND status = 'active') as granted FROM consent_records WHERE user_id = $1 ORDER BY consent_type, granted_at DESC, consent_id DESC", [req.user.userId]);
             
             // Count rows for the user to return a true inventory of data footprint.
             const userId = req.user.userId;
@@ -73,9 +73,10 @@ export class TrustController {
         try {
             const db = dbClient;
             const { id, granted } = req.body;
+            if (typeof granted !== 'boolean' || !Object.hasOwn(PrivacyPolicies,id)) return res.status(422).json({error:'Invalid privacy choice.'});
             const activeVersion = getActivePolicyVersion(id);
             const { rowCount } = await db.query(
-                'INSERT INTO consent_records (user_id, consent_type, version, consented, granted_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING consent_id',
+                "INSERT INTO consent_records (user_id, consent_type, version, consented, granted_at, status) VALUES ($1, $2, $3, $4, NOW(), CASE WHEN $4 THEN 'active' ELSE 'revoked' END) RETURNING consent_id",
                 [req.user.userId, id, activeVersion, granted]
             );
             const updated = rowCount > 0;
@@ -93,7 +94,7 @@ export class TrustController {
             // Delegate to the auth adapter if available; otherwise return a graceful empty list.
             const adapter = req.authAdapter;
             if (adapter && typeof adapter.listSessions === 'function') {
-                const sessions = await adapter.listSessions(req.user.uid ?? req.user.userId);
+                const sessions = await adapter.listSessions(req.user.clerkId);
                 res.json({ sessions: sessions ?? [] });
             } else {
                 res.json({ sessions: [] });
@@ -105,19 +106,25 @@ export class TrustController {
         try {
             // Delegate revocation to the auth provider (Clerk/Firebase).
             const adapter = req.authAdapter;
-            if (!adapter || typeof adapter.revokeSessions !== 'function') {
+            if (!adapter || typeof adapter.listSessions !== 'function' || typeof adapter.revokeSession !== 'function') {
                 return res.status(501).json({ status: 'NOT_SUPPORTED', message: 'Session revocation is handled by the auth provider.' });
             }
             const targetSessionId = req.body.id;
             // FIX (audit P0 #25): req.user has no `uid` — the security middleware
             // attaches { id, userId, clerkId }. Use userId for the DB user and
             // clerkId for the auth-provider identity.
-            const providerUid = req.user?.clerkId || req.user?.userId;
+            const providerUid = req.user?.clerkId;
+            if (!providerUid) return res.status(401).json({ error: 'UNAUTHENTICATED' });
+            const ownedSessions = await adapter.listSessions(providerUid);
             if (req.body.allOther && providerUid) {
                 // Revoke all sessions for the user except the current one.
-                await adapter.revokeSessions(providerUid);
-                res.json({ status: 'REVOKED', count: -1 });
+                const currentId = req.auth?.sessionId;
+                if (!currentId) return res.status(400).json({ error: 'CURRENT_SESSION_REQUIRED' });
+                const targets = ownedSessions.filter(session => session.id !== currentId && session.status === 'active');
+                for (const session of targets) await adapter.revokeSession(session.id);
+                res.json({ status: 'REVOKED', count: targets.length });
             } else if (targetSessionId) {
+                if (!ownedSessions.some(session => session.id === targetSessionId)) return res.status(404).json({ error: 'SESSION_NOT_FOUND' });
                 if (typeof adapter.revokeSession === 'function') {
                     await adapter.revokeSession(targetSessionId);
                 }

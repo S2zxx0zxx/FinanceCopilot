@@ -26,6 +26,7 @@ export class FinancialStateRepo {
                   ${accountFilter}
                   AND duplicate_status != 'duplicate'
                   AND is_deleted = false
+                  AND needs_review = false
                   AND currency = 'INR'
             )
             SELECT 
@@ -63,6 +64,7 @@ export class FinancialStateRepo {
                   AND observed_at <= $3
                   AND duplicate_status != 'duplicate'
                   AND is_deleted = false
+                  AND needs_review = false
                   AND currency = 'INR'
                   AND (posting_status = 'posted' OR posting_status = 'pending')
                   -- Strict parentheses for OR logic (SQL PRECEDENCE SAFEGUARD)
@@ -107,6 +109,8 @@ export class FinancialStateRepo {
               AND observed_at <= $3
               AND duplicate_status != 'duplicate'
               AND is_deleted = false
+              AND needs_review = false
+              AND posting_status = 'posted'
               AND currency = 'INR'
               AND transaction_type = 'income'
         `;

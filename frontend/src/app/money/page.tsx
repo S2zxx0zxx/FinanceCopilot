@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { object, rows } from "@/lib/response";
 import { api } from "@/lib/api";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -32,7 +33,7 @@ function CurrencyNoteCard({ netWorth, posted, pending, coverage }: { netWorth: n
       transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
       style={{ perspective: 1000 }}
       className="relative w-full rounded-2xl overflow-hidden cursor-pointer"
-      onClick={() => setShowDetails(!showDetails)}
+
     >
       {/* Note background — emerald gradient with lathework pattern */}
       <div className="relative p-6 sm:p-8 text-white" style={{
@@ -68,7 +69,6 @@ function CurrencyNoteCard({ netWorth, posted, pending, coverage }: { netWorth: n
             duration={2000}
             className="font-display font-bold text-[40px] sm:text-[48px] leading-none tracking-[-0.03em]"
           />
-          <p className="text-[12px] text-white/40 mt-2 font-mono">≈ ${(netWorth / 100 / 83).toFixed(0)} USD · as of today</p>
         </div>
 
         {/* Bottom: posted + pending */}
@@ -83,21 +83,9 @@ function CurrencyNoteCard({ netWorth, posted, pending, coverage }: { netWorth: n
               <p className="text-[15px] font-display font-semibold tabular-nums text-white/70">{formatPaise(pending, { style: "compact" })}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-white/40">
-            {showDetails ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            <span className="text-[10px] font-mono">{showDetails ? "Hide" : "Tap"}</span>
-          </div>
+
         </div>
 
-        {/* Expandable details */}
-        {showDetails && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="relative mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-4">
-            <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Assets</span><p className="text-[14px] font-semibold tabular-nums" style={{ color: "#34D399" }}>+{formatPaise(2497000 + 1240000, { style: "compact" })}</p></div>
-            <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Liabilities</span><p className="text-[14px] font-semibold tabular-nums" style={{ color: "var(--negative-light)" }}>{formatPaise(45000, { style: "compact" })}</p></div>
-            <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Investments</span><p className="text-[14px] font-semibold tabular-nums">{formatPaise(1240000, { style: "compact" })}</p></div>
-            <div><span className="text-[9px] font-mono uppercase tracking-wider text-white/30">Cash</span><p className="text-[14px] font-semibold tabular-nums">{formatPaise(2497000, { style: "compact" })}</p></div>
-          </motion.div>
-        )}
       </div>
     </motion.div>
   );
@@ -167,7 +155,7 @@ export default function MoneyPage() {
       api.getAccounts(),
       api.getNetWorthHistory()
     ]).then(([money, accs, nw]) => {
-      if (mounted) setData({ money, accounts: accs.accounts || [], netWorthHistory: nw.history || [] });
+      if (mounted) setData({ money, accounts: rows(object(accs).accounts), netWorthHistory: rows(object(nw).history) });
     }).catch(() => {
       // ignore
     }).finally(() => {
@@ -199,7 +187,7 @@ export default function MoneyPage() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.15 }} className="premium-card p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-mono uppercase tracking-wider text-(--text-tertiary)">Net Worth Trend · 12 months</span>
-          <span className="text-[12px] text-(--positive) flex items-center gap-1"><TrendingUp className="w-3 h-3" /> +38% YoY</span>
+          
         </div>
         <div className="h-20">
           <Sparkline data={nwHistory.map((d: any) => d.value / 100)} color="var(--accent)" fill height={80} />

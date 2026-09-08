@@ -42,16 +42,17 @@ export class LLMParserService {
         // 1. Send to AI
         const parsedData = await this.aiAdapter.extractStructuredData(prompt, rawText, schema);
 
-        if (!parsedData || !parsedData.transactions) {
+        if (!Array.isArray(parsedData?.transactions) || !parsedData.transactions.length || parsedData.transactions.length > 50000 || parsedData.transactions.some(tx => !tx || ['raw_date_text','raw_description_text','raw_amount_text'].some(key => typeof tx[key] !== 'string' || tx[key].length > 10000))) {
             throw new Error('AI Parser failed to return expected raw transactions structure.');
         }
 
         // Return the RAW records for insertion into source_records
-        return parsedData.transactions.map(tx => ({
+        return parsedData.transactions.map((tx,index) => ({
             ...tx,
             parser_used: 'llm_parser',
             parser_version: '1.0.0',
-            extraction_confidence: 0.85 // Heuristic confidence for LLM
+            row_number:index+1,
+            extraction_confidence: 0 // Model extraction requires review; no measured certainty is available.
         }));
     }
 }

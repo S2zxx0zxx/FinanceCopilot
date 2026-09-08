@@ -55,6 +55,7 @@ export class BudgetsController {
             if (!category || budgeted_paise == null) {
                 return res.status(422).json({ error: 'VALIDATION_ERROR', message: 'category and budgeted_paise are required' });
             }
+            if (typeof category !== 'string' || !category.trim() || category.length > 80 || !Number.isSafeInteger(budgeted_paise) || budgeted_paise <= 0 || !['monthly','weekly','yearly'].includes(period)) return res.status(422).json({error:'Invalid category, budget amount or period.'});
             const query = `
                 INSERT INTO budgets (user_id, category, budgeted_paise, period)
                 VALUES ($1, $2, $3, $4)

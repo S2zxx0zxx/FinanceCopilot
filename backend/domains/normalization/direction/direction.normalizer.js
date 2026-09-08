@@ -33,6 +33,7 @@ export class DirectionNormalizer {
         } else {
             // No explicit column, rely entirely on the sign
             determinedDirection = isNegativeAmount ? 'debit' : 'credit'; // Assume positive amounts in single-column are credits (standard convention, though risky).
+            conflict = !isNegativeAmount; // Unsigned amounts do not establish income; require review.
             // Actually, in many bank statements, single-column amounts use negative for debits.
         }
 

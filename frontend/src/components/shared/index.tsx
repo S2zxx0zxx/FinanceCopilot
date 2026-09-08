@@ -269,7 +269,7 @@ export function CountUp({
     const tick = (now: number) => {
       const p = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(2, -10 * p);
-      setDisplay(value * eased);
+      setDisplay(p >= 1 ? value : value * eased);
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

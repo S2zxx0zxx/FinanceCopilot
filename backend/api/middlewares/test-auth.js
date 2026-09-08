@@ -1,6 +1,6 @@
 export const testAuthMiddleware = (req, res, next) => {
     // ONLY allowed when NODE_ENV is testing/development
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV !== 'test' || process.env.ENABLE_TEST_AUTH !== 'true') {
         return next();
     }
     

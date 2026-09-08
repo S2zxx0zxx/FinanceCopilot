@@ -19,7 +19,10 @@ out/
 Thumbs.db
 
 # Logs
-coverage/
+/coverage/
+**/coverage/lcov.info
+**/coverage/lcov-report/
+**/public/*.zip
 *.log
 
 # Turbopack / Next.js cache

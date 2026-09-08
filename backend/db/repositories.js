@@ -16,8 +16,8 @@ export const AuditRepo = {
 export const ConsentRepo = {
     async saveConsent({ user_id, consent_type, version, ip_hash, user_agent, granted_at }) {
         const text = `
-            INSERT INTO consent_records (user_id, consent_type, version, consented, ip_hash, user_agent, granted_at)
-            VALUES ($1, $2, $3, true, $4, $5, $6)
+            INSERT INTO consent_records (user_id, consent_type, version, consented, ip_hash, user_agent, granted_at, status)
+            VALUES ($1, $2, $3, true, $4, $5, $6, 'active')
             RETURNING *;
         `;
         const res = await dbClient.query(text, [user_id, consent_type, version, ip_hash, user_agent, granted_at]);
@@ -108,6 +108,14 @@ export const ConsentRepo = {
 
 
 export const IngestionRepo = {
+    async getOwnedImportAccount(userId, accountId) {
+        const result = await dbClient.query('SELECT account_id FROM financial_accounts WHERE user_id = $1 AND account_id = $2 AND is_active = true', [userId, accountId]);
+        return result.rows[0] || null;
+    },
+    async confirmImportJob(userId, jobId, checksum) {
+        const result = await dbClient.query("UPDATE import_jobs SET status = 'queued', file_checksum = $3, updated_at = NOW() WHERE user_id = $1 AND job_id = $2 AND status = 'received' RETURNING *", [userId, jobId, checksum]);
+        return result.rows[0] || null;
+    },
     /**
      * Creates a new import job (Intent).
      * Now strictly records original_filename, content_type, and correlation_id.
@@ -115,8 +123,8 @@ export const IngestionRepo = {
     async createImportJob(data) {
         const { user_id, idempotency_key, job_type, file_ref, original_filename, content_type, correlation_id } = data;
         const text = `
-            INSERT INTO import_jobs (user_id, idempotency_key, job_type, file_ref, original_filename, content_type, correlation_id, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, 'received')
+            INSERT INTO import_jobs (user_id, idempotency_key, job_type, file_ref, original_filename, content_type, correlation_id, status, account_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'received', $8)
             ON CONFLICT (user_id, idempotency_key) DO UPDATE SET 
                 file_ref = EXCLUDED.file_ref,
                 original_filename = EXCLUDED.original_filename,
@@ -124,7 +132,7 @@ export const IngestionRepo = {
                 correlation_id = EXCLUDED.correlation_id
             RETURNING *;
         `;
-        const values = [user_id, idempotency_key, job_type, file_ref, original_filename, content_type, correlation_id];
+        const values = [user_id, idempotency_key, job_type, file_ref, original_filename, content_type, correlation_id, data.account_id || null];
         const res = await dbClient.query(text, values);
         return res.rows[0];
     },
@@ -171,7 +179,7 @@ export const IngestionRepo = {
         return res.rows[0] || null;
     },
 
-    async createSourceRecord(record) {
+    async createSourceRecord(record, connection = dbClient) {
         const text = `
             INSERT INTO source_records (
                 user_id, import_job_id, file_ref, parser_used, parser_version,
@@ -179,10 +187,11 @@ export const IngestionRepo = {
                 raw_date_text, raw_amount_text, raw_currency_text, raw_direction_text,
                 raw_merchant_text, raw_description_text, raw_reference_text,
                 extracted_observed_at, extracted_amount_paise, extracted_direction,
-                extraction_confidence
+                extraction_confidence, dedupe_key
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
             )
+            ON CONFLICT (user_id, dedupe_key) DO NOTHING
             RETURNING *;
         `;
         const values = [
@@ -191,9 +200,9 @@ export const IngestionRepo = {
             record.raw_date_text, record.raw_amount_text, record.raw_currency_text, record.raw_direction_text,
             record.raw_merchant_text, record.raw_description_text, record.raw_reference_text,
             record.extracted_observed_at, record.extracted_amount_paise, record.extracted_direction,
-            record.extraction_confidence || 1.0
+            record.extraction_confidence ?? 0, record.dedupe_key || null
         ];
-        const res = await dbClient.query(text, values);
+        const res = await connection.query(text, values);
         return res.rows[0];
     },
 
@@ -204,7 +213,8 @@ export const IngestionRepo = {
      * Uses FOR UPDATE SKIP LOCKED to prevent concurrent workers from claiming the same job.
      */
     async claimNextJob(specificJobId = null) {
-        let condition = `status = 'queued' OR (status = 'processing' AND next_retry_at < NOW())`;
+        await dbClient.query("UPDATE import_jobs SET status='dead_letter', last_error='Worker lease expired after maximum attempts', lease_token=NULL, lease_expires_at=NULL WHERE status='processing' AND lease_expires_at < NOW() AND attempt >= max_attempts");
+        let condition = `((status = 'queued' AND (next_retry_at IS NULL OR next_retry_at <= NOW())) OR (status = 'processing' AND lease_expires_at < NOW())) AND attempt < max_attempts`;
         let params = [];
         if (specificJobId) {
             condition = `job_id = $1 AND (${condition})`;
@@ -212,7 +222,8 @@ export const IngestionRepo = {
         }
         const text = `
             UPDATE import_jobs
-            SET status = 'processing', updated_at = NOW()
+            SET status = 'processing', updated_at = NOW(), attempt = attempt + 1,
+                lease_token = gen_random_uuid(), lease_expires_at = NOW() + INTERVAL '5 minutes', next_retry_at = NULL
             WHERE job_id = (
                 SELECT job_id FROM import_jobs 
                 WHERE ${condition}
@@ -311,8 +322,7 @@ export const NormalizationRepo = {
             SELECT fa.account_id
             FROM source_records sr
             JOIN import_jobs ij ON sr.import_job_id = ij.job_id
-            JOIN source_connections sc ON ij.connection_id = sc.connection_id
-            JOIN financial_accounts fa ON sc.connection_id = fa.source_connection_id
+            JOIN financial_accounts fa ON fa.account_id = ij.account_id AND fa.user_id = sr.user_id AND fa.is_active = true
             WHERE sr.source_record_id = $1
             LIMIT 1;
         `;
@@ -336,9 +346,9 @@ export const NormalizationRepo = {
                     category_id, category_raw, category_confidence,
                     transaction_type, sub_type, reference_id, description, notes,
                     overall_confidence, needs_review, review_reason,
-                    normalization_version, is_manual
+                    normalization_version, is_manual, posting_status
                 ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
                 )
                 ON CONFLICT (source_record_id, normalization_version) DO NOTHING
                 RETURNING *;
@@ -351,7 +361,7 @@ export const NormalizationRepo = {
                 transaction.category_id, transaction.category_raw, transaction.category_confidence,
                 transaction.transaction_type, transaction.sub_type, transaction.reference_id, transaction.description, transaction.notes,
                 transaction.overall_confidence, transaction.needs_review, transaction.review_reason,
-                transaction.normalization_version, false
+                transaction.normalization_version, false, transaction.needs_review ? 'pending' : 'posted'
             ];
 
             const txRes = await client.query(txInsert, txValues);

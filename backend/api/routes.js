@@ -3,6 +3,7 @@ import { requireAuth } from './middlewares/security.js';
 import { IngestionController } from './controllers/ingestion.controller.js';
 import { FinancialController } from './controllers/financial.controller.js';
 import { AccountsController } from './controllers/accounts.controller.js';
+import { requireConsent } from './middlewares/consent.js';
 import { TransactionsController } from './controllers/transactions.controller.js';
 import { SearchController } from './controllers/search.controller.js';
 // Phase 7 — Planning
@@ -52,8 +53,8 @@ export function setupRoutes(app, dependencies) {
     const ingestionController = new IngestionController(dependencies.ingestionService);
 
     // ── Phase 2: Ingestion / Import ───────────────────────────────────────────
-    router.post('/import/upload-intent', requireAuth, (req, res) => ingestionController.initiateUpload(req, res));
-    router.post('/import/confirm',       requireAuth, (req, res) => ingestionController.confirmUpload(req, res));
+    router.post('/import/upload-intent', requireAuth, requireConsent('privacy_policy'), (req, res) => ingestionController.initiateUpload(req, res));
+    router.post('/import/confirm',       requireAuth, requireConsent('privacy_policy'), (req, res) => ingestionController.confirmUpload(req, res));
     router.post('/import/replay/:job_id', requireAuth, (req, res) => ingestionController.replayJob(req, res));
 
     // ── Phase 6: Financial State BFF ──────────────────────────────────────────
@@ -65,6 +66,7 @@ export function setupRoutes(app, dependencies) {
 
     // ── Phase 6: Accounts ─────────────────────────────────────────────────────
     router.get('/accounts',     requireAuth, AccountsController.getAccounts);
+    router.post('/accounts', requireAuth, AccountsController.createAccount);
     router.get('/accounts/:id', requireAuth, AccountsController.getAccountDetail);
 
     // ── Phase 6: Transactions ─────────────────────────────────────────────────
@@ -165,7 +167,9 @@ export function setupRoutes(app, dependencies) {
     router.get('/data-quality',                         requireAuth, DataQualityController.getQualityMetrics);
 
     // ── Dev ───────────────────────────────────────────────────────────────────
-    router.post('/dev/seed',                            requireAuth, DevController.seedUser);
+    if (process.env.NODE_ENV === 'development' && process.env.ENABLE_DEMO_SEED === 'true') {
+        router.post('/dev/seed', requireAuth, DevController.seedUser);
+    }
 
     // ── Auth Profile & Security (frontend expects /auth/* paths) ─────────────
     router.get('/auth/me',                              requireAuth, async (req, res, next) => {
@@ -275,4 +279,3 @@ export function setupRoutes(app, dependencies) {
 
     console.log('[API] Routes initialized — Phase 8 forecast routes active.');
 }
-

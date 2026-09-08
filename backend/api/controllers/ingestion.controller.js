@@ -15,13 +15,13 @@ export class IngestionController {
     async initiateUpload(req, res) {
         try {
             const userId = req.user.userId; // From requireAuth middleware
-            const { fileName, mimeType, correlationId } = req.body;
+            const { fileName, mimeType, correlationId, account_id } = req.body;
 
             if (!fileName || !mimeType) {
                 return res.status(400).json({ error: 'fileName and mimeType are required.' });
             }
 
-            const intent = await this.ingestionService.initiateUpload(userId, fileName, mimeType, correlationId);
+            const intent = await this.ingestionService.initiateUpload(userId, fileName, mimeType, correlationId, account_id);
 
             return res.status(201).json({
                 message: 'Upload intent created. Use the upload_url to PUT the file.',
