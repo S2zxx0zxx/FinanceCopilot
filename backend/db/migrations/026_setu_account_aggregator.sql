@@ -17,6 +17,29 @@ ALTER TABLE import_jobs
 ADD CONSTRAINT import_jobs_job_type_check
 CHECK (job_type IN ('pdf','csv','excel','ocr','manual','account_aggregator'));
 
+-- Setu's current consent lifecycle includes REJECTED, PAUSED and EXPIRED in
+-- addition to PENDING/ACTIVE/REVOKED. Migration 018 only allowed the latter
+-- three, so real notifications would otherwise fail at the DB boundary.
+DO $$
+DECLARE
+    constraint_name text;
+BEGIN
+    SELECT conname INTO constraint_name
+    FROM pg_constraint
+    WHERE conrelid = 'consent_records'::regclass
+      AND contype = 'c'
+      AND pg_get_constraintdef(oid) ILIKE '%status%pending%active%revoked%'
+    LIMIT 1;
+
+    IF constraint_name IS NOT NULL THEN
+        EXECUTE format('ALTER TABLE consent_records DROP CONSTRAINT %I', constraint_name);
+    END IF;
+END $$;
+
+ALTER TABLE consent_records
+ADD CONSTRAINT consent_records_status_check
+CHECK (status IN ('pending','active','rejected','revoked','paused','expired'));
+
 CREATE INDEX IF NOT EXISTS idx_source_connections_aggregator
     ON source_connections (user_id, institution_id)
     WHERE source_type = 'aggregator_future';
