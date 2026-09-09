@@ -65,7 +65,12 @@ export class TrustController {
                 { category: 'Financial commitments', description: 'Recurring bills and EMIs', record_count: parseInt(commitmentsCount, 10) }
             ];
 
-            res.json({ inventory, consentOptions, data_inventory: dataFootprint });
+            const { rows: consentHistory } = await db.query(
+                `SELECT consent_id, consent_type, version, consented, status, granted_at, revoked_at
+                 FROM consent_records WHERE user_id = $1
+                 ORDER BY granted_at DESC, consent_id DESC LIMIT 50`, [userId]
+            );
+            res.json({ inventory, consentOptions, data_inventory: dataFootprint, consent_history: consentHistory });
         } catch (err) { next(err); }
     }
 

@@ -96,3 +96,5 @@ No production database migration or live deployment was performed in this resume
 
 - Bills lifecycle actions now call the owned-series PATCH endpoint: confirm reviewable patterns, activate confirmed patterns, pause/resume tracking and dismiss nonterminal patterns. Missing monthly amounts are counted explicitly; unknown confidence no longer creates invalid CSS.
 - TypeScript verification passed after the Export/Bills changes. Export format validation and safe download protocols added. No live provider delivery or deployment is claimed.
+
+- Privacy expanded from the simplified list into responsive inventory cards, consent switches, retention explanation, real latest-50 consent timeline and export/deletion cards. Backend history is user-scoped and excludes IP/user-agent metadata. Auth-switch responses are fenced. TypeScript passed. Retention execution and deletion completion remain open.
