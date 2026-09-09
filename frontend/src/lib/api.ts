@@ -1,3 +1,4 @@
+import { object, rows } from "./response";
 // ============================================================================
 // FinCopilot API Client — Real API calls to backend with Clerk auth
 // ============================================================================
@@ -8,32 +9,14 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 // ── Token Management ────────────────────────────────────────────────────────
-let _cachedToken: string | null = null;
-let _tokenExpiry: number = 0;
+type ClerkSession = { getToken(): Promise<string | null> };
+type ClerkWindow = Window & { Clerk?: { session?: ClerkSession | null } };
 
 export async function getAuthToken(): Promise<string | null> {
-  // Try Clerk token from window (set by ClerkProvider)
-  if (typeof window !== "undefined") {
-    // Clerk stores token in __clerk_client_jwt or we use the Clerk session
-    const clerkToken = (window as any).__clerk_session_token;
-    if (clerkToken && Date.now() < _tokenExpiry) return clerkToken;
-
-    // Try to get fresh token from Clerk
-    try {
-      const clerk = (window as any).Clerk;
-      if (clerk?.session) {
-        const token = await clerk.session.getToken();
-        if (token) {
-          _cachedToken = token;
-          _tokenExpiry = Date.now() + 50 * 1000; // 50 seconds
-          return token;
-        }
-      }
-    } catch {
-      // Clerk not loaded yet — return null
-    }
-  }
-  return _cachedToken;
+  if (typeof window === "undefined") return null;
+  const clerk = (window as ClerkWindow).Clerk;
+  if (!clerk?.session) return null;
+  return clerk.session.getToken();
 }
 
 // ── Fetch Wrapper ──────────────────────────────────────────────────────────
@@ -50,16 +33,6 @@ async function apiFetch<T>(
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  // Dev bypass (localhost only)
-  const isDev =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1");
-  if (isDev && !token) {
-    headers["X-Dev-Bypass"] = "true";
-    headers["X-Dev-User-Id"] = "seed_user";
   }
 
   const url = endpoint.startsWith("http")
@@ -106,18 +79,33 @@ export const api = {
 
   // ── Accounts ───────────────────────────────────────────────────────────────
   getAccounts: () => apiFetch("/accounts"),
+  createAccount: (data: {institution_name:string;account_type:string;account_number_last4?:string}) => apiFetch('/accounts', {method:'POST',body:JSON.stringify(data)}),
   getAccountDetail: (id: string) => apiFetch(`/accounts/${id}`),
+
+  // ── Import / Upload ────────────────────────────────────────────────────────
+  initiateUpload: (fileName: string, mimeType: string, account_id: string) =>
+    apiFetch("/import/upload-intent", { method: "POST", body: JSON.stringify({ fileName, mimeType, account_id }) }),
+  confirmUpload: (jobId: string, storageKey: string) =>
+    apiFetch("/import/confirm", { method: "POST", body: JSON.stringify({ job_id: jobId, storage_key: storageKey }) }),
 
   // ── Transactions ────────────────────────────────────────────────────────────
   getTransactions: (params?: Record<string, string>) => {
     const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
-    return apiFetch(`/transactions${qs}`);
+    return apiFetch(`/transactions${qs}`).then(value => {
+      const response=object(value);
+      return {...response, transactions:rows(response.data).map(row=>({...row,
+        merchant_name:row.merchant_normalized,
+        category:row.transaction_type,
+        pending:row.posting_status==='pending',
+      }))};
+    });
   },
   getTransactionDetail: (id: string) => apiFetch(`/transactions/${id}`),
 
   // ── Goals ───────────────────────────────────────────────────────────────────
   getGoals: () => apiFetch("/goals"),
   getGoalDetail: (id: string) => apiFetch(`/goals/${id}`),
+  addGoalContribution: (id:string,amountPaise:number,idempotencyKey:string) => apiFetch(`/goals/${id}/contributions`,{method:'POST',headers:{'Idempotency-Key':idempotencyKey},body:JSON.stringify({amount_paise:amountPaise,source_type:'manual'})}),
   createGoal: (data: any) =>
     apiFetch("/goals", { method: "POST", body: JSON.stringify(data) }),
   updateGoal: (id: string, data: any) =>
@@ -158,6 +146,7 @@ export const api = {
     apiFetch("/forecast/scenario", { method: "POST", body: JSON.stringify(data) }),
 
   // ── Cashflow ────────────────────────────────────────────────────────────────
+  getCashflowHistory: (period:string) => apiFetch(`/financial/cashflow/history?period=${encodeURIComponent(period)}`),
   getCashflow: (period?: string) =>
     apiFetch(`/financial/cashflow${period ? `?period=${period}` : ""}`),
 
@@ -209,7 +198,7 @@ export const api = {
     apiFetch("/trust/privacy/consent", { method: "POST", body: JSON.stringify(data) }),
   getSecuritySessions: () => apiFetch("/trust/security/sessions"),
   revokeSession: (id: string) =>
-    apiFetch(`/trust/security/sessions/revoke`, { method: "POST", body: JSON.stringify({ session_id: id }) }),
+    apiFetch(`/trust/security/sessions/revoke`, { method: "POST", body: JSON.stringify({ id }) }),
   requestExport: (format?: string) =>
     apiFetch("/trust/export", { method: "POST", body: JSON.stringify({ format: format || "csv" }) }),
   requestDeletion: () =>

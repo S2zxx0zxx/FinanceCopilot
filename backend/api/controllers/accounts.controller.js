@@ -2,6 +2,16 @@ import { dbClient } from '../../db/client.js';
 import { FinancialStateRepo } from '../../db/repositories/financial_state.repo.js';
 
 export class AccountsController {
+    static async createAccount(req, res, next) {
+        try {
+            const { institution_name, account_type = 'savings', account_number_last4 } = req.body;
+            if (typeof institution_name !== 'string' || !institution_name.trim() || institution_name.length > 120 || !['savings','current','credit_card','loan','investment','wallet','cash'].includes(account_type) || (account_number_last4 && !/^\d{4}$/.test(account_number_last4))) {
+                return res.status(422).json({error:'Enter a valid institution, account type and optional last four digits.'});
+            }
+            const result = await dbClient.query(`INSERT INTO financial_accounts (user_id, institution_name, account_type, account_number_last4) VALUES ($1,$2,$3,$4) RETURNING account_id, institution_name, account_type`, [req.user.userId,institution_name.trim(),account_type,account_number_last4 || null]);
+            res.status(201).json({account:result.rows[0]});
+        } catch(error) { next(error); }
+    }
     /**
      * GET /api/v1/accounts
      * Returns a list of all connected accounts for the user.
@@ -11,7 +21,7 @@ export class AccountsController {
             const userId = req.user.userId;
             
             const query = `
-                SELECT account_id, account_type, institution_name, currency, is_active, created_at
+                SELECT account_id, account_type, institution_name, account_number_last4, currency, is_active, created_at
                 FROM financial_accounts
                 WHERE user_id = $1
                 ORDER BY created_at DESC
@@ -47,7 +57,7 @@ export class AccountsController {
             const accountId = req.params.id;
 
             const query = `
-                SELECT account_id, account_type, institution_name, currency, is_active, created_at
+                SELECT account_id, account_type, institution_name, account_number_last4, currency, is_active, created_at
                 FROM financial_accounts
                 WHERE user_id = $1 AND account_id = $2
             `;

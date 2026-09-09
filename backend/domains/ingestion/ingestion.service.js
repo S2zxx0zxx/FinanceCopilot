@@ -1,5 +1,6 @@
 import { AppError } from '../../utils/errors.js';
 import { AuditRepo } from '../../db/repositories.js';
+import { randomUUID, createHash } from 'node:crypto';
 
 /**
  * Ingestion Service
@@ -18,12 +19,14 @@ export class IngestionService {
      * Initializes the upload process by issuing a Presigned URL.
      * The client will use this URL to upload directly to R2.
      */
-    async initiateUpload(userId, fileName, mimeType, correlationId = null) {
+    async initiateUpload(userId, fileName, mimeType, correlationId = null, accountId = null) {
         // 1. Strict Validation
         this.validateFileType(mimeType, fileName);
+        if (typeof fileName !== 'string' || fileName.length > 255) throw new AppError('Invalid filename', 400);
+        if (!accountId || !await this.dbRepository.getOwnedImportAccount(userId, accountId)) throw new AppError('Select an active account you own.', 422);
 
         // 2. Generate Deterministic Key
-        const timestamp = Date.now();
+        const timestamp = randomUUID();
         const idempotencyKey = `upload_${userId}_${timestamp}`;
         const secureKey = `statements/${userId}/${timestamp}_${fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
         const bucketName = process.env.R2_BUCKET_NAME || 'fincopilot-raw';
@@ -46,6 +49,7 @@ export class IngestionService {
                 original_filename: fileName,
                 content_type: mimeType,
                 correlation_id: correlationId
+                ,account_id: accountId
             });
 
             await AuditRepo.logEvent('UPLOAD_INITIATED', 'import_job', importJob.job_id, userId, {
@@ -79,27 +83,14 @@ export class IngestionService {
         if (!checkOwnership || checkOwnership.user_id !== userId) {
             throw new AppError('Unauthorized access to this import job.', 403);
         }
-
-        if (checksum) {
-            await this.dbRepository.updateImportJobChecksum(jobId, checksum);
-        }
-
-        // Here we enqueue the job for the worker to start parsing
-        await this.queueAdapter.enqueue('statement_processing_queue', {
-            jobId: jobId,
-            userId: userId,
-            storageKey: storageKey
-        });
-
-        await this.dbRepository.updateImportJobStatus(jobId, 'queued');
-
-        await AuditRepo.logEvent('UPLOAD_CONFIRMED', 'import_job', jobId, userId, {
-            storage_key: storageKey,
-            checksum: checksum,
-            correlation_id: checkOwnership.correlation_id
-        });
-
-        return { status: 'queued' };
+        if (checkOwnership.file_ref !== storageKey) throw new AppError('Storage key does not match this upload.', 400);
+        if (checkOwnership.status !== 'received') return { status: checkOwnership.status };
+        const contents = await this.storageAdapter.downloadFile(process.env.R2_BUCKET_NAME || 'fincopilot-raw', storageKey);
+        if (!contents.length || contents.length > 10 * 1024 * 1024) throw new AppError('Statement must be between 1 byte and 10 MB.', 422);
+        const verifiedChecksum = createHash('sha256').update(contents).digest('hex');
+        if (checksum && checksum !== verifiedChecksum) throw new AppError('Statement checksum mismatch.', 422);
+        const confirmed = await this.dbRepository.confirmImportJob(userId, jobId, verifiedChecksum);
+        return { status: confirmed?.status || (await this.dbRepository.getImportJob(jobId)).status };
     }
 
     validateFileType(mimeType, _fileName) {

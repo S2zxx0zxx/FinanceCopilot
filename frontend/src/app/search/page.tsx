@@ -10,7 +10,8 @@ import {
 
 import { formatPaise, formatDate, timeAgo, categoryIcon } from "@/lib/format";
 import { Badge, EmptyState } from "@/components/shared";
-import { recentTransactions, accounts, goals } from "@/lib/data";
+import { useAuth } from "@clerk/nextjs";
+import { object,rows,label,amount } from "@/lib/response";
 import { api } from "@/lib/api";
 
 const SUGGESTED_SEARCHES = [
@@ -25,13 +26,9 @@ const SUGGESTED_SEARCHES = [
 ];
 
 export default function SearchPage() {
-  ;
+  const {isLoaded,userId}=useAuth();
   const [query, setQuery] = React.useState("");
-  const [recent, setRecent] = React.useState<string[]>([
-    "Netflix",
-    "HDFC Bank",
-    "Emergency Fund",
-  ]);
+  const [recent, setRecent] = React.useState<string[]>([]);
   const [focused, setFocused] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -42,97 +39,29 @@ export default function SearchPage() {
 
   const q = query.trim().toLowerCase();
 
-  const results = React.useMemo(() => {
-    if (!q) return { transactions: [], accounts: [], goals: [], total: 0 };
-
-    const tx = recentTransactions.filter(
-      (t) =>
-        t.merchant_name.toLowerCase().includes(q) ||
-        t.category.toLowerCase().includes(q) ||
-        (t.subcategory?.toLowerCase().includes(q) ?? false) ||
-        (t.notes?.toLowerCase().includes(q) ?? false),
-    );
-
-    const accts = accounts.filter(
-      (a) =>
-        a.institution_name.toLowerCase().includes(q) ||
-        a.account_type.toLowerCase().includes(q) ||
-        a.account_number_last4.includes(q),
-    );
-
-    const gls = goals.filter(
-      (g) =>
-        g.name.toLowerCase().includes(q) ||
-        g.goal_type.toLowerCase().includes(q),
-    );
-
-    return {
-      transactions: tx,
-      accounts: accts,
-      goals: gls,
-      total: tx.length + accts.length + gls.length,
-    };
-  }, [q, recentTransactions, accounts, goals]);
-
-  // Hit the backend search endpoint (debounced) for authoritative results.
-  // Results from the server are merged in if available; the client-side
-  // filter remains the source of truth while we wait.
-  const [serverResults, setServerResults] = React.useState<{
-    transactions: typeof recentTransactions;
-    accounts: typeof accounts;
-    goals: typeof goals;
-  } | null>(null);
-
-  React.useEffect(() => {
-    if (!q) {
-      setServerResults(null);
-      return;
-    }
-    const handle = setTimeout(async () => {
-      try {
-        const res: any = await api.search(q);
-        const tx = res?.transactions || res?.data?.transactions || [];
-        const accts = res?.accounts || res?.data?.accounts || [];
-        const gls = res?.goals || res?.data?.goals || [];
-        setServerResults({ transactions: tx, accounts: accts, goals: gls });
-      } catch {
-        // Server search unavailable — keep using client filter.
-        setServerResults(null);
-      }
-    }, 250); // 250ms debounce
-    return () => clearTimeout(handle);
-  }, [q]);
-
-  const mergedResults = React.useMemo(() => {
-    if (!serverResults) return results;
-    const seenTx = new Set(results.transactions.map((t) => t.transaction_id));
-    const seenAc = new Set(results.accounts.map((a) => a.account_id));
-    const seenGl = new Set(results.goals.map((g) => g.goal_id));
-    const extraTx = serverResults.transactions.filter(
-      (t: any) => t && !seenTx.has(t.transaction_id),
-    );
-    const extraAc = serverResults.accounts.filter(
-      (a: any) => a && !seenAc.has(a.account_id),
-    );
-    const extraGl = serverResults.goals.filter(
-      (g: any) => g && !seenGl.has(g.goal_id),
-    );
-    return {
-      transactions: [...results.transactions, ...extraTx],
-      accounts: [...results.accounts, ...extraAc],
-      goals: [...results.goals, ...extraGl],
-      total:
-        results.transactions.length +
-        results.accounts.length +
-        results.goals.length +
-        extraTx.length +
-        extraAc.length +
-        extraGl.length,
-    };
-  }, [results, serverResults]);
-
-  const hasQuery = q.length > 0;
-  const noResults = hasQuery && mergedResults.total === 0;
+  const [searchState,setSearchState]=React.useState<{owner:string|null|undefined;query:string;data:Record<string,any[]>;loading:boolean;error:string|null}>({owner:null,query:'',data:{},loading:false,error:null});
+  React.useEffect(()=>{setRecent([]);setQuery('');},[userId]);
+  React.useEffect(()=>{
+    let active=true;
+    if(!isLoaded||!userId||q.length<2)return;
+    setSearchState({owner:userId,query:q,data:{},loading:true,error:null});
+    const handle=setTimeout(()=>{api.search(q).then(value=>{
+      if(!active)return;const result=object(value);
+      setSearchState({owner:userId,query:q,data:{
+        transactions:rows(result.transactions).map(row=>({...row,merchant_name:label(row.merchant_normalized),category:label(row.transaction_type),date:label(row.observed_at,''),pending:row.posting_status==='pending'})),
+        accounts:rows(result.accounts).map(row=>({...row,account_type:label(row.account_type),account_number_last4:label(row.account_number_last4,'Unavailable')})),
+        goals:rows(result.goals).map(row=>({...row,goal_type:label(row.goal_type),pace:{progress_pct:amount(row.target_amount_paise)&&amount(row.current_amount_paise)!==null?Math.round((amount(row.current_amount_paise)!/amount(row.target_amount_paise)!)*100):null}}))
+      },loading:false,error:null});
+    }).catch(error=>{if(active)setSearchState({owner:userId,query:q,data:{},loading:false,error:error instanceof Error?error.message:'Search unavailable.'});});},250);
+    return()=>{active=false;clearTimeout(handle);};
+  },[q,isLoaded,userId]);
+  const visible=searchState.owner===userId&&searchState.query===q;
+  const transactions=visible?searchState.data.transactions??[]:[];
+  const accounts=visible?searchState.data.accounts??[]:[];
+  const goals=visible?searchState.data.goals??[]:[];
+  const mergedResults={transactions,accounts,goals,total:transactions.length+accounts.length+goals.length};
+  const hasQuery=q.length>=2;
+  const noResults=hasQuery&&visible&&!searchState.loading&&!searchState.error&&mergedResults.total===0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,6 +81,9 @@ export default function SearchPage() {
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
+      {hasQuery&&(!visible||searchState.loading)&&<p role="status" className="text-sm text-(--text-secondary)">Searching your records...</p>}
+      {visible&&searchState.error&&<p role="alert" className="premium-card p-4 text-red-500">{searchState.error}</p>}
+      {q.length===1&&<p className="text-xs text-(--text-secondary)">Enter at least two characters.</p>}
       {/* ── Header with back button ──────────────────────── */}
       <motion.header
         initial={{ opacity: 0, y: 12 }}
@@ -167,7 +99,7 @@ export default function SearchPage() {
           <ArrowLeft className="w-[18px] h-[18px]" />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">Search</h1>
+          <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">Find anything</h1>
           <p className="text-[13px] text-(--text-secondary) mt-0.5">
             Transactions, accounts, and goals
           </p>
@@ -443,7 +375,7 @@ export default function SearchPage() {
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-[14px] font-semibold tabular-nums">
-                              {formatPaise(acc.balances.available_balance_paise, { style: "compact" })}
+                              View account
                             </span>
                             <ArrowUpRight className="w-3.5 h-3.5 text-(--text-tertiary) group-hover:text-accent transition-colors" />
                           </div>
@@ -487,12 +419,12 @@ export default function SearchPage() {
                               <Badge label={goal.goal_type.replace(/_/g, " ")} variant="neutral" />
                             </div>
                             <p className="text-[12px] text-(--text-tertiary) truncate">
-                              {formatPaise(goal.current_amount_paise)} of {formatPaise(goal.target_amount_paise)}
+                              {amount(goal.current_amount_paise)===null?"Unavailable":formatPaise(amount(goal.current_amount_paise)!)} of {amount(goal.target_amount_paise)===null?"Unavailable":formatPaise(amount(goal.target_amount_paise)!)}
                             </p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-[14px] font-semibold tabular-nums">
-                              {goal.pace.progress_pct}%
+                              {goal.pace.progress_pct===null?"Progress unavailable":`${goal.pace.progress_pct}%`}
                             </span>
                             <ArrowUpRight className="w-3.5 h-3.5 text-(--text-tertiary) group-hover:text-accent transition-colors" />
                           </div>

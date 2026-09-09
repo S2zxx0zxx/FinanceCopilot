@@ -171,7 +171,7 @@ export class GoalsService {
         if (['abandoned', 'completed'].includes(goal.status))
             throw new AppError('Cannot add contribution to a completed or abandoned goal', 422, true, 'INVALID_STATE');
 
-        if (!data.amount_paise || Number(data.amount_paise) <= 0)
+        if (!Number.isSafeInteger(data.amount_paise) || data.amount_paise <= 0)
             throw new AppError('amount_paise must be a positive integer', 422, true, 'VALIDATION_ERROR');
         if (!data.idempotency_key)
             throw new AppError('idempotency_key is required', 422, true, 'VALIDATION_ERROR');

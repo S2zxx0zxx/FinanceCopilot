@@ -6,9 +6,18 @@ import { Sparkles, ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatPaise, formatDate, categoryIcon } from "@/lib/format";
 import { Badge, SectionHeader } from "@/components/shared";
-import { recurringSeries } from "@/lib/data";
+import { useResource } from "@/hooks/use-resource";
+import { ResourceState } from "@/components/shared/resource-state";
+import { rows,object,label,amount } from "@/lib/response";
+const loadRecurring=async()=>rows(object(await api.getRecurring()).recurring).map(row=>({
+ series_id:label(row.series_id),merchant_name:label(row.series_name),category:label(row.series_type),
+ direction:row.is_income===true?'credit':'debit',status:label(row.status),frequency:label(row.frequency),
+ amount_paise:amount(row.typical_amount_paise),monthly:amount(row.monthly_equivalent_paise),
+ next_date:label(row.next_expected_at,''),occurrences_count:amount(row.observation_count),
+ confidence:row.confidence===null||row.confidence===undefined?null:Number(row.confidence),evidence_state:label(row.evidence_state)
+}));
 import { api, ApiError } from "@/lib/api";
-import { useAppData } from "@/hooks/use-app-data";
+
 
 
 const evidenceVariant: Record<
@@ -37,15 +46,17 @@ function confidenceColor(c: number): string {
 }
 
 export default function RecurringPage() {
-  ;
+  const state=useResource(loadRecurring);
+  const [filter,setFilter]=React.useState("all");
   const { toast } = useToast();
-  const { refetch } = useAppData();
+
   const [detecting, setDetecting] = React.useState(false);
+  const recurringSeries=state.data??[];
   const active = recurringSeries.filter((s) => s.status === "active");
   const debits = active.filter((s) => s.direction === "debit");
   const credits = active.filter((s) => s.direction === "credit");
-  const totalDebit = debits.reduce((sum, s) => sum + s.amount_paise, 0);
-  const totalCredit = credits.reduce((sum, s) => sum + s.amount_paise, 0);
+  const totalDebit = debits.reduce((sum, s) => sum + (s.monthly??0), 0);
+  const totalCredit = credits.reduce((sum, s) => sum + (s.monthly??0), 0);
   const netFlow = totalCredit - totalDebit;
 
   const handleDetect = async () => {
@@ -54,7 +65,7 @@ export default function RecurringPage() {
       await api.detectRecurring();
       toast({ title: "Detection complete", description: "Refreshed your recurring series with the latest patterns." });
       // Refetch so the list reflects newly detected series.
-      await refetch();
+      state.reload();
     } catch (err: unknown) {
       const msg = err instanceof ApiError ? err.message : "Could not start detection. Try again.";
       toast({ title: "Detection failed", description: msg, variant: "destructive" });
@@ -72,6 +83,7 @@ export default function RecurringPage() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] as const } },
   };
 
+  if(!state.data)return <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>;
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
       {/* Header */}
@@ -83,7 +95,7 @@ export default function RecurringPage() {
       >
         <div>
           <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
-            Recurring
+            Bills & rhythms
           </h1>
           <p className="text-[14px] text-(--text-secondary) mt-1">
             {active.length} active series · {formatPaise(totalDebit)} monthly
@@ -101,6 +113,7 @@ export default function RecurringPage() {
         </button>
       </motion.header>
 
+      <section className="premium-card p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"><p className="text-xs text-(--text-secondary)">Monthly equivalents cover active series with known amounts. Detected patterns are estimates, not scheduled payments.</p><select aria-label="Filter recurring status" value={filter} onChange={e=>setFilter(e.target.value)} className="min-h-11 px-3 rounded-xl border border-(--border) bg-(--surface)"><option value="all">All statuses</option>{Array.from(new Set(recurringSeries.map(s=>s.status))).map(status=><option key={status} value={status}>{status}</option>)}</select></section>
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <motion.div
@@ -114,7 +127,7 @@ export default function RecurringPage() {
               <ArrowDownLeft className="w-3.5 h-3.5 text-(--negative)" />
             </span>
             <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
-              Monthly Recurring
+              Estimated monthly outflow
             </span>
           </div>
           <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-(--negative)">
@@ -136,7 +149,7 @@ export default function RecurringPage() {
               <ArrowUpRight className="w-3.5 h-3.5 text-(--positive)" />
             </span>
             <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-(--text-tertiary)">
-              Monthly Income
+              Estimated monthly inflow
             </span>
           </div>
           <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em] text-(--positive)">
@@ -162,7 +175,7 @@ export default function RecurringPage() {
             </span>
           </div>
           <span className="font-display font-bold text-[22px] tabular-nums tracking-[-0.02em]">
-            +{formatPaise(netFlow)}
+            {formatPaise(netFlow)}
           </span>
           <span className="text-[12px] text-(--text-tertiary)">
             per month after fixed items
@@ -187,7 +200,8 @@ export default function RecurringPage() {
           viewport={{ once: true, margin: "-40px" }}
           className="flex flex-col gap-3"
         >
-          {recurringSeries.map((s) => {
+          {recurringSeries.length===0&&<div className="premium-card p-8 text-center"><h3 className="font-semibold">Find the rhythm in your records</h3><p className="text-sm text-(--text-secondary) mt-2">Import statement history, then use Detect New to look for repeated payments and income.</p></div>}
+          {recurringSeries.filter(s=>filter==="all"||s.status===filter).map((s) => {
             const isCredit = s.direction === "credit";
             return (
               <motion.div
@@ -206,7 +220,7 @@ export default function RecurringPage() {
                           {s.merchant_name}
                         </h3>
                         <p className="text-[12px] text-(--text-tertiary) mt-0.5">
-                          Next {formatDate(s.next_date)} · {s.occurrences_count}{" "}
+                          Next {s.next_date?formatDate(s.next_date):"date unavailable"} · {s.occurrences_count??"Unknown"}{" "}
                           occurrences
                         </p>
                       </div>
@@ -217,7 +231,7 @@ export default function RecurringPage() {
                           }`}
                         >
                           {isCredit ? "+" : "−"}
-                          {formatPaise(s.amount_paise)}
+                          {s.amount_paise===null?"Unknown amount":formatPaise(s.amount_paise)}
                         </p>
                         <p className="text-[11px] text-(--text-tertiary) mt-0.5 capitalize">
                           {s.frequency}
@@ -234,16 +248,16 @@ export default function RecurringPage() {
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{
-                            width: `${Math.round(s.confidence * 100)}%`,
+                            width: `${s.confidence===null?"Unknown":`${Math.round(s.confidence * 100)}%`}`,
                           }}
                           viewport={{ once: true }}
                           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                           className="h-full rounded-full"
-                          style={{ background: confidenceColor(s.confidence) }}
+                          style={{ background: confidenceColor(s.confidence??0) }}
                         />
                       </div>
                       <span className="text-[11px] font-mono tabular-nums text-(--text-secondary) shrink-0 w-9 text-right">
-                        {Math.round(s.confidence * 100)}%
+                        {s.confidence===null?"Unknown":`${Math.round(s.confidence * 100)}%`}
                       </span>
                     </div>
 
@@ -252,11 +266,11 @@ export default function RecurringPage() {
                       <Badge label={s.category} variant="neutral" />
                       <Badge
                         label={s.evidence_state.replace(/_/g, " ")}
-                        variant={evidenceVariant[s.evidence_state]}
+                        variant={evidenceVariant[s.evidence_state as keyof typeof evidenceVariant]??"neutral"}
                       />
                       <Badge
                         label={s.status}
-                        variant={statusVariant[s.status]}
+                        variant={statusVariant[s.status as keyof typeof statusVariant]??"neutral"}
                       />
                     </div>
                   </div>

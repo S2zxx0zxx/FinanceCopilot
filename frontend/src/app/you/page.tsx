@@ -16,7 +16,13 @@ import { formatDate, formatPct, getScoreLabel } from "@/lib/format";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { Badge, ProgressRing, CountUp } from "@/components/shared";
 import { useToast } from "@/hooks/use-toast";
-import { securityData, gamification as mockGamification, privacyData, accounts } from "@/lib/data";
+import { useResource } from "@/hooks/use-resource";
+import { ResourceState } from "@/components/shared/resource-state";
+import { object, rows, label, amount } from "@/lib/response";
+async function loadGrowth(){const data=object(await api.getGamification());return {
+ xp:amount(data.xp)??0,xp_to_next_level:amount(data.xp_to_next_level)??0,level:amount(data.level)??0,level_name:label(data.level_name),tracking_streak_days:amount(data.tracking_streak_days)??0,longest_streak_days:amount(data.longest_streak_days)??0,total_actions:amount(data.total_actions)??0,
+ badges:rows(data.badges).map(item=>({id:label(item.name),name:label(item.name),icon:label(item.icon,''),earned:item.earned===true})),
+ milestones:rows(data.milestones).map(item=>({id:label(item.id),title:label(item.title),description:label(item.description),icon:label(item.icon,''),achieved:item.achieved===true,progress:amount(item.progress)??0,target:amount(item.target)??0,date:typeof item.achieved_at==='string'?item.achieved_at:null}))};}
 import { api } from "@/lib/api";
 
 // ── Motion variants ───────────────────────────────────────────────────────
@@ -92,7 +98,7 @@ const SETTING_GROUPS: SettingsGroup[] = [
   {
     title: "Membership",
     items: [
-      { label: "Plan", desc: "Free tier · upgrade for unlimited AI", icon: Crown, value: "Free", comingSoon: true },
+      { label: "Plan", desc: "Free tier · upgrade for unlimited AI", icon: Crown,  comingSoon: true },
       { label: "Billing History", desc: "Invoices and receipts", icon: CreditCard, comingSoon: true },
     ],
   },
@@ -126,7 +132,7 @@ const SETTING_GROUPS: SettingsGroup[] = [
     title: "Integrations",
     items: [
       { label: "Calendar Sync", desc: "Bills and SIPs to Google Calendar", icon: Calendar, value: "Off", comingSoon: true },
-      { label: "WhatsApp Alerts", desc: "Critical alerts via WhatsApp", icon: MessageCircle, value: "On", comingSoon: true },
+      { label: "WhatsApp Alerts", desc: "Critical alerts via WhatsApp", icon: MessageCircle, value: "Not connected", comingSoon: true },
       { label: "UPI Autopay", desc: "Auto-pay subscriptions", icon: Zap, value: "Off", comingSoon: true },
     ],
   },
@@ -178,27 +184,19 @@ function ThemeSwitch() {
 export default function YouPage() {
   const { toast } = useToast();
   const { user } = useUser();
-  const [gamification, setGamification] = React.useState<any>(mockGamification);
-  const [loading, setLoading] = React.useState(true);
+  const growth=useResource(loadGrowth);
+  const { openUserProfile } = useClerk();
+  const router=useRouter();
+  const [showAllAchievements,setShowAllAchievements]=React.useState(false);
+  const gamification=growth.data;
+  if(!gamification) return <ResourceState loading={growth.loading} error={growth.error} retry={growth.reload}/>;
+  const securityData={two_factor_enabled:user?.twoFactorEnabled===true};
+  const verifiedFactors=Number(user?.primaryEmailAddress?.verification?.status==='verified')+Number(securityData.two_factor_enabled);
+  const score = verifiedFactors;
+  const scoreColor = securityColor(score*50);
+  const scorePct = score*50;
 
-  React.useEffect(() => {
-    let mounted = true;
-    api.getGamification()
-      .then((res: any) => {
-        if (mounted) setGamification(res);
-      })
-      .catch((err) => console.error("Failed to load gamification", err))
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => { mounted = false; };
-  }, []);
-
-  const score = securityData.security_score;
-  const scoreColor = securityColor(score);
-  const scorePct = Math.min(score, 100);
-
-  const xpPct = Math.round((gamification.xp / gamification.xp_to_next_level) * 100);
+  const xpPct = Math.round((gamification.xp / Math.max(1,gamification.xp_to_next_level)) * 100);
   const xpRemaining = gamification.xp_to_next_level - gamification.xp;
 
   // Latest achieved milestone (most recent date among achieved)
@@ -209,15 +207,23 @@ export default function YouPage() {
   // Next unachieved with progress
   const nextMilestone = gamification.milestones.find((m) => !m.achieved);
 
-  const comingSoon = (label: string) =>
-    toast({ title: "Coming soon", description: `${label} is on the v80 roadmap.` });
+  const openSetting = (entry: string) => {
+    if(entry==='Profile editing'||entry==='Profile'){openUserProfile();return;}
+    if(entry==='Full achievements page'){setShowAllAchievements(value=>!value);return;}
+    if (['Plan', 'Billing History', 'Calendar Sync', 'WhatsApp Alerts', 'UPI Autopay'].includes(entry)) {
+      toast({title: entry, description: 'This service is not connected in this app yet. No subscription, sync or payment has been started.'});
+      return;
+    }
+    const destinations:Record<string,string>={"Payment Methods":"/you/connections","Help Center":"/help","Contact Support":"/help","About FinCopilot":"/help","Notifications":"/you/preferences","Currency":"/you/preferences","Language":"/you/preferences"};
+    router.push(destinations[entry]||'/you');
+  };
 
   return (
     <motion.div
       variants={container}
       initial="hidden"
       animate="show"
-      className="flex flex-col gap-7 max-w-2xl mx-auto w-full pb-10"
+      className="flex flex-col gap-7 max-w-4xl mx-auto w-full pb-10"
     >
       {/* ── Header ──────────────────────────────────────────────────── */}
       <motion.header variants={item} className="pt-1">
@@ -252,7 +258,7 @@ export default function YouPage() {
         {/* Edit button */}
         <button
           type="button"
-          onClick={() => comingSoon("Profile editing")}
+          onClick={() => openSetting("Profile editing")}
           aria-label="Edit profile"
           className="absolute top-4 right-4 w-9 h-9 rounded-[10px] flex items-center justify-center text-(--text-secondary) hover:text-foreground hover:bg-(--surface-subtle) transition-colors z-10"
         >
@@ -472,7 +478,7 @@ export default function YouPage() {
         <div className="mt-5 flex justify-end">
           <button
             type="button"
-            onClick={() => comingSoon("Full achievements page")}
+            onClick={() => openSetting("Full achievements page")}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:text-(--accent-hover) transition-colors"
           >
             View all achievements
@@ -481,7 +487,8 @@ export default function YouPage() {
         </div>
       </motion.section>
 
-      {/* ── Security Score Card ─────────────────────────────────────── */}
+      {/* ── Sign-in checklist Card ─────────────────────────────────────── */}
+      {showAllAchievements && <motion.section initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="premium-card p-6 grid gap-4 sm:grid-cols-2" aria-label="All achievements">{gamification.milestones.map(milestone=><div key={milestone.id} className="rounded-xl border border-(--border) p-4"><h3 className="font-semibold">{milestone.title}</h3><p className="text-sm text-(--text-secondary) mt-2">{milestone.description}</p><p className="text-xs mt-3">{milestone.achieved?'Completed':`${milestone.progress} / ${milestone.target}`}</p></div>)}</motion.section>}
       <motion.section variants={item} aria-label="Security">
         <Link href="/you/security" className="premium-card p-5 flex items-center gap-4 group block hover:border-[var(--border-strong)]">
           <div className="relative shrink-0">
@@ -491,21 +498,21 @@ export default function YouPage() {
                 value={score}
                 className="font-display font-bold text-[20px] leading-none tabular-nums text-foreground"
               />
-              <span className="font-mono text-[8px] uppercase tracking-wider text-(--text-tertiary) mt-0.5">/ 100</span>
+              <span className="font-mono text-[8px] uppercase tracking-wider text-(--text-tertiary) mt-0.5">/ 2</span>
             </div>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-display font-semibold text-[15px] text-foreground">Security Score</h3>
+              <h3 className="font-display font-semibold text-[15px] text-foreground">Sign-in checklist</h3>
               <span
                 className="text-[11px] font-mono uppercase tracking-wider font-semibold"
                 style={{ color: scoreColor }}
               >
-                {securityLabel(score)}
+                {`${verifiedFactors} of 2 enabled`}
               </span>
             </div>
             <p className="text-[12px] text-(--text-tertiary) mt-1">
-              {securityData.two_factor_enabled ? "2FA enabled · 2 active sessions" : "Enable 2FA to improve"}
+              {securityData.two_factor_enabled ? "2FA enabled · manage active sessions" : "Enable 2FA to improve"}
             </p>
             {securityData.two_factor_enabled && (
               <span className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold bg-[var(--positive-light)] text-(--positive)">
@@ -573,7 +580,7 @@ export default function YouPage() {
                 );
               }
               return (
-                <button key={row.label} type="button" onClick={() => comingSoon(row.label)} className={`${cls} text-left w-full`}>
+                <button key={row.label} type="button" onClick={() => openSetting(row.label)} className={`${cls} text-left w-full`}>
                   {inner}
                 </button>
               );

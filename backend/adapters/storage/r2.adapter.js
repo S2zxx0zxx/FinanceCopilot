@@ -71,7 +71,13 @@ export class R2StorageAdapter extends StorageInterface {
             
             // Convert stream to buffer
             const chunks = [];
+            let size = 0;
             for await (const chunk of response.Body) {
+                size += chunk.length;
+                if (size > 10 * 1024 * 1024) {
+                    response.Body.destroy?.();
+                    throw new AppError('Statement exceeds 10 MB limit', 422);
+                }
                 chunks.push(chunk);
             }
             return Buffer.concat(chunks);

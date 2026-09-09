@@ -30,7 +30,7 @@ export interface InsightCardData {
   confidence?: number;
 }
 
-export const chatExamples = [
+export const chatExamples: { q: string; a: string; card: ChatCard }[] = [
   {
     q: "How much did I spend on dining out last month?",
     a: "₹8,450 across 23 transactions. That's 22% above your 3-month average of ₹6,900.",
@@ -219,7 +219,7 @@ export const heroPhrases = [
 ];
 
 // Insight cards (4 types) used in the AI deepdive section.
-export const insightCards = [
+export const insightCards: InsightCardData[] = [
   { type: "insight", title: "Dining", metric: "₹8,450", delta: "22% above 3-mo avg", chart: "bar", action: "Set a ₹7,000 budget" },
   { type: "forecast", title: "Vacation goal", metric: "Aug 14", delta: "At your current rate", chart: "forecast", action: "Create vacation goal", confidence: 92 },
   { type: "action", title: "Unused subscriptions", metric: "₹2,400/mo", chart: "list", action: "Cancel all",

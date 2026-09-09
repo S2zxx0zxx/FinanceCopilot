@@ -2,12 +2,12 @@
   "name": "fincopilot-backend",
   "version": "0.1.0",
   "description": "AI Financial Life Manager Backend API",
-  "main": "server.js",
+  "main": "backend/server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "test": "node --test --test-concurrency=1 tests/**/*.test.js",
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js",
+    "test": "npm --prefix backend test",
     "migrate": "node --env-file=.env backend/db/run-migrations.js",
     "dev:all": "node dev.js"
   },

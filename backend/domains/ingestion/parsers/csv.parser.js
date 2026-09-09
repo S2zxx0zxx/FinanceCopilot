@@ -1,78 +1,41 @@
 import csvParser from 'csv-parser';
-import { Readable } from 'stream';
+import { Readable } from 'node:stream';
+import { MoneyNormalizer } from '../../normalization/amount/money.normalizer.js';
 
-/**
- * Deterministic CSV Parser
- * 
- * Extracts raw records from a CSV file.
- * Handles edge cases like BOM, different delimiters, and malformed rows.
- */
 export class CSVParser {
-    
-    /**
-     * Parses a CSV Buffer into an array of RAW source records.
-     * @param {Buffer} fileBuffer 
-     */
-    async parseRawStatement(fileBuffer) {
-        return new Promise((resolve, reject) => {
-            const results = [];
-            const stream = Readable.from(fileBuffer.toString('utf-8'));
-            let currentRow = 0;
-
-            stream
-                .pipe(csvParser({
-                    mapHeaders: ({ header }) => header.trim().toLowerCase(), // normalize headers
-                    strict: false // do not crash on malformed rows, just try to parse
-                }))
-                .on('data', (data) => {
-                    // Try to identify standard columns. 
-                    // This is heuristic and will be refined based on bank formats,
-                    // but it strictly preserves the raw text.
-                    
-                    const dateCol = Object.keys(data).find(k => k.includes('date'));
-                    const descCol = Object.keys(data).find(k => k.includes('description') || k.includes('narration') || k.includes('particulars'));
-                    const amtCol = Object.keys(data).find(k => k.includes('amount'));
-                    const debitCol = Object.keys(data).find(k => k.includes('debit') || k.includes('withdrawal'));
-                    const creditCol = Object.keys(data).find(k => k.includes('credit') || k.includes('deposit'));
-
-                    // Extract raw values safely
-                    const rawDate = dateCol ? data[dateCol] : null;
-                    const rawDesc = descCol ? data[descCol] : null;
-                    
-                    let rawAmount = null;
-                    let rawDirection = null;
-
-                    if (amtCol) {
-                        rawAmount = data[amtCol];
-                    } else if (debitCol && data[debitCol]) {
-                        rawAmount = data[debitCol];
-                        rawDirection = 'debit';
-                    } else if (creditCol && data[creditCol]) {
-                        rawAmount = data[creditCol];
-                        rawDirection = 'credit';
-                    }
-
-                    // Only push rows that have at least some meaningful data
-                    if (rawDate && rawDesc) {
-                        currentRow++;
-                        results.push({
-                            raw_date_text: rawDate,
-                            raw_description_text: rawDesc,
-                            raw_amount_text: rawAmount,
-                            raw_direction_text: rawDirection,
-                            row_number: currentRow,
-                            parser_used: 'csv_parser',
-                            parser_version: '1.0.0',
-                            extraction_confidence: 1.000 // Deterministic CSV is 100% confident in text extraction
-                        });
-                    }
-                })
-                .on('end', () => {
-                    resolve(results);
-                })
-                .on('error', (err) => {
-                    reject(new Error(`CSV Parsing failed: ${err.message}`));
-                });
-        });
+    async parseRawStatement(buffer) {
+        if (!Buffer.isBuffer(buffer) || buffer.length > 10 * 1024 * 1024) throw new Error('CSV exceeds the 10 MB limit');
+        const results = [];
+        const parser = Readable.from([buffer]).pipe(csvParser({
+            mapHeaders: ({ header }) => header.replace(/^\uFEFF/, '').trim().toLowerCase(),
+            strict: true, maxRowBytes: 64 * 1024,
+        }));
+        let index = 0;
+        for await (const row of parser) {
+            if (++index > 50000) { parser.destroy(); throw new Error('CSV exceeds the 50,000 row limit'); }
+            const keys=Object.keys(row);
+            const get=(pattern)=>row[keys.find(k=>pattern.test(k))] ?? null;
+            const debit=get(/debit|withdrawal/), credit=get(/credit|deposit/);
+            const d=MoneyNormalizer.normalizeToPaise(debit), c=MoneyNormalizer.normalizeToPaise(credit);
+            if ((debit?.trim() && !d.is_valid) || (credit?.trim() && !c.is_valid)) throw new Error(`Row ${index}: invalid debit or credit amount`);
+            let amount=null, direction=null;
+            if (d.is_valid && d.amount_paise>0 && c.is_valid && c.amount_paise>0) throw new Error(`Row ${index}: both debit and credit are nonzero`);
+            if (d.is_valid && d.amount_paise>0) { amount=debit; direction='debit'; }
+            else if (c.is_valid && c.amount_paise>0) { amount=credit; direction='credit'; }
+            else {
+                const amountKey=keys.find(k=>/amount/.test(k)&&!/debit|credit|withdrawal|deposit|balance/.test(k));
+                amount=amountKey ? row[amountKey] : debit ?? credit;
+                const explicit=String(get(/^(direction|type|dr\/cr|debit\/credit)$/) ?? '').trim().toLowerCase();
+                if (['debit','dr','withdrawal'].includes(explicit)) direction='debit';
+                if (['credit','cr','deposit'].includes(explicit)) direction='credit';
+            }
+            const date=get(/date/), description=get(/description|narration|particulars/);
+            if (!date || !description || !MoneyNormalizer.normalizeToPaise(amount).is_valid) throw new Error(`Row ${index}: date, description and valid amount are required`);
+            results.push({ raw_date_text:date, raw_description_text:description, raw_amount_text:amount,
+                raw_direction_text:direction, raw_reference_text:get(/reference|ref no|utr/), row_number:index,
+                parser_used:'csv_parser', parser_version:'2.0.0', extraction_confidence:1 });
+        }
+        if (!results.length) throw new Error('CSV contains no transactions');
+        return results;
     }
 }

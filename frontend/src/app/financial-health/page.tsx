@@ -13,7 +13,11 @@ import {
 } from "@/components/shared";
 
 import { formatPct } from "@/lib/format";
-import { financialHealth, peerComparison } from "@/lib/data";
+import { api } from "@/lib/api";
+import { useResource } from "@/hooks/use-resource";
+import { ResourceState } from "@/components/shared/resource-state";
+import { object,label } from "@/lib/response";
+const loadHealth=async()=>object(await api.getFinancialHealth());
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -67,145 +71,19 @@ function prettifyStatus(status: string): string {
 // ── Page ──────────────────────────────────────────────────
 
 export default function FinancialHealthPage() {
-  ;
-  const metrics = [
-    {
-      key: "cash_buffer",
-      label: "Cash Buffer",
-      icon: Wallet,
-      value:
-        financialHealth.cash_buffer_months != null
-          ? `${financialHealth.cash_buffer_months.toFixed(1)} mo`
-          : "—",
-      numericValue: financialHealth.cash_buffer_months ?? 0,
-      pct: Math.min(
-        100,
-        ((financialHealth.cash_buffer_months ?? 0) / 6) * 100,
-      ),
-      status: financialHealth.cash_buffer_status,
-      driver: financialHealth.drivers.cash_buffer?.reason ?? "",
-      target: "Target: 6 months",
-    },
-    {
-      key: "commitment_load",
-      label: "Commitment Load",
-      icon: Activity,
-      value: formatPct(
-        (financialHealth.commitment_load_ratio ?? 0) * 100,
-        { decimals: 0 },
-      ),
-      numericValue: (financialHealth.commitment_load_ratio ?? 0) * 100,
-      // Lower is better → invert. 0% load = 100% health. 50% load = 50% health.
-      pct: Math.max(
-        0,
-        Math.min(100, (1 - (financialHealth.commitment_load_ratio ?? 0)) * 100),
-      ),
-      status: financialHealth.commitment_load_status,
-      driver: financialHealth.drivers.commitment_load?.reason ?? "",
-      target: "Target: under 30%",
-    },
-    {
-      key: "savings_rate",
-      label: "Savings Rate",
-      icon: PiggyBank,
-      value: formatPct(financialHealth.savings_rate_pct ?? 0, { decimals: 0 }),
-      numericValue: (financialHealth.savings_rate_pct ?? 0) * 100,
-      pct: Math.min(
-        100,
-        ((financialHealth.savings_rate_pct ?? 0) / 0.5) * 100,
-      ),
-      status: financialHealth.savings_rate_status,
-      driver: financialHealth.drivers.savings_rate?.reason ?? "",
-      target: "Target: 20%+",
-    },
-    {
-      key: "emergency_fund",
-      label: "Emergency Fund",
-      icon: ShieldCheck,
-      value:
-        financialHealth.emergency_fund_months != null
-          ? `${financialHealth.emergency_fund_months.toFixed(1)} mo`
-          : "—",
-      numericValue: financialHealth.emergency_fund_months ?? 0,
-      pct: Math.min(
-        100,
-        ((financialHealth.emergency_fund_months ?? 0) / 6) * 100,
-      ),
-      status: financialHealth.emergency_fund_status,
-      driver: financialHealth.drivers.emergency_fund?.reason ?? "",
-      target: "Target: 6 months",
-    },
-  ];
-
-  const recommendations = [
-    {
-      icon: ShieldCheck,
-      title: "Build your emergency fund to 6 months",
-      description:
-        "You have 3.5 months saved — boost by 2.5 months to hit the 6-month safety target. Auto-invest ₹500/mo to reach it in 9 months.",
-      tone: "warning" as Status,
-      cta: "Set up auto-save",
-      href: "/goals",
-    },
-    {
-      icon: Trophy,
-      title: "Your savings rate is excellent — keep it up!",
-      description:
-        "You're saving 32% of income — above the 20% recommended minimum and the 18% peer median. Stay consistent.",
-      tone: "positive" as Status,
-      cta: "See peer comparison",
-      href: "#peer",
-    },
-    {
-      icon: Lightbulb,
-      title: "Lower your commitment load by 5%",
-      description:
-        "Fixed commitments are 28% of income — close to the 30% watch zone. Trim subscriptions to free up ₹1,200/mo.",
-      tone: "warning" as Status,
-      cta: "Review subscriptions",
-      href: "/recurring",
-    },
-  ];
-
-  // Peer comparison rows
-  const peerRows = [
-    {
-      label: "Savings Rate",
-      yourValue: peerComparison.your_savings_rate,
-      peerMedian: peerComparison.peer_median_savings_rate,
-      top10: peerComparison.peer_top_10_pct,
-      unit: "%",
-      higherIsBetter: true,
-      format: (v: number) => `${v}%`,
-    },
-    {
-      label: "Cash Buffer (months)",
-      yourValue: peerComparison.your_cash_buffer_months,
-      peerMedian: peerComparison.peer_median_cash_buffer,
-      top10: peerComparison.peer_top_10_pct_buffer,
-      unit: " mo",
-      higherIsBetter: true,
-      format: (v: number) => `${v.toFixed(1)} mo`,
-    },
-    {
-      label: "Subscriptions Count",
-      yourValue: peerComparison.your_subscription_count,
-      peerMedian: peerComparison.peer_median_subscriptions,
-      top10: null,
-      unit: "",
-      higherIsBetter: false,
-      format: (v: number) => `${v}`,
-    },
-    {
-      label: "Dining % of Income",
-      yourValue: peerComparison.your_dining_spend_pct_of_income,
-      peerMedian: peerComparison.peer_median_dining_pct,
-      top10: null,
-      unit: "%",
-      higherIsBetter: false,
-      format: (v: number) => `${v}%`,
-    },
-  ];
+  const state=useResource(loadHealth);
+  if(!state.data)return <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>;
+  const financialHealth=state.data;const drivers=object(financialHealth.drivers);
+  const metrics=[
+    {key:'cash_buffer',field:'cash_buffer_months',label:'Cash buffer',icon:Wallet,target:'Months of essential expenses',suffix:' mo',scale:12},
+    {key:'commitment_load',field:'commitment_load_ratio',label:'Commitment load',icon:Activity,target:'Share of confirmed income committed',suffix:'%',scale:1},
+    {key:'savings_pace',field:'savings_pace_ratio',label:'Savings pace',icon:PiggyBank,target:'Against your goal contribution targets',suffix:'%',scale:1},
+    {key:'spending_stability',field:'spending_stability_cv',label:'Spending stability',icon:TrendingUp,target:'Weekly coefficient of variation',suffix:' CV',scale:1},
+    {key:'emergency_fund',field:'emergency_fund_months',label:'Emergency fund',icon:ShieldCheck,target:'Track a dedicated goal in Dream milestones',suffix:' mo',scale:12}
+  ].map(item=>{const driver=object(drivers[item.key]??{});const raw=financialHealth[item.field];const value=typeof raw==='number'&&Number.isFinite(raw)&&driver.coverage!=='unknown'?raw:null;return {...item,numericValue:value===null?null:item.suffix==='%'?value*100:value,value:value===null?'Unavailable':`${(item.suffix==='%'?value*100:value).toFixed(1)}${item.suffix}`,pct:value===null?0:Math.max(0,Math.min(100,value/item.scale*100)),status:label(financialHealth[item.key+'_status'],'missing'),driver:label(driver.reason,'This metric is not available from the current records.')};});
+  const recommendations=metrics.map(metric=>({icon:metric.icon,title:metric.label,description:metric.driver,tone:statusToColor(metric.status),cta:metric.key.includes('savings')||metric.key==='emergency_fund'?'Review goals':metric.key==='commitment_load'?'Review recurring activity':'Review data coverage',href:metric.key.includes('savings')||metric.key==='emergency_fund'?'/goals':metric.key==='commitment_load'?'/recurring':'/data-coverage'}));
+  const peerComparison={bracket:'No validated peer cohort is available for this account.'};
+  const peerRows:{label:string;yourValue:number;peerMedian:number;top10:number|null;unit:string;higherIsBetter:boolean;format:(value:number)=>string}[]=[];
 
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
@@ -224,11 +102,11 @@ export default function FinancialHealthPage() {
           </span>
         </div>
         <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
-          How healthy is your money?
+          Financial fitness
         </h1>
         <p className="text-[14px] text-(--text-secondary) mt-1 max-w-md">
-          A snapshot across four key metrics — plus tailored recommendations
-          and an anonymous peer comparison.
+          A snapshot of your recorded indicators — plus tailored recommendations
+          and transparent data availability.
         </p>
       </motion.header>
 
@@ -286,24 +164,12 @@ export default function FinancialHealthPage() {
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-[13px] font-display font-bold tabular-nums">
-                        {Math.round(metric.pct)}%
+                        {metric.numericValue===null?"N/A":"Recorded"}
                       </span>
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <CountUp
-                      value={metric.numericValue}
-                      format={(v) =>
-                        metric.key === "cash_buffer" ||
-                        metric.key === "emergency_fund"
-                          ? `${v.toFixed(1)} mo`
-                          : metric.key === "commitment_load"
-                            ? `${Math.round(v)}%`
-                            : `${Math.round(v)}%`
-                      }
-                      duration={1200}
-                      className="font-display font-bold text-[28px] tracking-[-0.02em] block leading-none"
-                    />
+                    <p className="font-display font-bold text-[28px] tracking-[-0.02em] block leading-none">{metric.value}</p>
                     <p className="text-[12px] text-(--text-secondary) mt-1 leading-normal">
                       {metric.driver}
                     </p>
@@ -397,12 +263,13 @@ export default function FinancialHealthPage() {
             </p>
           </div>
           <span className="text-[12px] font-mono tabular-nums text-(--text-tertiary) shrink-0">
-            {peerComparison.total_peers.toLocaleString("en-IN")} peers
+            Unavailable
           </span>
         </div>
 
         {/* Peer rows */}
         <div className="premium-card overflow-hidden">
+          {peerRows.length===0&&<p className="p-5 text-sm text-(--text-secondary)">Comparisons will appear only when a validated, consented comparison dataset is available. No demographic bracket or peer percentile has been assigned.</p>}
           {peerRows.map((row, i) => {
             const delta = row.yourValue - row.peerMedian;
             const youWin =

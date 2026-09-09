@@ -49,7 +49,9 @@ export class ConsentService {
   async hasConsent(userId, policyId, requiredVersion) {
     assertVersionShape(requiredVersion);
     const latest = await this.db.getLatestConsent(userId, policyId);
-    if (!latest || latest.revoked_at) return false;
+    if (!latest || latest.revoked_at || latest.consented !== true || !['active', 'granted'].includes(String(latest.status ?? 'active').toLowerCase())) return false;
+    if (latest.expires_at && (!Number.isFinite(new Date(latest.expires_at).getTime()) || new Date(latest.expires_at).getTime() <= Date.now())) return false;
+    if (!latest.granted_at || !Number.isFinite(new Date(latest.granted_at).getTime())) return false;
     return isVersionAtLeast(latest.version, requiredVersion)
       && isVersionAtLeast(new Date(latest.granted_at).toISOString().slice(0, 10), requiredVersion);
   }

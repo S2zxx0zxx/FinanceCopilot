@@ -29,10 +29,12 @@ const BLOCKED_KEYS = new Set([
 ]);
 
 function deepStripPII(obj, depth = 0) {
-    if (depth > 4 || obj === null || typeof obj !== 'object') return obj;
+    if (depth > 4) return '[REDACTED]';
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(value => deepStripPII(value, depth + 1));
     const safe = {};
     for (const [k, v] of Object.entries(obj)) {
-        if (BLOCKED_KEYS.has(k.toLowerCase())) {
+        if (BLOCKED_KEYS.has(k.toLowerCase()) || /balance|amount|account|prompt|email|phone|address|token|secret|password|conversation|statement/i.test(k)) {
             safe[k] = '[REDACTED]';
         } else if (typeof v === 'object') {
             safe[k] = deepStripPII(v, depth + 1);
@@ -70,6 +72,7 @@ export const Telemetry = {
      * @param {TrafficClass} trafficClass — MUST be explicitly set by caller
      */
     trackEvent(userId, eventName, metadata = {}, trafficClass = TrafficClass.REAL_USER) {
+        if (!process.env.TELEMETRY_SALT) return null; // Analytics must not fail a completed business operation.
         const safeMetadata = deepStripPII(metadata);
 
         const payload = {

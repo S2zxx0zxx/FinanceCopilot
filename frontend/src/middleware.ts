@@ -4,7 +4,14 @@ const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/api/
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
-    await auth.protect();
+    // In development accessed from a LAN/mobile IP, Clerk cookies are scoped to
+    // localhost and won't be present — skip server-side protection so the
+    // client-side useResource hook can show the sign-in state gracefully.
+    const host = req.headers.get("host") ?? "";
+    const isLocalhost = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+    if (process.env.NODE_ENV === "production" || isLocalhost) {
+      await auth.protect();
+    }
   }
 });
 

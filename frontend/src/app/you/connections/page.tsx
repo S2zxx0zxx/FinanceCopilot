@@ -15,15 +15,21 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { type Account } from "@/lib/data";
 import { formatPaise, timeAgo } from "@/lib/format";
-import { accounts } from "@/lib/data";
+import {useRouter} from 'next/navigation';
+import {useResource} from '@/hooks/use-resource';
+import {ResourceState} from '@/components/shared/resource-state';
+import {object,rows,label,amount} from '@/lib/response';
+const loadAccounts=async()=>rows(object(await api.getAccounts()).accounts).map(row=>{const balances=object(row.balances);return {account_id:label(row.account_id),account_type:label(row.account_type) as Account['account_type'],institution_name:label(row.institution_name),account_number_last4:label(row.account_number_last4,''),currency:'INR' as const,is_active:row.is_active===true,last_synced_at:label(row.last_synced_at,''),balances:{available_balance_paise:amount(balances.available_balance_paise)??0,posted_balance_paise:amount(balances.posted_balance_paise)??0,pending_balance_paise:amount(balances.pending_balance_paise)??0}};});
+export default function ConnectionsPage(){const state=useResource(loadAccounts);if(!state.data)return <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>;return <ConnectionsContent accounts={state.data}/>;}
 import { api, ApiError } from "@/lib/api";
 
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-type SyncStatus = "LIVE" | "RECENT" | "STALE";
+type SyncStatus = "LIVE" | "RECENT" | "STALE" | "UNKNOWN";
 
 function getSyncStatus(lastSyncedAt: string): SyncStatus {
+  if(!lastSyncedAt || !Number.isFinite(new Date(lastSyncedAt).getTime()))return "UNKNOWN";
   const diff = Date.now() - new Date(lastSyncedAt).getTime();
   const hours = diff / 3600000;
   if (hours < 12) return "LIVE";
@@ -60,6 +66,7 @@ const SYNC_STATUS_CONFIG: Record<
   SyncStatus,
   { label: string; variant: "positive" | "neutral" | "warning"; dotColor: string }
 > = {
+  UNKNOWN: {label:"NO SYNC HISTORY",variant:"neutral",dotColor:"var(--text-tertiary)"},
   LIVE: { label: "LIVE", variant: "positive", dotColor: "var(--positive)" },
   RECENT: { label: "RECENT", variant: "neutral", dotColor: "var(--text-tertiary)" },
   STALE: { label: "STALE", variant: "warning", dotColor: "var(--warning)" },
@@ -67,7 +74,8 @@ const SYNC_STATUS_CONFIG: Record<
 
 // ── Page ────────────────────────────────────────────────────────────────────
 
-export default function ConnectionsPage() {
+function ConnectionsContent({accounts}:{accounts:Account[]}) {
+  const router=useRouter();
   ;
   const [accountList, setAccountList] = React.useState<Account[]>(accounts);
   const [disconnecting, setDisconnecting] = React.useState<string | null>(null);
@@ -79,21 +87,8 @@ export default function ConnectionsPage() {
 
   const { toast } = useToast();
 
-  const handleSync = async (_accountId: string) => {
-    // The per-account sync endpoint isn't available yet — surface a clear toast
-    // so the user knows we're trying, without silently mutating local state.
-    toast({
-      title: "Syncing…",
-      description: "Fetching the latest transactions from your bank. This usually takes a minute.",
-    });
-  };
-
-  const handleAddNew = () => {
-    toast({
-      title: "Coming soon",
-      description: "We're rolling out Setu AA integration in the next release. You'll be able to add banks securely here.",
-    });
-  };
+  const handleSync = async (accountId:string) => router.push(`/transactions?account=${encodeURIComponent(accountId)}`);
+  const handleAddNew = () => router.push('/transactions');
 
   const handleDisconnect = async (accountId: string) => {
     setDisconnecting(accountId);
@@ -256,7 +251,7 @@ export default function ConnectionsPage() {
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-[10px] text-[13px] font-medium text-accent hover:bg-[var(--accent-light)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  Sync Now
+                  Import statement
                 </button>
                 <div className="flex-1" />
                 {showConfirm ? (

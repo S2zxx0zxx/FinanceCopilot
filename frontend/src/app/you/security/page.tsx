@@ -19,7 +19,14 @@ import { useToast } from "@/hooks/use-toast";
 import { ProgressRing } from "@/components/shared";
 
 import { timeAgo, formatDate } from "@/lib/format";
-import { securityData } from "@/lib/data";
+import { useClerk,useUser,useSession } from '@clerk/nextjs';
+import { api } from '@/lib/api';
+import { useResource } from '@/hooks/use-resource';
+import { object,rows,label } from '@/lib/response';
+import { ResourceState } from '@/components/shared/resource-state';
+const loadSessions=async()=>rows(object(await api.getSecuritySessions()).sessions);
+type SecurityView={security_score:number;two_factor_enabled:boolean;active_sessions:{id:string;device:string;location:string;last_active:string;current:boolean}[];recent_activity:{id:string;type:string;description:string;timestamp:string;location:string}[]};
+export default function SecurityPage(){const state=useResource(loadSessions);const {user}=useUser();const {session}=useSession();if(!state.data)return <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>;const score=Number(user?.twoFactorEnabled===true)*50+Number(user?.primaryEmailAddress?.verification?.status==='verified')*50;return <SecurityContent key={session?.id} securityData={{security_score:score,two_factor_enabled:user?.twoFactorEnabled===true,active_sessions:state.data.filter(row=>row.status==='active').map(row=>({id:label(row.id),device:label(row.device,'Web session'),location:label(row.ipAddress,'Location unavailable'),last_active:typeof row.lastActive==='number'?new Date(row.lastActive).toISOString():label(row.lastActive,''),current:row.id===session?.id})),recent_activity:[]}}/>;}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -59,8 +66,10 @@ function getDeviceIcon(device: string): React.ReactNode {
 
 // ── Page ────────────────────────────────────────────────────────────────────
 
-export default function SecurityPage() {
+function SecurityContent({securityData}:{securityData:SecurityView}) {
   ;
+  const {openUserProfile}=useClerk();
+  const {user}=useUser();
   const twoFA = securityData.two_factor_enabled;
   const [sessions, setSessions] = React.useState(securityData.active_sessions);
   const [revoking, setRevoking] = React.useState<string | null>(null);
@@ -68,24 +77,15 @@ export default function SecurityPage() {
 
   const score = securityData.security_score;
   const scoreColor = getScoreColor(score);
-  const scoreLabel = getScoreLabel(score);
+  const scoreLabel = `${score/50} of 2 enabled`;
   const scoreBg = getScoreLightBg(score);
 
-  const handleToggle2FA = () => {
-    // 2FA cannot be toggled client-side — defer to Clerk's hosted profile UI.
-    toast({
-      title: "Manage 2FA in Clerk",
-      description: "Opening Clerk's secure profile page where you can enable or disable 2FA.",
-    });
-    if (typeof window !== "undefined") {
-      window.open("https://clerk.com/account", "_blank", "noopener,noreferrer");
-    }
-  };
+  const handleToggle2FA = () => openUserProfile();
 
   const handleRevoke = async (id: string) => {
     setRevoking(id);
     try {
-      {};
+      await api.revokeSession(id);
       setSessions((s) => s.filter((sess) => sess.id !== id));
       toast({ title: "Session revoked", description: "The session has been signed out." });
     } catch {
@@ -121,7 +121,7 @@ export default function SecurityPage() {
         </div>
       </motion.div>
 
-      {/* Security score hero */}
+      {/* Sign-in checklist hero */}
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
@@ -130,7 +130,7 @@ export default function SecurityPage() {
       >
         <div className="relative shrink-0">
           <ProgressRing
-            pct={score}
+            pct={score/50}
             size={88}
             stroke={8}
             color={scoreColor}
@@ -140,17 +140,17 @@ export default function SecurityPage() {
               className="font-display font-bold text-[26px] tabular-nums tracking-[-0.02em]"
               style={{ color: scoreColor }}
             >
-              {score}
+              {score/50}
             </span>
             <span className="text-[9px] font-mono uppercase tracking-wider text-(--text-tertiary)">
-              / 100
+              / 2
             </span>
           </div>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="font-display font-semibold text-[17px]">
-              Security score
+              Sign-in checklist
             </h2>
             <span
               className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider font-semibold"
@@ -160,16 +160,12 @@ export default function SecurityPage() {
             </span>
           </div>
           <p className="text-[12px] text-(--text-secondary) mt-1.5 leading-normal">
-            {score >= 80
-              ? "Your account is well-protected. Keep it up."
-              : score >= 50
-                ? "Decent, but a few improvements would boost your security."
-                : "Your account has weak spots. We recommend acting now."}
+            Check your verified email and two-factor authentication below. Review active sessions and revoke any you do not recognise.
           </p>
           <div className="flex flex-wrap gap-1.5 mt-2.5">
             <ScoreChip label="2FA enabled" ok={twoFA} />
-            <ScoreChip label="Strong password" ok />
-            <ScoreChip label="Trusted devices" ok={sessions.length <= 2} />
+            <ScoreChip label="Verified email" ok={user?.primaryEmailAddress?.verification?.status==='verified'} />
+            <ScoreChip label="Review sessions below" ok={sessions.length > 0} />
           </div>
         </div>
       </motion.div>
@@ -317,6 +313,7 @@ export default function SecurityPage() {
           Recent Activity
         </SectionLabel>
         <div className="premium-card p-5">
+          {securityData.recent_activity.length === 0 && <p className="text-sm text-(--text-secondary)">Activity history is not available from your sign-in provider. You can review active sessions above.</p>}
           <ol className="flex flex-col gap-0">
             {securityData.recent_activity.map((entry, i) => {
               const isLast = i === securityData.recent_activity.length - 1;
@@ -352,14 +349,14 @@ export default function SecurityPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
-        <button onClick={() => window.open("https://clerk.com/account/security", "_blank")} className="premium-card w-full p-5 flex items-center gap-3 hover:border-[var(--border-strong)] transition-colors text-left">
+        <button onClick={() => openUserProfile()} className="premium-card w-full p-5 flex items-center gap-3 hover:border-[var(--border-strong)] transition-colors text-left">
           <div className="w-10 h-10 rounded-[12px] bg-[var(--accent-light)] flex items-center justify-center shrink-0">
             <KeyRound className="w-5 h-5 text-accent" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-semibold">Change Password</p>
             <p className="text-[12px] text-(--text-tertiary) mt-0.5">
-              Last updated {timeAgo(securityData.recent_activity.find((a) => a.type === "password_change")?.timestamp || "")}
+              Manage your password and sign-in methods securely
             </p>
           </div>
           <ChevronRight className="w-4 h-4 text-(--text-tertiary) shrink-0" />

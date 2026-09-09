@@ -59,7 +59,7 @@ export const requireAuth = [
     (req, res, next) => {
         // Dev bypass — ONLY allowed in non-production environments.
         // In production this header is completely ignored.
-        const isDevBypass = process.env.NODE_ENV !== 'production'
+        const isDevBypass = process.env.NODE_ENV === 'development' && process.env.ENABLE_DEV_AUTH_BYPASS === 'true'
             && req.headers['x-dev-bypass'] === 'true'
             && req.headers['x-dev-user-id'];
         if (isDevBypass) {
@@ -69,12 +69,13 @@ export const requireAuth = [
         return ClerkExpressRequireAuth({})(req, res, next);
     },
     async (req, res, next) => {
-        const isDevBypass = process.env.NODE_ENV !== 'production'
-            && req.headers['x-dev-bypass'] === 'true';
+        const isDevBypass = process.env.NODE_ENV === 'development' && process.env.ENABLE_DEV_AUTH_BYPASS === 'true'
+            && req.headers['x-dev-bypass'] === 'true' && req.headers['x-dev-user-id'];
         if (isDevBypass) {
             // Already handled by bypass, but need to map to DB user
             try {
-                const result = await dbClient.query('SELECT user_id FROM users WHERE clerk_uid = $1 OR firebase_uid = $1', [req.headers['x-dev-user-id']]);
+                req.user = null;
+                const result = await dbClient.query('SELECT user_id FROM users WHERE (clerk_uid = $1 OR firebase_uid = $1) AND is_deleted = false', [req.headers['x-dev-user-id']]);
                 if (result.rows.length > 0) {
                     req.user = { id: result.rows[0].user_id, userId: result.rows[0].user_id, clerkId: req.headers['x-dev-user-id'] };
                 }
@@ -94,10 +95,11 @@ export const requireAuth = [
         if (req.auth?.userId) {
             try {
                 const result = await dbClient.query(
-                    'SELECT user_id, email, display_name FROM users WHERE clerk_uid = $1 OR firebase_uid = $1',
+                    'SELECT user_id, email, display_name, is_deleted FROM users WHERE clerk_uid = $1 OR firebase_uid = $1',
                     [req.auth.userId]
                 );
                 if (result.rows.length > 0) {
+                    if (result.rows[0].is_deleted) return res.status(403).json({ error: 'ACCOUNT_DELETED' });
                     req.user = {
                         id: result.rows[0].user_id,
                         userId: result.rows[0].user_id,
@@ -115,8 +117,8 @@ export const requireAuth = [
                     let email = null;
                     let displayName = null;
                     try {
-                        const { Clerk } = await import('@clerk/clerk-sdk-node');
-                        const clerkUser = await Clerk.users.getUser(req.auth.userId);
+                        const { createClerkClient } = await import('@clerk/backend');
+                        const clerkUser = await createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY }).users.getUser(req.auth.userId);
                         email = clerkUser?.emailAddresses?.[0]?.emailAddress || null;
                         displayName = clerkUser?.firstName
                             ? `${clerkUser.firstName} ${clerkUser.lastName || ''}`.trim()
@@ -145,7 +147,7 @@ export const requireAuth = [
                 await ensureBetaCohortAssigned(req.user.userId, { email: req.user.email });
             } catch (err) {
                 console.error("Auth middleware DB error:", err);
-                return res.status(500).json({ error: 'Auth failed', detail: err.message });
+                return res.status(500).json({ error: 'AUTH_FAILED' });
             }
         }
 

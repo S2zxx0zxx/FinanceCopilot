@@ -11,6 +11,9 @@ export class TransactionsController {
             const userId = req.user.userId;
             const { accountId, category, startDate, endDate, direction, limit = 50, offset = 0 } = req.query;
             
+            if (!/^\d+$/.test(String(limit)) || !/^\d+$/.test(String(offset)) || !Number.isSafeInteger(Number(offset)) || Number(limit)<1 || Number(limit)>100 || (direction && !['credit','debit'].includes(direction))) {
+                return res.status(422).json({error:'Use a limit from 1 to 100, a nonnegative offset and a valid direction.'});
+            }
             const params = [userId];
             const filters = [];
             

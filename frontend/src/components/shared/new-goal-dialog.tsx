@@ -4,17 +4,18 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 import { formatPaise } from "@/lib/format";
 
-type GoalType = "emergency_fund" | "vacation" | "debt_payoff" | "save_home" | "retirement" | "custom";
+type GoalType = "emergency_fund" | "vacation" | "debt_payoff" | "home" | "investment_future" | "other";
 
 const GOAL_TYPES: { id: GoalType; name: string }[] = [
   { id: "emergency_fund", name: "Emergency Fund" },
   { id: "vacation", name: "Vacation" },
   { id: "debt_payoff", name: "Debt Payoff" },
-  { id: "save_home", name: "Save for Home" },
-  { id: "retirement", name: "Retirement" },
-  { id: "custom", name: "Custom Goal" },
+  { id: "home", name: "Save for Home" },
+  { id: "investment_future", name: "Retirement" },
+  { id: "other", name: "Custom Goal" },
 ];
 
 export function NewGoalDialog({
@@ -66,8 +67,9 @@ export function NewGoalDialog({
     }
     setSubmitting(true);
     try {
-      // Local-only stub (no API call) — simulates goal creation.
-      await new Promise((r) => setTimeout(r, 600));
+      await api.createGoal({ name: name.trim(), goal_type: goalType,
+        target_amount_paise: targetPaise, monthly_contribution_paise: monthlyPaise,
+        target_date: targetDate || null, currency: "INR" });
       toast({
         title: "Goal created",
         description: `"${name.trim()}" has been added to your goals.`,

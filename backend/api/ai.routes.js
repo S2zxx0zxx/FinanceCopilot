@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireAuth } from './middlewares/security.js';
 import { AIGateway } from '../domains/ai/gateway.js';
+import { requireConsent } from './middlewares/consent.js';
 
 export default function setupAIRoutes(app, dbClient) {
     const gateway = new AIGateway(dbClient);
@@ -40,7 +41,7 @@ const rateLimitMiddleware = async (req, res, next) => {
     /**
      * Main NLP Query Endpoint
      */
-    router.post('/ai/chat', requireAuth, rateLimitMiddleware, async (req, res, next) => {
+    router.post('/ai/chat', requireAuth, requireConsent('ai_processing'), rateLimitMiddleware, async (req, res, next) => {
     try {
         const userId = req.user.id;
         const message = req.body.prompt || req.body.message;
@@ -60,7 +61,7 @@ const rateLimitMiddleware = async (req, res, next) => {
     /**
      * Mutation Confirmation Endpoint
      */
-    router.post('/ai/chat/confirm', requireAuth, async (req, res, next) => {
+    router.post('/ai/chat/confirm', requireAuth, requireConsent('ai_processing'), async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { interaction_id, action_payload } = req.body;
@@ -79,7 +80,7 @@ const rateLimitMiddleware = async (req, res, next) => {
     /**
      * AI Home Feed — curated insights, suggestions, and recent activity
      */
-    router.get('/ai/home-feed', requireAuth, async (req, res, next) => {
+    router.get('/ai/home-feed', requireAuth, requireConsent('ai_processing'), async (req, res, next) => {
         try {
             const userId = req.user.id;
             const db = gateway.dbClient;
@@ -95,7 +96,7 @@ const rateLimitMiddleware = async (req, res, next) => {
 
             // Fetch available insights
             const { rows: insights } = await db.query(
-                `SELECT insight_id, title, tags, confidence, generated_at
+                `SELECT insight_id, title, summary, tags, confidence, generated_at
                  FROM ai_insights
                  WHERE user_id = $1 AND status = 'active'
                  ORDER BY generated_at DESC LIMIT 5`,
@@ -112,6 +113,7 @@ const rateLimitMiddleware = async (req, res, next) => {
                 insights: insights.map(i => ({
                     id: i.insight_id,
                     title: i.title,
+                    summary: i.summary,
                     category: i.tags && i.tags.length > 0 ? i.tags[0] : 'Insight',
                     confidence: i.confidence,
                     createdAt: i.generated_at
@@ -130,7 +132,7 @@ const rateLimitMiddleware = async (req, res, next) => {
     /**
      * AI Insight Detail — get a specific insight by ID
      */
-    router.get('/ai/insights/:id', requireAuth, async (req, res, next) => {
+    router.get('/ai/insights/:id', requireAuth, requireConsent('ai_processing'), async (req, res, next) => {
         try {
             const userId = req.user.id;
             const { rows } = await gateway.dbClient.query(
@@ -156,7 +158,7 @@ const rateLimitMiddleware = async (req, res, next) => {
     /**
      * AI Insight Feedback — submit user feedback on an insight
      */
-    router.post('/ai/insights/:id/feedback', requireAuth, async (req, res, next) => {
+    router.post('/ai/insights/:id/feedback', requireAuth, requireConsent('ai_processing'), async (req, res, next) => {
         try {
             const userId = req.user.id;
             const { rating, comment } = req.body;
@@ -177,7 +179,7 @@ const rateLimitMiddleware = async (req, res, next) => {
     /**
      * AI Simulator — run what-if / affordability / money-leaks / explain-month scenarios
      */
-    router.post('/ai/simulate', requireAuth, rateLimitMiddleware, async (req, res, next) => {
+    router.post('/ai/simulate', requireAuth, requireConsent('ai_processing'), rateLimitMiddleware, async (req, res, next) => {
         try {
             const userId = req.user.id;
             const { type, params } = req.body;
@@ -197,7 +199,7 @@ const rateLimitMiddleware = async (req, res, next) => {
     /**
      * AI Save Simulation — persist a simulation result for later reference
      */
-    router.post('/ai/simulate/save', requireAuth, async (req, res, next) => {
+    router.post('/ai/simulate/save', requireAuth, requireConsent('ai_processing'), async (req, res, next) => {
         try {
             const userId = req.user.id;
             const { type, title, result, params } = req.body;

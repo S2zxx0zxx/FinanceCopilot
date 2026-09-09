@@ -7,10 +7,16 @@ import { Sparkles, MessageCircle, AlertTriangle, Wallet, TrendingUp } from "luci
 import { SectionHeader, Badge } from "@/components/shared";
 
 import { timeAgo } from "@/lib/format";
-import { aiHomeFeed, aiInsights } from "@/lib/data";
+import { api } from "@/lib/api";
+import { useResource } from "@/hooks/use-resource";
+import { ResourceState } from "@/components/shared/resource-state";
+import { object,rows,label } from "@/lib/response";
+const loadFeed=async()=>object(await api.getAIHomeFeed());
 
 export default function AIPage() {
-  ;
+  const state=useResource(loadFeed);
+  const aiHomeFeed={suggestions:rows(state.data?.suggestions??[]).map(row=>label(row.prompt))};
+  const aiInsights=rows(state.data?.insights??[]).map(row=>({insight_id:label(row.id),title:label(row.title),summary:label(row.summary,''),generated_at:label(row.createdAt,''),tags:[label(row.category,'Insight')]}));
   return (
     <div className="flex flex-col gap-8 max-w-4xl">
       <motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
@@ -19,7 +25,7 @@ export default function AIPage() {
             <Sparkles className="w-5 h-5 text-accent-foreground" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">AI</h1>
+            <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">Copilot workspace</h1>
             <p className="text-[14px] text-(--text-secondary)">Your financial intelligence hub</p>
           </div>
         </div>
@@ -47,6 +53,8 @@ export default function AIPage() {
         })}
       </motion.div>
 
+      <ResourceState loading={state.loading} error={state.error} retry={state.reload}/>
+      {state.error&&<Link href="/you/privacy" className="text-sm text-accent">Review AI processing consent</Link>}
       {/* Suggested Questions */}
       <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
         <SectionHeader title="Try Asking" />
@@ -63,6 +71,7 @@ export default function AIPage() {
       <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
         <SectionHeader title="AI Insights" />
         <div className="flex flex-col gap-3">
+          {state.data&&aiInsights.length===0&&<div className="premium-card p-6"><h3 className="font-semibold">Your insight library starts here</h3><p className="text-sm text-(--text-secondary) mt-2">No active insights have been recorded yet. Use the tools above to explore your data.</p></div>}
           {aiInsights.map((insight, i) => (
             <Link key={insight.insight_id} href={`/ai/insight/${insight.insight_id}`} className="premium-card p-5 group hover:border-accent/30 transition-colors">
               <div className="flex items-start gap-3">
@@ -72,7 +81,7 @@ export default function AIPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-[15px] font-semibold">{insight.title}</h3>
-                    <Badge label={`${insight.confidence}%`} variant="ai" />
+                    <Badge label="Recorded insight" variant="ai" />
                   </div>
                   <p className="text-[13px] text-(--text-secondary) leading-normal mb-2">{insight.summary}</p>
                   <div className="flex items-center gap-2">

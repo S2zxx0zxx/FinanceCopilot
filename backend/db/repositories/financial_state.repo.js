@@ -26,6 +26,7 @@ export class FinancialStateRepo {
                   ${accountFilter}
                   AND duplicate_status != 'duplicate'
                   AND is_deleted = false
+                  AND needs_review = false
                   AND currency = 'INR'
             )
             SELECT 
@@ -59,10 +60,11 @@ export class FinancialStateRepo {
                 SELECT amount_paise, transaction_type
                 FROM transactions
                 WHERE user_id = $1
-                  AND observed_at >= $2 
-                  AND observed_at <= $3
+                  AND observed_at >= ($2::date::timestamp AT TIME ZONE 'Asia/Kolkata') 
+                  AND observed_at < (($3::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
                   AND duplicate_status != 'duplicate'
                   AND is_deleted = false
+                  AND needs_review = false
                   AND currency = 'INR'
                   AND (posting_status = 'posted' OR posting_status = 'pending')
                   -- Strict parentheses for OR logic (SQL PRECEDENCE SAFEGUARD)
@@ -78,6 +80,30 @@ export class FinancialStateRepo {
         const row = res.rows[0];
 
         return SpendingEngine.calculateEffectiveSpending(row.gross_expense, row.total_offsets);
+    }
+
+    static async getIncomeSources(userId, startDate, endDate) {
+        const {rows}=await dbClient.query(`SELECT COALESCE(NULLIF(merchant_normalized,''),'Unidentified source') AS source_name,
+            SUM(amount_paise) AS amount_paise,COUNT(*) AS record_count
+            FROM transactions WHERE user_id=$1 AND observed_at >= ($2::date::timestamp AT TIME ZONE 'Asia/Kolkata') AND observed_at < (($3::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+            AND duplicate_status != 'duplicate' AND is_deleted=false AND needs_review=false
+            AND posting_status='posted' AND currency='INR' AND transaction_type='income'
+            GROUP BY merchant_normalized ORDER BY amount_paise DESC`,[userId,startDate,endDate]);
+        return rows;
+    }
+
+    static async getSpendingCategories(userId, startDate, endDate) {
+        const {rows} = await dbClient.query(`
+            SELECT t.category_id, COALESCE(c.name, 'Uncategorised') AS category,
+                   COALESCE(SUM(CASE WHEN t.transaction_type = 'expense' THEN t.amount_paise ELSE -t.amount_paise END),0) AS amount_paise,
+                   COUNT(*) AS record_count
+            FROM transactions t LEFT JOIN categories c ON c.category_id=t.category_id
+            WHERE t.user_id=$1 AND t.observed_at >= ($2::date::timestamp AT TIME ZONE 'Asia/Kolkata') AND t.observed_at < (($3::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
+              AND t.duplicate_status != 'duplicate' AND t.is_deleted=false AND t.needs_review=false
+              AND t.currency='INR' AND t.posting_status IN ('posted','pending')
+              AND t.transaction_type IN ('expense','refund','reversal')
+            GROUP BY t.category_id,c.name ORDER BY amount_paise DESC`, [userId,startDate,endDate]);
+        return rows;
     }
 
     /**
@@ -103,10 +129,12 @@ export class FinancialStateRepo {
             SELECT COALESCE(SUM(amount_paise), 0) AS total_income
             FROM transactions
             WHERE user_id = $1
-              AND observed_at >= $2 
-              AND observed_at <= $3
+              AND observed_at >= ($2::date::timestamp AT TIME ZONE 'Asia/Kolkata') 
+              AND observed_at < (($3::date + 1)::timestamp AT TIME ZONE 'Asia/Kolkata')
               AND duplicate_status != 'duplicate'
               AND is_deleted = false
+              AND needs_review = false
+              AND posting_status = 'posted'
               AND currency = 'INR'
               AND transaction_type = 'income'
         `;

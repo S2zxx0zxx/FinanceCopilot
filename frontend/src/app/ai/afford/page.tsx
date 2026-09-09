@@ -31,11 +31,7 @@ export default function Page() {
       if (typeof summary === "string") {
         setResult(summary);
       } else {
-        setResult(
-          isLeaks
-            ? "We scanned your recent transactions and didn't find any obvious money leaks right now."
-            : "Based on your current cash flow and buffer, you can afford this — but please review your upcoming commitments before committing.",
-        );
+        throw new Error("The analysis did not return a supported result. Please try again.");
       }
       toast({ title: "Analysis ready", description: "AI insight generated." });
     } catch (err: unknown) {

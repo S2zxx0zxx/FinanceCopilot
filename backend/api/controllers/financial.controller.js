@@ -1,7 +1,39 @@
 import { SafeToSpendEngine } from '../../domains/financial-state/safe-to-spend/safe_to_spend.engine.js';
 import { FinancialStateRepo } from '../../db/repositories/financial_state.repo.js';
 
+function currentMonthBounds(now = new Date()) {
+    const parts = new Intl.DateTimeFormat('en', {timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit'}).formatToParts(now);
+    const year=Number(parts.find(part=>part.type==='year').value);
+    const month=Number(parts.find(part=>part.type==='month').value);
+    const prefix=`${year}-${String(month).padStart(2,'0')}`;
+    return {startOfMonth:`${prefix}-01`,endOfMonth:`${prefix}-${new Date(Date.UTC(year,month,0)).getUTCDate()}`};
+}
+
 export class FinancialController {
+    static async getCashflowHistory(req,res,next) {
+        try {
+            const period=req.query.period||'30d';
+            if(!['7d','30d','90d','12mo'].includes(period))return res.status(422).json({error:'Unsupported cashflow period.'});
+            const {dbClient}=await import('../../db/client.js');
+            const monthly=period==='12mo';
+            const start=monthly?"date_trunc('month',NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '11 months'":`date_trunc('day',NOW() AT TIME ZONE 'Asia/Kolkata') - INTERVAL '${Number.parseInt(period,10)-1} days'`;
+            const bucket=monthly?'month':'day';
+            const {rows}=await dbClient.query(`WITH buckets AS (
+                SELECT generate_series(${start},date_trunc('${bucket}',NOW() AT TIME ZONE 'Asia/Kolkata'),INTERVAL '1 ${bucket}') AS bucket
+            ), totals AS (
+                SELECT date_trunc('${bucket}',observed_at AT TIME ZONE 'Asia/Kolkata') AS bucket,
+                SUM(CASE WHEN transaction_type='income' THEN amount_paise ELSE 0 END) AS income_paise,
+                SUM(CASE WHEN transaction_type='expense' THEN amount_paise WHEN transaction_type IN ('refund','reversal') THEN -amount_paise ELSE 0 END) AS expense_paise
+                FROM transactions WHERE user_id=$1 AND observed_at >= (${start} AT TIME ZONE 'Asia/Kolkata') AND observed_at<=NOW()
+                  AND duplicate_status!='duplicate' AND is_deleted=false AND needs_review=false AND posting_status='posted' AND currency='INR'
+                GROUP BY 1
+            ) SELECT to_char(b.bucket,'${monthly?'Mon YY':'DD Mon'}') AS month,
+                COALESCE(t.income_paise,0) AS income_paise,COALESCE(t.expense_paise,0) AS expense_paise
+                FROM buckets b LEFT JOIN totals t USING(bucket) ORDER BY b.bucket`,[req.user.userId]);
+            res.json({period,history:rows,currency:'INR',basis:'posted_records'});
+        }catch(error){next(error);}
+    }
+
     /**
      * GET /api/v1/financial-state/home
      * Returns the aggregated view-model for the Home screen.
@@ -15,8 +47,7 @@ export class FinancialController {
             
             // 2. Fetch specific insights required for Home
             // E.g., upcoming commitments for the current month
-            const today = new Date();
-            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+            const {endOfMonth}=currentMonthBounds();
             const upcomingCommitments = await FinancialStateRepo.getUpcomingCommitments(userId, endOfMonth);
 
             // 3. Needs Attention (Placeholder for Phase 6 - would query for stale connections or unreviewed items)
@@ -74,14 +105,16 @@ export class FinancialController {
     static async getSpendingStory(req, res, next) {
         try {
             const userId = req.user.userId;
-            const today = new Date();
-            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+            const {startOfMonth,endOfMonth}=currentMonthBounds();
 
-            const spending = await FinancialStateRepo.getEffectiveSpending(userId, startOfMonth, endOfMonth);
+            const [spending,categories] = await Promise.all([
+                FinancialStateRepo.getEffectiveSpending(userId, startOfMonth, endOfMonth),
+                FinancialStateRepo.getSpendingCategories(userId, startOfMonth, endOfMonth)
+            ]);
             
             res.status(200).json({
                 period: 'This Month',
+                categories,
                 spending
             });
         } catch (error) {
@@ -95,14 +128,16 @@ export class FinancialController {
     static async getIncome(req, res, next) {
         try {
             const userId = req.user.userId;
-            const today = new Date();
-            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+            const {startOfMonth,endOfMonth}=currentMonthBounds();
 
-            const income = await FinancialStateRepo.getEffectiveIncome(userId, startOfMonth, endOfMonth);
+            const [income,sources] = await Promise.all([
+                FinancialStateRepo.getEffectiveIncome(userId, startOfMonth, endOfMonth),
+                FinancialStateRepo.getIncomeSources(userId, startOfMonth, endOfMonth)
+            ]);
             
             res.status(200).json({
                 period: 'This Month',
+                sources,
                 income
             });
         } catch (error) {
@@ -119,9 +154,7 @@ export class FinancialController {
             const userId = req.user.userId;
             const categoryId = req.params.id;
             
-            const today = new Date();
-            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+            const {startOfMonth,endOfMonth}=currentMonthBounds();
 
             // Simplified for Phase 6: directly query transactions for this category
             const { dbClient } = await import('../../db/client.js');
