@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAuth } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import { Sparkles, ArrowDownLeft, ArrowUpRight, Scale } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -47,6 +48,24 @@ function confidenceColor(c: number): string {
 
 export default function RecurringPage() {
   const state=useResource(loadRecurring);
+  const { userId } = useAuth();
+  const owner = React.useRef(userId);
+  owner.current = userId;
+  const [pending, setPending] = React.useState<string | null>(null);
+  React.useEffect(() => { setPending(null); setDetecting(false); }, [userId]);
+  const updateSeries = async (id: string, action: "confirm" | "dismiss" | "pause" | "resume") => {
+    if (pending || !userId) return;
+    const requestOwner = userId;
+    setPending(id);
+    try {
+      await api.updateRecurring(id, action);
+      if (owner.current !== requestOwner) return;
+      state.reload();
+      toast({ title: "Series updated", description: "Your recurring tracking preference has been saved. This does not change a payment at your bank." });
+    } catch (error: unknown) {
+      if (owner.current === requestOwner) toast({ title: "Could not update series", description: error instanceof Error ? error.message : "Please retry.", variant: "destructive" });
+    } finally { if (owner.current === requestOwner) setPending(null); }
+  };
   const [filter,setFilter]=React.useState("all");
   const { toast } = useToast();
 
@@ -60,17 +79,21 @@ export default function RecurringPage() {
   const netFlow = totalCredit - totalDebit;
 
   const handleDetect = async () => {
+    if (!userId || detecting) return;
+    const requestOwner = userId;
     setDetecting(true);
     try {
       await api.detectRecurring();
+      if (owner.current !== requestOwner) return;
       toast({ title: "Detection complete", description: "Refreshed your recurring series with the latest patterns." });
       // Refetch so the list reflects newly detected series.
       state.reload();
     } catch (err: unknown) {
+      if (owner.current !== requestOwner) return;
       const msg = err instanceof ApiError ? err.message : "Could not start detection. Try again.";
       toast({ title: "Detection failed", description: msg, variant: "destructive" });
     } finally {
-      setDetecting(false);
+      if (owner.current === requestOwner) setDetecting(false);
     }
   };
 
@@ -113,7 +136,7 @@ export default function RecurringPage() {
         </button>
       </motion.header>
 
-      <section className="premium-card p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"><p className="text-xs text-(--text-secondary)">Monthly equivalents cover active series with known amounts. Detected patterns are estimates, not scheduled payments.</p><select aria-label="Filter recurring status" value={filter} onChange={e=>setFilter(e.target.value)} className="min-h-11 px-3 rounded-xl border border-(--border) bg-(--surface)"><option value="all">All statuses</option>{Array.from(new Set(recurringSeries.map(s=>s.status))).map(status=><option key={status} value={status}>{status}</option>)}</select></section>
+      <section className="premium-card p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"><p className="text-xs text-(--text-secondary)">Monthly equivalents cover active series with known amounts. Detected patterns are estimates, not scheduled payments. {active.filter(series => series.monthly === null).length > 0 && `${active.filter(series => series.monthly === null).length} active series have unknown monthly amounts and are excluded.`}</p><select aria-label="Filter recurring status" value={filter} onChange={e=>setFilter(e.target.value)} className="min-h-11 px-3 rounded-xl border border-(--border) bg-(--surface)"><option value="all">All statuses</option>{Array.from(new Set(recurringSeries.map(s=>s.status))).map(status=><option key={status} value={status}>{status}</option>)}</select></section>
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <motion.div
@@ -248,7 +271,7 @@ export default function RecurringPage() {
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{
-                            width: `${s.confidence===null?"Unknown":`${Math.round(s.confidence * 100)}%`}`,
+                            width: `${s.confidence === null || !Number.isFinite(s.confidence) ? 0 : Math.max(0, Math.min(100, s.confidence * 100))}%`,
                           }}
                           viewport={{ once: true }}
                           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -259,6 +282,15 @@ export default function RecurringPage() {
                       <span className="text-[11px] font-mono tabular-nums text-(--text-secondary) shrink-0 w-9 text-right">
                         {s.confidence===null?"Unknown":`${Math.round(s.confidence * 100)}%`}
                       </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2" aria-label={`Manage ${s.merchant_name}`}>
+                      {([
+                        ...(s.status === "reviewable" ? [{ action: "confirm" as const, title: "Confirm pattern" }] : []),
+                        ...(["confirmed", "active"].includes(s.status) ? [{ action: "pause" as const, title: "Pause tracking" }] : []),
+                        ...(["confirmed", "paused"].includes(s.status) ? [{ action: "resume" as const, title: s.status === "confirmed" ? "Activate tracking" : "Resume tracking" }] : []),
+                        ...(["detected", "reviewable", "confirmed", "active", "paused"].includes(s.status) ? [{ action: "dismiss" as const, title: "Dismiss pattern" }] : []),
+                      ]).map(({ action, title }) => <button key={action} disabled={pending !== null || detecting} onClick={() => updateSeries(s.series_id, action)} className="min-h-11 px-3 rounded-xl border border-(--border) text-xs font-medium hover:bg-(--surface-subtle) disabled:opacity-50">{pending === s.series_id ? "Saving..." : title}</button>)}
                     </div>
 
                     {/* Badges */}

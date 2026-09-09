@@ -76,3 +76,25 @@ These are implemented changes, not blanket completion of the sections above.
 Verification so far: incremental TypeScript checks passed through the main-screen changes preceding the latest account-detail edit; backend syntax checks passed for the financial controller/repository and AI routes. A production frontend build is now being run. No live production database migration, deployment, merge or push has been performed during this pass.
 
 Build checkpoint: production compilation and TypeScript succeeded, but prerendering /ai caught an undefined pre-load list. Fixed the loading-state guards in Copilot and dashboard. Re-running the production build after that correction and the account/goal detail wiring.
+
+
+## Resume checkpoint: 2026-09-09
+- [x] Recover previous implementation: it was committed on fix/launch-readiness (3796f19), while Antigravity had switched to main (9ed44ec).
+- [x] Integrate fix/launch-readiness into main without conflicts; preserve main's Vercel-oriented Next.js output setting.
+- [x] Build the merged frontend: production compile, TypeScript and all 32 static pages passed.
+- [x] Previously isolated PostgreSQL checks: 25 migrations, upload/normalization flow, account binding, lease fencing, deduplication, category/income tenant isolation and India month-end inclusion passed.
+- Cashflow history, debt activity, forecast response mapping and financial fitness UI are now included in the recovered branch. Financial fitness retains its cards and peer section; unavailable peer evidence is labelled explicitly.
+- [x] Correct cashflow interval/timezone precedence and validate all four periods in isolated PostgreSQL, alongside the 25-migration import and aggregation checks.
+- [ ] Finish Plan restoration, data confidence, detail/review flows and remaining settings listed above. Do not mark these complete based on successful compilation.
+- [ ] Export must stop creating jobs on mount and must distinguish queued exports from ready files; worker delivery remains to be completed.
+- [ ] Restore Privacy's original visual structure with actual consent history and clear deletion/retention semantics.
+- [ ] Resolve opening balances, provider configuration, audit blockers and deployment readiness before calling the app launch-ready.
+
+No production database migration or live deployment was performed in this resume pass. The merged build is verified; the full product TODO remains open.
+
+- Export UI now reads GET status without creating jobs on mount, fences auth changes, and distinguishes processing/failed/ready. Fabricated sizes and delivery promises removed; export worker delivery remains open.
+
+- Bills lifecycle actions now call the owned-series PATCH endpoint: confirm reviewable patterns, activate confirmed patterns, pause/resume tracking and dismiss nonterminal patterns. Missing monthly amounts are counted explicitly; unknown confidence no longer creates invalid CSS.
+- TypeScript verification passed after the Export/Bills changes. Export format validation and safe download protocols added. No live provider delivery or deployment is claimed.
+
+- Privacy expanded from the simplified list into responsive inventory cards, consent switches, retention explanation, real latest-50 consent timeline and export/deletion cards. Backend history is user-scoped and excludes IP/user-agent metadata. Auth-switch responses are fenced. TypeScript passed. Retention execution and deletion completion remain open.

@@ -24,7 +24,7 @@ export class FinancialController {
                 SELECT date_trunc('${bucket}',observed_at AT TIME ZONE 'Asia/Kolkata') AS bucket,
                 SUM(CASE WHEN transaction_type='income' THEN amount_paise ELSE 0 END) AS income_paise,
                 SUM(CASE WHEN transaction_type='expense' THEN amount_paise WHEN transaction_type IN ('refund','reversal') THEN -amount_paise ELSE 0 END) AS expense_paise
-                FROM transactions WHERE user_id=$1 AND observed_at >= (${start} AT TIME ZONE 'Asia/Kolkata') AND observed_at<=NOW()
+                FROM transactions WHERE user_id=$1 AND observed_at >= ((${start}) AT TIME ZONE 'Asia/Kolkata') AND observed_at<=NOW()
                   AND duplicate_status!='duplicate' AND is_deleted=false AND needs_review=false AND posting_status='posted' AND currency='INR'
                 GROUP BY 1
             ) SELECT to_char(b.bucket,'${monthly?'Mon YY':'DD Mon'}') AS month,

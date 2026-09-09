@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useAuth } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -27,7 +28,7 @@ interface ExportHistoryEntry {
   date: string;
   format: ExportFormat;
   size: string;
-  status: "ready" | "processing";
+  status: "ready" | "processing" | "failed";
   downloadUrl?: string;
 }
 
@@ -72,8 +73,12 @@ async function triggerDownload(
   }
 
   if (payload.downloadUrl) {
+    const url = new URL(payload.downloadUrl, window.location.origin);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && url.origin === window.location.origin)) {
+      throw new Error("Invalid export download URL");
+    }
     const a = document.createElement("a");
-    a.href = payload.downloadUrl;
+    a.href = url.href;
     a.download = filename;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
@@ -91,6 +96,11 @@ async function triggerDownload(
 
 export default function ExportPage() {
   const { toast } = useToast();
+  const { isLoaded, userId } = useAuth();
+  const owner = React.useRef(userId);
+  owner.current = userId;
+  const [statusError, setStatusError] = React.useState<string | null>(null);
+  const [refresh, setRefresh] = React.useState(0);
   const [format, setFormat] = React.useState<ExportFormat>("csv");
   const [history, setHistory] = React.useState<ExportHistoryEntry[]>([]);
   const [exporting, setExporting] = React.useState(false);
@@ -103,89 +113,56 @@ export default function ExportPage() {
 
   const canDelete = confirmChecked && confirmText === "DELETE";
 
-  // Fetch existing export history (if any). Silently ignore if backend doesn't
-  // support the endpoint yet — we just show an empty list.
   React.useEffect(() => {
-    let mounted = true;
-    api
-      .requestExport("csv")
-      .then((res: any) => {
-        if (!mounted) return;
-        const list: ExportHistoryEntry[] = res?.history || res?.data?.history || [];
-        if (Array.isArray(list) && list.length > 0) setHistory(list);
-      })
-      .catch(() => {
-        // No-op — show empty state.
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    let active = true;
+    setHistory([]);
+    setExported(null);
+    setDeleted(false);
+    setExporting(false);
+    setDeleting(false);
+    setConfirmChecked(false);
+    setConfirmText("");
+    setStatusError(null);
+    if (!isLoaded || !userId) return;
+    api.getExportStatus().then((res) => {
+      if (!active || !res.job) return;
+      const job = res.job;
+      if (!["csv", "json", "pdf"].includes(job.format)) throw new Error("Unsupported export format returned.");
+      setHistory([{ id: job.job_id, date: job.created_at, format: job.format,
+        size: "Size not reported", status: job.status === "COMPLETED" && job.download_url ? "ready" : job.status === "FAILED" ? "failed" : "processing",
+        downloadUrl: job.status === "COMPLETED" ? job.download_url : undefined }]);
+    }).catch((error: unknown) => {
+      if (active) setStatusError(error instanceof Error ? error.message : "Could not load export status.");
+    });
+    return () => { active = false; };
+  }, [isLoaded, userId, refresh]);
 
   const handleExport = async () => {
+    if (!userId || exporting) return;
+    const requestOwner = userId;
     setExporting(true);
     setExported(null);
     try {
-      const res: any = await api.requestExport(format);
-      const downloadUrl: string | undefined = res?.download_url || res?.url || res?.data?.download_url;
-      const blob: Blob | undefined = res?.blob || res?.data?.blob;
-      const newEntry: ExportHistoryEntry = {
-        id: res?.jobId || res?.job_id || `exp_${Date.now()}`,
-        date: new Date().toISOString(),
-        format,
-        size: format === "pdf" ? "820 KB" : format === "json" ? "1.6 MB" : "1.4 MB",
-        status: "ready",
-        downloadUrl,
-      };
-      setHistory((h) => [newEntry, ...h]);
-      setExported({
-        filename: `FinCopilot-export-${new Date().toISOString().slice(0, 10)}.${format}`,
-        downloadUrl,
-        blob,
-      });
-      // If backend gave us a downloadable artifact, fetch it now.
-      if (downloadUrl || blob) {
-        await triggerDownload(format, { downloadUrl, blob });
-      }
+      const res = await api.requestExport(format);
+      if (owner.current !== requestOwner) return;
+      if (!res.jobId) throw new Error("Export request returned no job identifier.");
+      setHistory([{ id: res.jobId, date: new Date().toISOString(), format,
+        size: "Size not reported", status: "processing" }]);
+      toast({ title: "Export requested", description: "Check status below. A download appears only when the server has finished preparing your file." });
     } catch (err: unknown) {
-      const msg = err instanceof ApiError ? err.message : "Could not prepare export.";
-      toast({
-        title: "Export failed",
-        description: msg,
-        variant: "destructive",
-      });
-      setExported(null);
+      if (owner.current !== requestOwner) return;
+      toast({ title: "Export failed", description: err instanceof Error ? err.message : "Could not prepare export.", variant: "destructive" });
     } finally {
-      setExporting(false);
+      if (owner.current === requestOwner) setExporting(false);
     }
   };
 
   const handleDownloadFromHistory = async (entry: ExportHistoryEntry) => {
+    if (entry.status !== "ready" || !entry.downloadUrl) return;
     try {
-      if (entry.downloadUrl) {
-        await triggerDownload(entry.format, { downloadUrl: entry.downloadUrl });
-        toast({ title: "Download started", description: `FinCopilot-export.${entry.format.toUpperCase()}` });
-        return;
-      }
-      // If no URL persisted, ask the backend to regenerate.
-      const res: any = await api.requestExport(entry.format);
-      const downloadUrl = res?.download_url || res?.url || res?.data?.download_url;
-      const blob = res?.blob || res?.data?.blob;
-      if (downloadUrl || blob) {
-        await triggerDownload(entry.format, { downloadUrl, blob });
-        toast({ title: "Download ready", description: `FinCopilot-export.${entry.format.toUpperCase()}` });
-      } else {
-        toast({
-          title: "Download pending",
-          description: "Your export is being prepared. We'll email you when it's ready.",
-        });
-      }
+      await triggerDownload(entry.format, { downloadUrl: entry.downloadUrl });
     } catch {
-      toast({
-        title: "Download failed",
-        description: "Could not fetch export. Try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Download failed", description: "Refresh the export status and try again.", variant: "destructive" });
     }
   };
 
@@ -204,12 +181,15 @@ export default function ExportPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (!canDelete || deleting) return;
+    if (!canDelete || deleting || !userId) return;
+    const requestOwner = userId;
     setDeleting(true);
     try {
       await api.requestDeletion();
+      if (owner.current !== requestOwner) return;
       setDeleted(true);
     } catch (err: unknown) {
+      if (owner.current !== requestOwner) return;
       setDeleting(false);
       setConfirmText("");
       const msg = err instanceof ApiError ? err.message : "Could not request account deletion. Please try again.";
@@ -238,9 +218,8 @@ export default function ExportPage() {
             Account deletion in progress
           </h2>
           <p className="text-[13px] text-(--text-secondary) max-w-sm leading-[1.6]">
-            Your account has been scheduled for permanent deletion. All linked
-            bank accounts have been disconnected. You'll be signed out shortly
-            and receive a final email confirmation.
+            Your deletion request has been received. This acknowledgement does not
+            confirm that stored data has been erased or connected services have been disconnected.
           </p>
           <Link
             href="/"
@@ -287,8 +266,8 @@ export default function ExportPage() {
         <div className="premium-card p-5 flex flex-col gap-4">
           <div>
             <p className="text-[13px] text-(--text-secondary) leading-normal">
-              Download a complete archive of your transactions, accounts, goals,
-              budgets, and AI insights. Ready in under a minute.
+              Request an archive in your preferred format. Processing time depends on
+              the export service; the latest request status appears below.
             </p>
           </div>
 
@@ -338,7 +317,7 @@ export default function ExportPage() {
 
           {/* Export button */}
           <button
-            disabled={exporting}
+            disabled={exporting || !isLoaded || !userId || history.some(entry => entry.status === "processing")}
             onClick={handleExport}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[12px] bg-accent text-accent-foreground text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-60"
           >
@@ -383,7 +362,9 @@ export default function ExportPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15 }}
       >
-        <SectionLabel>Export History</SectionLabel>
+        <SectionLabel>Latest export request</SectionLabel>
+        <button onClick={() => setRefresh(value => value + 1)} disabled={!userId} className="mb-3 min-h-11 px-3 rounded-lg text-accent hover:bg-[var(--accent-light)]">Refresh status</button>
+        {statusError && <p role="alert" className="mb-3 text-sm text-(--negative)">{statusError}</p>}
         <div className="premium-card overflow-hidden">
           {history.length === 0 && (
             <div className="p-6 text-center">
@@ -411,10 +392,11 @@ export default function ExportPage() {
                     FinCopilot-export.{entry.format.toUpperCase()}
                   </p>
                   <p className="text-[12px] text-(--text-tertiary) mt-0.5">
-                    {formatDate(entry.date, { style: "long" })} · {entry.size}
+                    {formatDate(entry.date, { style: "long" })} · {entry.status === "ready" ? entry.size : entry.status === "failed" ? "Failed: request a new export" : "Processing: download not available yet"}
                   </p>
                 </div>
                 <button
+                  disabled={entry.status !== "ready" || !entry.downloadUrl}
                   onClick={() => handleDownloadFromHistory(entry)}
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-[8px] text-[12px] font-medium text-accent hover:bg-[var(--accent-light)] transition-colors"
                 >
@@ -452,8 +434,8 @@ export default function ExportPage() {
                 Delete your account
               </h3>
               <p className="text-[12px] text-(--text-secondary) mt-1 leading-normal">
-                This will permanently erase all your data, disconnect all bank
-                accounts, cancel your subscription, and remove your AI history.
+                Submit a request to permanently erase your account data.
+                Completion depends on the deletion service; this screen confirms request acceptance.
                 <strong> This action cannot be undone.</strong>
               </p>
             </div>
@@ -534,8 +516,8 @@ export default function ExportPage() {
         className="text-center text-[12px] text-(--text-tertiary) mt-2"
       >
         Need help?{" "}
-        <Link href="/you" className="text-accent font-medium hover:underline">
-          Contact support
+        <Link href="/help" className="text-accent font-medium hover:underline">
+          Open help centre
         </Link>{" "}
         — we'll respond within 24 hours.
       </motion.p>

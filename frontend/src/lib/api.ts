@@ -96,11 +96,18 @@ export const api = {
   deleteGoal: (id: string) => apiFetch(`/goals/${id}`, { method: "DELETE" }),
 
   getBudgets: () => apiFetch("/budgets"),
-  createBudget: (data: any) => apiFetch("/budgets", { method: "POST", body: JSON.stringify(data) }),
-  updateBudget: (id: string, data: any) => apiFetch(`/budgets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteBudget: (id: string) => apiFetch(`/budgets/${id}`, { method: "DELETE" }),
-  recalculateBudgets: () => apiFetch("/budgets/recalculate", { method: "POST" }),
+  createBudget: (data: any) =>
+    apiFetch("/budgets", { method: "POST", body: JSON.stringify(data) }),
+  updateBudget: (id: string, data: any) =>
+    apiFetch(`/budgets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteBudget: (id: string) =>
+    apiFetch(`/budgets/${id}`, { method: "DELETE" }),
+  recalculateBudgets: () =>
+    apiFetch("/budgets/recalculate", { method: "POST" }),
 
+  // ── Recurring ──────────────────────────────────────────────────────────────
+  updateRecurring: (id: string, action: "confirm" | "dismiss" | "pause" | "resume") =>
+    apiFetch(`/recurring/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ action }) }),
   getRecurring: () => apiFetch("/recurring"),
   getRecurringSummary: () => apiFetch("/recurring/summary"),
   detectRecurring: () => apiFetch("/recurring/detect", { method: "POST" }),
@@ -138,10 +145,15 @@ export const api = {
   getPrivacyInventory: () => apiFetch("/trust/privacy/inventory"),
   updatePrivacyConsent: (data: any) => apiFetch("/trust/privacy/consent", { method: "POST", body: JSON.stringify(data) }),
   getSecuritySessions: () => apiFetch("/trust/security/sessions"),
-  revokeSession: (id: string) => apiFetch(`/trust/security/sessions/revoke`, { method: "POST", body: JSON.stringify({ id }) }),
-  requestExport: (format?: string) => apiFetch("/trust/export", { method: "POST", body: JSON.stringify({ format: format || "csv" }) }),
-  requestDeletion: () => apiFetch("/trust/deletion", { method: "POST" }),
+  revokeSession: (id: string) =>
+    apiFetch(`/trust/security/sessions/revoke`, { method: "POST", body: JSON.stringify({ id }) }),
+  getExportStatus: () => apiFetch<{status?: string; job?: {job_id: string; status: string; format: "csv" | "json" | "pdf"; download_url?: string; created_at: string}}>("/trust/export/status"),
+  requestExport: (format?: string) =>
+    apiFetch<{jobId: string; status: string}>("/trust/export", { method: "POST", body: JSON.stringify({ format: format || "csv" }) }),
+  requestDeletion: () =>
+    apiFetch("/trust/deletion", { method: "POST" }),
 
+  // ── Auth ────────────────────────────────────────────────────────────────────
   getMe: () => apiFetch("/auth/me"),
   getPreferences: () => apiFetch("/preferences"),
   updatePreferences: (data: any) => apiFetch("/preferences", { method: "PUT", body: JSON.stringify(data) }),
