@@ -55,7 +55,8 @@ export function setupRoutes(app, dependencies) {
     // ── Phase 2: Ingestion / Import ───────────────────────────────────────────
     router.post('/import/upload-intent', requireAuth, requireConsent('privacy_policy'), (req, res) => ingestionController.initiateUpload(req, res));
     router.post('/import/confirm',       requireAuth, requireConsent('privacy_policy'), (req, res) => ingestionController.confirmUpload(req, res));
-    router.post('/import/replay/:job_id', requireAuth, (req, res) => ingestionController.replayJob(req, res));
+    router.get('/import/jobs', requireAuth, (req, res) => ingestionController.listJobs(req, res));
+    router.post('/import/replay/:job_id', requireAuth, requireConsent('privacy_policy'), (req, res) => ingestionController.replayJob(req, res));
 
     // ── Phase 6: Financial State BFF ──────────────────────────────────────────
     router.get('/financial-state/home',           requireAuth, FinancialController.getHomeState);

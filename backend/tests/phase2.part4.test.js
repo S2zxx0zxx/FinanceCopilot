@@ -75,11 +75,11 @@ describe('PHASE 2.4 - STRICT CONTRACT REMEDIATION (REPLAY & METADATA)', async ()
         // Simulate Exhaustion (DLQ)
         await dbClient.query(`
             UPDATE import_jobs 
-            SET status = 'dead_letter', attempt = 3, last_error = 'Timeout' 
+            SET status = 'dead_letter', attempt = 3, last_error = 'Timeout', file_checksum = 'verified-test-checksum'
             WHERE job_id = $1`, [job.job_id]);
 
         // Trigger Replay Endpoint logic
-        await IngestionRepo.requestJobReplay(job.job_id);
+        await IngestionRepo.requestJobReplay(job.job_id, userId);
 
         const checkJob = await dbClient.query(`SELECT status, attempt, last_error FROM import_jobs WHERE job_id = $1`, [job.job_id]);
         

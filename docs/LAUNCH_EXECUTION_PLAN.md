@@ -37,3 +37,12 @@ Status: IN PROGRESS. Existing layouts and features must be improved, not removed
 
 ## Audit closure
 Original audit findings remain the coverage baseline. Each finding must be mapped to a patch, a demonstrated nonissue or an explicit unresolved prerequisite. No broad checkbox closes multiple unreviewed findings.
+
+## Reconciled main checkpoint
+- Main fast-forwarded to 3c1dfe0, preserving merged Setu and achievement work. Current changes are local; user will push.
+- F01: planning overview, partial resource failures, goal filters and recurring contract mapping implemented; final visual review remains.
+- F02: owned latest-30 import progress and failed-only replay implemented. Review/correction workflow remains open.
+- B01: normalization leases now actively reclaimed with three-attempt bound; expired workers fenced before ledger writes; audit failure cannot reject a committed transaction. Isolated recovery checks passed.
+- F07: fabricated peer cohort/median constants now unavailable explicitly; personal metric calculation review remains open.
+- Verification: current main production frontend build passed TypeScript and 34 static pages. Isolated PostgreSQL applied 28 migration files and passed imports, normalization, stale leases, duplicate prevention, tenant isolation, month-end and cashflow checks.
+- No production migration, deployment or push was performed in this checkpoint. Export delivery, deletion, opening balances and remaining workstreams above are still open.

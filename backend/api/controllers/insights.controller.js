@@ -76,17 +76,19 @@ export class InsightsController {
 
             res.json({
                 your_savings_rate: Math.round(savingsRate * 100) / 100,
-                peer_median_savings_rate: 18,
-                peer_top_10_pct: 35,
+                peer_median_savings_rate: null,
+                peer_top_10_pct: null,
                 your_cash_buffer_months: Math.round(cashBuffer * 10) / 10,
-                peer_median_cash_buffer: 1.8,
-                peer_top_10_pct_buffer: 5.5,
+                peer_median_cash_buffer: null,
+                peer_top_10_pct_buffer: null,
                 your_subscription_count: subCount,
-                peer_median_subscriptions: 9,
+                peer_median_subscriptions: null,
                 your_dining_spend_pct_of_income: Math.round(diningPct * 100) / 100,
-                peer_median_dining_pct: 15,
-                bracket: '25-35 age, ₹6-10L income, Metro India',
-                total_peers: 12450,
+                peer_median_dining_pct: null,
+                bracket: null,
+                total_peers: null,
+                status: 'PEER_DATA_UNAVAILABLE',
+                reason: 'No validated anonymous comparison cohort is available.',
             });
         } catch (err) {
             next(err);

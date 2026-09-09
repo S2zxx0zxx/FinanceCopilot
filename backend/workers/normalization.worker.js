@@ -22,12 +22,14 @@ export class NormalizationWorker {
         
         // eslint-disable-next-line no-undef
         setInterval(async () => {
+            if (this.processing) return;
+            this.processing = true;
             try {
                 // eslint-disable-next-line
                 await this.pollOnce();
             } catch (err) {
-                console.error('[NORMALIZATION_WORKER] Uncaught error in polling loop:', err);
-            }
+                console.error('[NORMALIZATION_WORKER] Poll failed; pending leases will be retried.');
+            } finally { this.processing = false; }
         }, intervalMs);
     }
 
@@ -50,23 +52,23 @@ export class NormalizationWorker {
                 const canonicalTx = NormalizationPipeline.run(record);
 
                 // 2. Persist Canonical Record Idempotently
-                const savedTx = await this.repo.saveCanonicalTransaction(canonicalTx, record.source_record_id);
+                const savedTx = await this.repo.saveCanonicalTransaction(canonicalTx, record.source_record_id, record.normalization_lease_token);
 
                 if (savedTx) {
-                    await AuditRepo.logEvent('NORMALIZATION_SUCCESS', 'transaction', savedTx.transaction_id, 'system_worker', {
-                        source_record_id: record.source_record_id,
-                        version: canonicalTx.normalization_version
-                    });
+                    // The ledger commit is already durable. Audit transport failure must not reject it.
+                    try {
+                        await AuditRepo.logEvent('NORMALIZATION_SUCCESS', 'transaction', savedTx.transaction_id, 'system_worker', {
+                            source_record_id: record.source_record_id,
+                            version: canonicalTx.normalization_version
+                        });
+                    } catch { console.error('[NORMALIZATION_WORKER] Audit event unavailable after ledger commit.'); }
                 }
 
             } catch (error) {
-                console.error(`[NORMALIZATION_WORKER] Failed to normalize record ${record.source_record_id}:`, error);
-                
-                await this.repo.markSourceRecordRejected(record.source_record_id, error.message);
-                
-                await AuditRepo.logEvent('NORMALIZATION_FAILED', 'source_record', record.source_record_id, 'system_worker', { 
-                    error: error.message 
-                });
+                // Leave the lease recoverable: database outages and transient resolution failures
+                // are retried, bounded by the repository attempt limit. Do not persist raw error text.
+                console.error('[NORMALIZATION_WORKER] Normalization failed; lease recovery will retry this record.');
+
             }
         }
     }

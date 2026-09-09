@@ -8,6 +8,24 @@ export class IngestionController {
         this.ingestionService = ingestionService;
     }
 
+    async listJobs(req, res) {
+        try {
+            const { dbClient } = await import('../../db/client.js');
+            const { rows } = await dbClient.query(`
+                SELECT j.job_id, j.account_id, j.original_filename, j.status,
+                       j.attempt, j.max_attempts, j.created_at, j.updated_at,
+                       COUNT(s.source_record_id)::int AS extracted_records,
+                       COUNT(s.source_record_id) FILTER (WHERE s.status = 'normalized')::int AS normalized_records,
+                       COUNT(s.source_record_id) FILTER (WHERE s.status = 'rejected')::int AS rejected_records
+                FROM (SELECT * FROM import_jobs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 30) j
+                LEFT JOIN source_records s ON s.import_job_id = j.job_id AND s.user_id = j.user_id
+                GROUP BY j.job_id, j.account_id, j.original_filename, j.status, j.attempt,
+                         j.max_attempts, j.created_at, j.updated_at
+                ORDER BY j.created_at DESC`, [req.user.userId]);
+            return res.json({ jobs: rows });
+        } catch { return res.status(500).json({ error: 'Could not load import progress.' }); }
+    }
+
     /**
      * HTTP POST /api/v1/import/upload-intent
      * Body: { fileName: "statement.pdf", mimeType: "application/pdf" }
@@ -76,11 +94,12 @@ export class IngestionController {
             if (!job) {
                 return res.status(404).json({ error: 'Job not found.' });
             }
-            if (job.user_id !== req.user.id) {
+            if (job.user_id !== req.user.userId) {
                 return res.status(403).json({ error: 'Forbidden: You do not own this job.' });
             }
 
-            const updatedJob = await IngestionRepo.requestJobReplay(job_id);
+            const updatedJob = await IngestionRepo.requestJobReplay(job_id, req.user.userId);
+            if (!updatedJob) return res.status(409).json({ error: 'Only failed, confirmed uploads can be retried.' });
 
             return res.status(200).json({
                 message: 'Job replay requested successfully.',

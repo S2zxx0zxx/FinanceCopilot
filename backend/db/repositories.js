@@ -140,18 +140,19 @@ export const IngestionRepo = {
     /**
      * Explicitly requests a replay of a job (usually from dead_letter state).
      */
-    async requestJobReplay(job_id) {
+    async requestJobReplay(job_id, user_id) {
         const text = `
             UPDATE import_jobs
             SET status = 'queued',
                 attempt = 0,
                 last_error = NULL,
                 next_retry_at = NULL,
-                updated_at = NOW()
-            WHERE job_id = $1
+                updated_at = NOW(), lease_token = NULL, lease_expires_at = NULL
+            WHERE job_id = $1 AND user_id = $2 AND status IN ('failed', 'dead_letter')
+              AND file_checksum IS NOT NULL
             RETURNING *;
         `;
-        const res = await dbClient.query(text, [job_id]);
+        const res = await dbClient.query(text, [job_id, user_id]);
         return res.rows[0];
     },
 
@@ -298,12 +299,20 @@ export const NormalizationRepo = {
      * Uses SKIP LOCKED for safe concurrent processing.
      */
     async claimNextRawSourceRecords(batchSize = 50) {
+        await dbClient.query(`UPDATE source_records SET status='rejected',
+            rejection_reason='Normalization retry limit reached', normalization_lease_token=NULL,
+            normalization_lease_expires_at=NULL WHERE status='processing'
+            AND (normalization_lease_expires_at < NOW() OR normalization_lease_expires_at IS NULL)
+            AND normalization_attempts >= 3`);
         const text = `
             UPDATE source_records
-            SET status = 'processing'
+            SET status = 'processing', normalization_lease_token = gen_random_uuid(),
+                normalization_lease_expires_at = NOW() + INTERVAL '5 minutes',
+                normalization_attempts = normalization_attempts + 1
             WHERE source_record_id IN (
                 SELECT source_record_id FROM source_records
-                WHERE status = 'raw'
+                WHERE normalization_attempts < 3 AND (status = 'raw' OR (status = 'processing'
+                    AND (normalization_lease_expires_at < NOW() OR normalization_lease_expires_at IS NULL)))
                 ORDER BY created_at ASC
                 FOR UPDATE SKIP LOCKED
                 LIMIT $1
@@ -333,10 +342,17 @@ export const NormalizationRepo = {
     /**
      * Idempotently saves a canonical transaction and marks the source record as normalized.
      */
-    async saveCanonicalTransaction(transaction, sourceRecordId) {
+    async saveCanonicalTransaction(transaction, sourceRecordId, leaseToken) {
         const client = await dbClient.connect();
         try {
             await client.query('BEGIN');
+
+            const lease = await client.query(`SELECT source_record_id FROM source_records
+                WHERE source_record_id=$1 AND user_id=$2 AND status='processing'
+                AND normalization_lease_token=$3 AND normalization_lease_expires_at > NOW() FOR UPDATE`,
+                [sourceRecordId, transaction.user_id, leaseToken]);
+            if (!lease.rows.length) throw new Error('Normalization lease expired or was replaced');
+            if (transaction.source_record_id !== sourceRecordId) throw new Error('Normalization source mismatch');
 
             const txInsert = `
                 INSERT INTO transactions (
@@ -368,7 +384,7 @@ export const NormalizationRepo = {
 
             const sourceUpdate = `
                 UPDATE source_records
-                SET status = 'normalized'
+                SET status = 'normalized', normalization_lease_token=NULL, normalization_lease_expires_at=NULL
                 WHERE source_record_id = $1;
             `;
             await client.query(sourceUpdate, [sourceRecordId]);
@@ -386,14 +402,16 @@ export const NormalizationRepo = {
     /**
      * Marks a source record as failed/rejected (e.g. fatal normalization error).
      */
-    async markSourceRecordRejected(sourceRecordId, reason) {
+    async markSourceRecordRejected(sourceRecordId, reason, leaseToken) {
         const text = `
             UPDATE source_records
-            SET status = 'rejected', rejection_reason = $2
-            WHERE source_record_id = $1
+            SET status = 'rejected', rejection_reason = $2,
+                normalization_lease_token=NULL, normalization_lease_expires_at=NULL
+            WHERE source_record_id = $1 AND status='processing' AND normalization_lease_token=$3
+                AND normalization_lease_expires_at > NOW()
             RETURNING *;
         `;
-        const res = await dbClient.query(text, [sourceRecordId, reason]);
+        const res = await dbClient.query(text, [sourceRecordId, reason, leaseToken]);
         return res.rows[0];
     },
 
