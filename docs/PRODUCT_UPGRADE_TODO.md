@@ -84,10 +84,15 @@ Build checkpoint: production compilation and TypeScript succeeded, but prerender
 - [x] Build the merged frontend: production compile, TypeScript and all 32 static pages passed.
 - [x] Previously isolated PostgreSQL checks: 25 migrations, upload/normalization flow, account binding, lease fencing, deduplication, category/income tenant isolation and India month-end inclusion passed.
 - Cashflow history, debt activity, forecast response mapping and financial fitness UI are now included in the recovered branch. Financial fitness retains its cards and peer section; unavailable peer evidence is labelled explicitly.
-- [ ] Validate the new cashflow history query against isolated PostgreSQL; not covered by the earlier category/income check.
+- [x] Correct cashflow interval/timezone precedence and validate all four periods in isolated PostgreSQL, alongside the 25-migration import and aggregation checks.
 - [ ] Finish Plan restoration, data confidence, detail/review flows and remaining settings listed above. Do not mark these complete based on successful compilation.
 - [ ] Export must stop creating jobs on mount and must distinguish queued exports from ready files; worker delivery remains to be completed.
 - [ ] Restore Privacy's original visual structure with actual consent history and clear deletion/retention semantics.
 - [ ] Resolve opening balances, provider configuration, audit blockers and deployment readiness before calling the app launch-ready.
 
 No production database migration or live deployment was performed in this resume pass. The merged build is verified; the full product TODO remains open.
+
+- Export UI now reads GET status without creating jobs on mount, fences auth changes, and distinguishes processing/failed/ready. Fabricated sizes and delivery promises removed; export worker delivery remains open.
+
+- Bills lifecycle actions now call the owned-series PATCH endpoint: confirm reviewable patterns, activate confirmed patterns, pause/resume tracking and dismiss nonterminal patterns. Missing monthly amounts are counted explicitly; unknown confidence no longer creates invalid CSS.
+- TypeScript verification passed after the Export/Bills changes. Export format validation and safe download protocols added. No live provider delivery or deployment is claimed.

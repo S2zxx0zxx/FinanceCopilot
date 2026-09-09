@@ -142,7 +142,11 @@ export class TrustController {
             // Previously this returned a fake `export_${Date.now()}` stub that
             // the frontend could never poll to COMPLETED. Now we INSERT a real
             // row that the queue worker updates via _internalUpdateExportStatus.
-            const format = (req.body?.format || 'csv').toLowerCase();
+            const requestedFormat = req.body?.format ?? 'csv';
+            if (typeof requestedFormat !== 'string' || !['csv', 'json', 'pdf'].includes(requestedFormat.toLowerCase())) {
+                return res.status(400).json({ error: 'Choose csv, json or pdf.' });
+            }
+            const format = requestedFormat.toLowerCase();
             const { rows } = await db.query(
                 `INSERT INTO export_jobs (user_id, status, format)
                  VALUES ($1, 'PROCESSING', $2)

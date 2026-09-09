@@ -125,6 +125,8 @@ export const api = {
     apiFetch("/budgets/recalculate", { method: "POST" }),
 
   // ── Recurring ──────────────────────────────────────────────────────────────
+  updateRecurring: (id: string, action: "confirm" | "dismiss" | "pause" | "resume") =>
+    apiFetch(`/recurring/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ action }) }),
   getRecurring: () => apiFetch("/recurring"),
   getRecurringSummary: () => apiFetch("/recurring/summary"),
   detectRecurring: () =>
@@ -199,8 +201,9 @@ export const api = {
   getSecuritySessions: () => apiFetch("/trust/security/sessions"),
   revokeSession: (id: string) =>
     apiFetch(`/trust/security/sessions/revoke`, { method: "POST", body: JSON.stringify({ id }) }),
+  getExportStatus: () => apiFetch<{status?: string; job?: {job_id: string; status: string; format: "csv" | "json" | "pdf"; download_url?: string; created_at: string}}>("/trust/export/status"),
   requestExport: (format?: string) =>
-    apiFetch("/trust/export", { method: "POST", body: JSON.stringify({ format: format || "csv" }) }),
+    apiFetch<{jobId: string; status: string}>("/trust/export", { method: "POST", body: JSON.stringify({ format: format || "csv" }) }),
   requestDeletion: () =>
     apiFetch("/trust/deletion", { method: "POST" }),
 
