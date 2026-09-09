@@ -2,122 +2,208 @@ import { AppError } from '../../utils/errors.js';
 import { AuditRepo } from '../../db/repositories.js';
 
 /**
- * Account Aggregator Service
- * 
- * Orchestrates the Account Aggregator consent and data retrieval flows.
+ * Current Setu AA Gateway orchestration.
+ *
+ * Supports both:
+ * - Auto-Fetch: Setu posts FI_DATA_READY containing decrypted FI data.
+ * - Manual data sessions: Setu posts SESSION_STATUS_UPDATE and FinCopilot then
+ *   GETs the session to retrieve decrypted FI data.
  */
 export class AccountAggregatorService {
-    constructor(aaAdapter, consentService, dbRepository) {
+    constructor(aaAdapter, consentService, setuRepo, options = {}) {
         this.aaAdapter = aaAdapter;
         this.consentService = consentService;
-        this.dbRepository = dbRepository;
+        this.setuRepo = setuRepo;
+        this.autoFetch = options.autoFetch !== false;
+        this.redirectUrl = options.redirectUrl || null;
     }
 
-    /**
-     * Initiates a consent flow with the AA network.
-     */
-    async initiateConsent(userId, vua) {
-        if (!vua || !vua.includes('@')) {
-            throw new AppError('Invalid VUA format. Must be user@fip.', 400);
+    async initiateConsent(userId, vua, options = {}) {
+        const normalizedVua = String(vua || '').trim();
+        // Current Setu Multi-AA accepts either a mobile number or mobile@AA handle.
+        if (!/^\d{10,15}(?:@[a-zA-Z0-9._-]+)?$/.test(normalizedVua)) {
+            throw new AppError('VUA must be a mobile number or mobile@AA handle.', 400, false, 'INVALID_VUA');
+        }
+
+        const now = new Date();
+        const from = options.from ? new Date(options.from) : new Date(now);
+        if (!options.from) from.setFullYear(from.getFullYear() - 1);
+        const to = options.to ? new Date(options.to) : now;
+        if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from >= to) {
+            throw new AppError('Invalid Account Aggregator data range.', 400, false, 'INVALID_DATA_RANGE');
         }
 
         try {
-            // 1. Ask AA Adapter to initiate consent
-            const { consentHandle, redirectUrl } = await this.aaAdapter.createConsentDetail(userId, vua, {});
+            const result = await this.aaAdapter.createConsentDetail(userId, normalizedVua, {
+                dataRange: { from: from.toISOString(), to: to.toISOString() },
+                consentDuration: options.consentDuration || { unit: 'MONTH', value: '12' },
+                redirectUrl: options.redirectUrl || this.redirectUrl,
+                context: options.context,
+                additionalParams: options.additionalParams
+            });
 
-            // 2. Track this pending consent in our ConsentService
-            await this.consentService.trackPendingConsent(userId, 'aa_sync', consentHandle);
+            await this.consentService.trackPendingConsent(userId, 'aa_sync', result.consentHandle);
+            await AuditRepo.logEvent('AA_CONSENT_INITIATED', 'consent', result.consentHandle, userId, {
+                provider: 'setu',
+                status: result.status || 'PENDING',
+                traceId: result.traceId || null
+            });
 
-            // 3. Log Audit
-            await AuditRepo.logEvent('AA_CONSENT_INITIATED', 'consent', consentHandle, userId, { vua });
-
-            return { consentHandle, redirectUrl };
+            return {
+                consentId: result.consentId,
+                consentHandle: result.consentHandle,
+                redirectUrl: result.redirectUrl,
+                status: result.status
+            };
         } catch (error) {
+            if (error instanceof AppError) throw error;
             console.error('[AA Service] Failed to initiate consent:', error);
-            throw new AppError('Failed to initiate Account Aggregator consent.', 500);
+            throw new AppError('Failed to initiate Account Aggregator consent.', 502, true, 'AA_CONSENT_FAILED');
         }
     }
 
-    /**
-     * Handle webhook when consent status changes (e.g., ACTIVE or REVOKED).
-     */
+    async getConsentStatus(userId, consentId) {
+        const owner = await this.setuRepo.getConsentOwner(consentId);
+        if (!owner || owner.user_id !== userId) {
+            throw new AppError('Consent not found.', 404, false, 'AA_CONSENT_NOT_FOUND');
+        }
+        const provider = await this.aaAdapter.checkConsentStatus(consentId);
+        await this.setuRepo.updateConsentStatus(consentId, provider.status);
+        return provider;
+    }
+
+    async revokeConsent(userId, consentId) {
+        const owner = await this.setuRepo.getConsentOwner(consentId);
+        if (!owner || owner.user_id !== userId) {
+            throw new AppError('Consent not found.', 404, false, 'AA_CONSENT_NOT_FOUND');
+        }
+        const result = await this.aaAdapter.revokeConsent(consentId);
+        await this.setuRepo.updateConsentStatus(consentId, 'REVOKED');
+        await AuditRepo.logEvent('AA_CONSENT_REVOKED', 'consent', owner.consent_id, userId, { provider: 'setu' });
+        return result;
+    }
+
+    async handleWebhook(payload) {
+        const type = String(payload?.type || '');
+        if (type === 'CONSENT_STATUS_UPDATE') return this.handleConsentWebhook(payload);
+        if (type === 'SESSION_STATUS_UPDATE') return this.handleSessionWebhook(payload);
+        if (type === 'FI_DATA_READY') return this.handleAutoFetchWebhook(payload);
+        throw new AppError('Unsupported Setu notification type.', 400, false, 'SETU_WEBHOOK_TYPE_INVALID');
+    }
+
     async handleConsentWebhook(payload) {
-        const { consentId, consentHandle, status } = payload;
-        
-        try {
-            const consentRecord = await this.consentService.getConsentByHandle(consentHandle);
-            if (!consentRecord) {
-                console.warn(`[AA Service] Unknown consent handle: ${consentHandle}`);
-                return;
-            }
-
-            if (status === 'ACTIVE') {
-                // FIX (audit P0 #4): consent_records has no `id` column —
-                // use the canonical PK `consent_id`. ConsentService.activateConsent
-                // now stores the AA-issued consentId in `consent_id_ext`.
-                await this.consentService.activateConsent(consentRecord.consent_id, consentId);
-                await AuditRepo.logEvent('AA_CONSENT_ACTIVE', 'consent', consentId, consentRecord.user_id, {});
-
-                // Automatically trigger first data pull
-                await this.triggerDataSync(consentRecord.user_id, consentId);
-            } else if (status === 'REVOKED') {
-                await this.consentService.revokeConsentById(consentRecord.consent_id);
-                await AuditRepo.logEvent('AA_CONSENT_REVOKED', 'consent', consentId, consentRecord.user_id, {});
-            }
-        } catch (error) {
-            console.error('[AA Service] Webhook processing failed:', error);
-            throw new AppError('Webhook processing failed.', 500);
+        const consentId = payload?.consentId;
+        const status = payload?.data?.status || payload?.status;
+        if (!consentId || !status) {
+            throw new AppError('Malformed Setu consent notification.', 400, false, 'SETU_WEBHOOK_INVALID');
         }
-    }
 
-    /**
-     * Triggers a data fetch for an active consent.
-     */
-    async triggerDataSync(userId, consentId) {
-        // 1. Request Data Session
-        const { sessionId } = await this.aaAdapter.requestData(consentId, {});
+        const owner = await this.setuRepo.getConsentOwner(consentId);
+        if (!owner) {
+            // A webhook must never create an uncorrelated user/consent.
+            throw new AppError('Unknown Setu consent notification.', 404, false, 'SETU_CONSENT_UNKNOWN');
+        }
 
-        // 2. Create an Import Job for the incoming data
-        // FIX (audit P1 #47): import_jobs.job_type CHECK constraint allows
-        // ('pdf','csv','excel','ocr','manual') — 'account_aggregator' was
-        // rejected by the CHECK, throwing and silently losing the AA webhook.
-        // Use 'manual' (the closest semantic match for AA-sourced data).
-        const importJob = await this.dbRepository.createImportJob({
-            user_id: userId,
-            idempotency_key: `aa_sync_${sessionId}`,
-            job_type: 'manual',
-            file_ref: sessionId, // Used to map the incoming webhook data
-            original_filename: `aa_sync_${new Date().toISOString()}`,
-            content_type: 'application/json'
+        const updated = await this.setuRepo.updateConsentStatus(consentId, status);
+        await AuditRepo.logEvent('AA_CONSENT_STATUS_UPDATE', 'consent', updated?.consent_id || owner.consent_id, owner.user_id, {
+            provider: 'setu', status, notificationId: payload.notificationId || null,
+            errorCode: payload?.error?.code || null
         });
 
-        await this.dbRepository.updateImportJobStatus(importJob.job_id, 'processing');
+        // Auto-Fetch creates/fetches sessions inside Setu. Manual mode creates
+        // the initial session here after the consent becomes ACTIVE.
+        if (String(status).toUpperCase() === 'ACTIVE' && !this.autoFetch) {
+            await this.triggerDataSync(owner.user_id, consentId);
+        }
+        return { handled: true, type: 'CONSENT_STATUS_UPDATE' };
     }
 
-    /**
-     * Handle webhook when FI Data is ready.
-     */
-    async handleDataWebhook(payload) {
-        const { sessionId, encryptedData, dhKey } = payload;
-
-        try {
-            // Find job
-            const importJob = await this.dbRepository.getJobByFileRef(sessionId);
-            if (!importJob) return;
-
-            // Decrypt data
-            const decryptedPayload = await this.aaAdapter.decryptFIIData(encryptedData, dhKey);
-
-            // Enqueue for processing
-            await this.dbRepository.updateImportJobStatus(importJob.job_id, 'queued');
-            
-            // Assuming queueAdapter is accessible via some DI or global
-            // Queue.enqueue('statement_processing_queue', { jobId: importJob.job_id, payload: decryptedPayload })
-            
-            await AuditRepo.logEvent('AA_DATA_RECEIVED', 'import_job', importJob.job_id, importJob.user_id, {});
-        } catch (error) {
-            console.error('[AA Service] Data webhook failed:', error);
-            throw new AppError('Data webhook failed.', 500);
+    async triggerDataSync(userId, consentId, dateRange = null) {
+        const owner = await this.setuRepo.getConsentOwner(consentId);
+        if (!owner || owner.user_id !== userId) {
+            throw new AppError('Consent not found.', 404, false, 'AA_CONSENT_NOT_FOUND');
         }
+        if (String(owner.status).toLowerCase() !== 'active') {
+            throw new AppError('Consent is not active.', 409, false, 'AA_CONSENT_NOT_ACTIVE');
+        }
+
+        const result = await this.aaAdapter.requestData(consentId, dateRange || {});
+        await AuditRepo.logEvent('AA_DATA_SESSION_CREATED', 'consent', owner.consent_id, userId, {
+            provider: 'setu', sessionId: result.sessionId, status: result.status
+        });
+        return result;
+    }
+
+    async handleSessionWebhook(payload) {
+        const consentId = payload?.consentId;
+        const sessionId = payload?.dataSessionId;
+        const status = String(payload?.data?.status || '').toUpperCase();
+        if (!consentId || !sessionId) {
+            throw new AppError('Malformed Setu session notification.', 400, false, 'SETU_WEBHOOK_INVALID');
+        }
+        const owner = await this.setuRepo.getConsentOwner(consentId);
+        if (!owner) throw new AppError('Unknown Setu consent.', 404, false, 'SETU_CONSENT_UNKNOWN');
+
+        if (!['PARTIAL', 'COMPLETED'].includes(status)) {
+            await AuditRepo.logEvent('AA_DATA_SESSION_STATUS', 'consent', owner.consent_id, owner.user_id, {
+                provider: 'setu', sessionId, status
+            });
+            return { handled: true, imported: 0, status };
+        }
+
+        const session = await this.aaAdapter.fetchDataSession(sessionId);
+        const imported = await this.#ingestManualSession(owner.user_id, consentId, sessionId, session);
+        return { handled: true, imported, status };
+    }
+
+    async handleAutoFetchWebhook(payload) {
+        const consentId = payload?.consentId;
+        if (!consentId || !Array.isArray(payload?.fiData)) {
+            throw new AppError('Malformed Setu Auto-Fetch notification.', 400, false, 'SETU_WEBHOOK_INVALID');
+        }
+        const owner = await this.setuRepo.getConsentOwner(consentId);
+        if (!owner) throw new AppError('Unknown Setu consent.', 404, false, 'SETU_CONSENT_UNKNOWN');
+
+        let recordsCreated = 0;
+        for (const fip of payload.fiData) {
+            const fipId = fip?.fipID || fip?.fipId || 'unknown-fip';
+            const accountEntries = Array.isArray(fip?.data) ? fip.data : [];
+            for (const accountEnvelope of accountEntries) {
+                const result = await this.setuRepo.ingestAccountTransactions({
+                    userId: owner.user_id,
+                    consentId,
+                    sessionId: payload.dataSessionId || null,
+                    fipId,
+                    accountEnvelope,
+                    dataRange: payload.dataRange || null
+                });
+                recordsCreated += result.recordsCreated || 0;
+            }
+        }
+
+        await AuditRepo.logEvent('AA_DATA_RECEIVED', 'consent', owner.consent_id, owner.user_id, {
+            provider: 'setu', mode: 'auto_fetch', status: payload.status || null, recordsCreated
+        });
+        return { handled: true, imported: recordsCreated, status: payload.status || null };
+    }
+
+    async #ingestManualSession(userId, consentId, sessionId, session) {
+        let recordsCreated = 0;
+        for (const fip of session?.fips || []) {
+            const fipId = fip?.fipID || fip?.fipId || 'unknown-fip';
+            for (const accountEnvelope of fip?.accounts || []) {
+                if (!accountEnvelope?.data) continue;
+                const result = await this.setuRepo.ingestAccountTransactions({
+                    userId, consentId, sessionId, fipId,
+                    accountEnvelope: { ...accountEnvelope, decryptedFI: accountEnvelope.data },
+                    dataRange: session?.dataRange || null
+                });
+                recordsCreated += result.recordsCreated || 0;
+            }
+        }
+        await AuditRepo.logEvent('AA_DATA_RECEIVED', 'consent', (await this.setuRepo.getConsentOwner(consentId))?.consent_id, userId, {
+            provider: 'setu', mode: 'manual_session', sessionId, recordsCreated
+        });
+        return recordsCreated;
     }
 }
