@@ -53,7 +53,6 @@ export function DashboardProfileMenu({ user }: Readonly<{ user: DashboardProfile
       <DropdownMenuTrigger asChild>
         <button type="button" className={styles.profileTrigger} aria-label={`Open profile menu for ${displayName}`}>
           {initial}
-          <span className={styles.profileStatus} aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={10} className={styles.profileMenu}>
@@ -161,7 +160,7 @@ export function DashboardMoneyCard({
           <div className="flex min-w-0 items-center gap-3">
             <div className={styles.moneyMonogram}>F</div>
             <div className="min-w-0">
-              <p className="text-[9px] font-mono uppercase tracking-[.22em] text-white/58">FinCopilot</p>
+              <p className="text-[9px] font-mono uppercase tracking-[.22em] text-white/60">FinCopilot</p>
               <h2 className="mt-1 truncate font-display text-[17px] font-semibold tracking-[-.02em] text-white">Money snapshot</h2>
             </div>
           </div>
@@ -176,18 +175,16 @@ export function DashboardMoneyCard({
           </button>
         </div>
 
-        <div className="relative z-10 mt-[clamp(18px,5vw,34px)]">
-          <p className="text-[11px] font-medium text-white/66">Recorded net activity</p>
+        <div className="relative z-10 mt-[clamp(16px,4vw,28px)]">
+          <p className="text-[11px] font-medium text-white/70">Recorded net activity</p>
           <p className={`${styles.moneyAmount} mt-2 font-display font-semibold text-white`} aria-live="polite">
             {hidden ? "••••••" : amountPaise === null ? "Unavailable" : formatPaise(amountPaise)}
           </p>
+          <p className="mt-2 text-[9px] font-medium leading-relaxed text-white/60">Imported records · opening balances excluded</p>
         </div>
 
         <div className="absolute inset-x-[clamp(18px,3vw,25px)] bottom-[clamp(16px,3vw,23px)] z-10 flex items-end justify-between gap-3">
-          <div className="flex min-w-0 flex-wrap gap-2">
-            <span className={styles.moneyChip}><ShieldCheck className="h-3 w-3 shrink-0" />{accountLabel}</span>
-            <span className={styles.moneyChip}>Imported records · opening balances excluded</span>
-          </div>
+          <span className={styles.moneyChip}><ShieldCheck className="h-3 w-3 shrink-0" />{accountLabel}</span>
           <Link href="/money" aria-label="Open Money overview" className={styles.moneyLink}><ArrowUpRight className="h-5 w-5" /></Link>
         </div>
       </article>
@@ -221,7 +218,7 @@ export function SafeToSpendCard({
       <div className="relative z-10 flex h-full min-h-[108px] flex-col justify-between gap-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-mono uppercase tracking-[.15em] text-white/62">Safe to Spend</p>
+            <p className="text-[10px] font-mono uppercase tracking-[.15em] text-white/60">Safe to Spend</p>
             <div className="mt-3"><MetricAmount value={value} /></div>
           </div>
           <div className={styles.metricIcon}><Sparkles className="h-4 w-4 text-[#e8cf96]" /></div>
@@ -250,7 +247,7 @@ export function IncomeMetricCard({
       <div className="relative z-10 flex h-full min-h-[108px] flex-col justify-between gap-4">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[10px] font-mono uppercase tracking-[.15em] text-white/62">Income (mo)</p>
+            <p className="text-[10px] font-mono uppercase tracking-[.15em] text-white/60">Income (mo)</p>
             <div className="mt-3"><MetricAmount value={value} /></div>
           </div>
           <div className={styles.metricIcon}><TrendingUp className="h-4 w-4 text-[#86efac]" /></div>
