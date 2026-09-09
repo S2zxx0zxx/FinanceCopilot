@@ -36,6 +36,10 @@ export class AchievementService {
             `WITH per_goal_progress AS (
                 SELECT
                     g.goal_id,
+                    g.status,
+                    g.target_amount_paise,
+                    COALESCE(SUM(gc.amount_paise) FILTER (WHERE gc.status = 'confirmed'), 0)::bigint
+                        AS funded_paise,
                     CASE
                         WHEN g.target_amount_paise > 0 THEN LEAST(
                             100::numeric,
@@ -51,7 +55,7 @@ export class AchievementService {
                 WHERE g.user_id = $1
                   AND g.is_deleted = FALSE
                   AND g.status IN ('active', 'paused', 'completed')
-                GROUP BY g.goal_id, g.target_amount_paise
+                GROUP BY g.goal_id, g.status, g.target_amount_paise
             ),
             latest_health AS (
                 SELECT savings_pace_ratio
@@ -75,16 +79,11 @@ export class AchievementService {
                 (SELECT COUNT(*)::int
                    FROM budgets
                   WHERE user_id = $1 AND is_active = TRUE) AS active_budget_count,
+                (SELECT COUNT(*)::int FROM per_goal_progress) AS goal_count,
                 (SELECT COUNT(*)::int
-                   FROM goals
-                  WHERE user_id = $1
-                    AND is_deleted = FALSE
-                    AND status IN ('active', 'paused', 'completed')) AS goal_count,
-                (SELECT COUNT(*)::int
-                   FROM goals
-                  WHERE user_id = $1
-                    AND is_deleted = FALSE
-                    AND status = 'completed') AS completed_goal_count,
+                   FROM per_goal_progress
+                  WHERE status = 'completed'
+                     OR funded_paise >= target_amount_paise) AS completed_goal_count,
                 COALESCE((SELECT ROUND(MAX(funded_pct)) FROM per_goal_progress), 0)::int
                     AS max_goal_progress_percent,
                 (SELECT COUNT(*)::int
