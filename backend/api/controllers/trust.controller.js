@@ -65,7 +65,12 @@ export class TrustController {
                 { category: 'Financial commitments', description: 'Recurring bills and EMIs', record_count: parseInt(commitmentsCount, 10) }
             ];
 
-            res.json({ inventory, consentOptions, data_inventory: dataFootprint });
+            const { rows: consentHistory } = await db.query(
+                `SELECT consent_id, consent_type, version, consented, status, granted_at, revoked_at
+                 FROM consent_records WHERE user_id = $1
+                 ORDER BY granted_at DESC, consent_id DESC LIMIT 50`, [userId]
+            );
+            res.json({ inventory, consentOptions, data_inventory: dataFootprint, consent_history: consentHistory });
         } catch (err) { next(err); }
     }
 
@@ -142,7 +147,11 @@ export class TrustController {
             // Previously this returned a fake `export_${Date.now()}` stub that
             // the frontend could never poll to COMPLETED. Now we INSERT a real
             // row that the queue worker updates via _internalUpdateExportStatus.
-            const format = (req.body?.format || 'csv').toLowerCase();
+            const requestedFormat = req.body?.format ?? 'csv';
+            if (typeof requestedFormat !== 'string' || !['csv', 'json', 'pdf'].includes(requestedFormat.toLowerCase())) {
+                return res.status(400).json({ error: 'Choose csv, json or pdf.' });
+            }
+            const format = requestedFormat.toLowerCase();
             const { rows } = await db.query(
                 `INSERT INTO export_jobs (user_id, status, format)
                  VALUES ($1, 'PROCESSING', $2)
