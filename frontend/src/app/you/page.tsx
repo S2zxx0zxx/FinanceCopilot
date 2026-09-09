@@ -7,23 +7,122 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   ShieldCheck, Lock, EyeOff, Download, Bell, User, ChevronRight,
-  Flame, Pencil, CreditCard, Globe, IndianRupee, Languages, Sun, Moon,
+  Pencil, CreditCard, IndianRupee, Languages, Sun, Moon,
   HelpCircle, MessageSquare, Info, LogOut, Crown, Calendar, MessageCircle,
-  Zap, Award, Sparkles, Check, TrendingUp, type LucideIcon,
+  Zap, type LucideIcon,
 } from "lucide-react";
 
-import { formatDate, formatPct, getScoreLabel } from "@/lib/format";
+import { formatDate, getScoreLabel } from "@/lib/format";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { Badge, ProgressRing, CountUp } from "@/components/shared";
+import { AchievementHub, type AchievementBadgeData, type AchievementMilestoneData, type AchievementState } from "@/components/achievements/achievement-hub";
 import { useToast } from "@/hooks/use-toast";
 import { useResource } from "@/hooks/use-resource";
 import { ResourceState } from "@/components/shared/resource-state";
 import { object, rows, label, amount } from "@/lib/response";
-async function loadGrowth(){const data=object(await api.getGamification());return {
- xp:amount(data.xp)??0,xp_to_next_level:amount(data.xp_to_next_level)??0,level:amount(data.level)??0,level_name:label(data.level_name),tracking_streak_days:amount(data.tracking_streak_days)??0,longest_streak_days:amount(data.longest_streak_days)??0,total_actions:amount(data.total_actions)??0,
- badges:rows(data.badges).map(item=>({id:label(item.name),name:label(item.name),icon:label(item.icon,''),earned:item.earned===true})),
- milestones:rows(data.milestones).map(item=>({id:label(item.id),title:label(item.title),description:label(item.description),icon:label(item.icon,''),achieved:item.achieved===true,progress:amount(item.progress)??0,target:amount(item.target)??0,date:typeof item.achieved_at==='string'?item.achieved_at:null}))};}
 import { api } from "@/lib/api";
+
+const BADGE_TONES = new Set(["amber", "emerald", "azure", "violet", "rose", "cyan"]);
+const BADGE_TIERS = new Set(["core", "advanced", "elite"]);
+
+function parseBadge(value: unknown): AchievementBadgeData {
+  const item = object(value);
+  const tone = label(item.tone, "");
+  const tier = label(item.tier, "");
+  const progress = amount(item.progress) ?? 0;
+  const rawProgress = amount(item.raw_progress) ?? progress;
+  const target = Math.max(1, amount(item.target) ?? 1);
+  const progressPct = Math.max(0, Math.min(100, amount(item.progress_pct) ?? Math.round((progress / target) * 100)));
+  return {
+    key: label(item.key, label(item.name)),
+    name: label(item.name),
+    description: label(item.description),
+    progress,
+    raw_progress: rawProgress,
+    target,
+    unit: label(item.unit),
+    progress_pct: progressPct,
+    remaining: Math.max(0, amount(item.remaining) ?? target - rawProgress),
+    earned: item.earned === true,
+    earned_at: typeof item.earned_at === "string" ? item.earned_at : null,
+    icon_key: label(item.icon_key, "achievement"),
+    tier: BADGE_TIERS.has(tier) ? tier as AchievementBadgeData["tier"] : null,
+    tone: BADGE_TONES.has(tone) ? tone as AchievementBadgeData["tone"] : null,
+  };
+}
+
+function parseMilestone(value: unknown): AchievementMilestoneData {
+  const item = object(value);
+  const progress = amount(item.progress) ?? 0;
+  const rawProgress = amount(item.raw_progress) ?? progress;
+  const target = Math.max(1, amount(item.target) ?? 1);
+  const progressPct = Math.max(0, Math.min(100, amount(item.progress_pct) ?? Math.round((progress / target) * 100)));
+  const title = label(item.title, label(item.name));
+  return {
+    key: label(item.key, label(item.id, title)),
+    name: title,
+    title,
+    description: label(item.description),
+    progress,
+    raw_progress: rawProgress,
+    target,
+    unit: label(item.unit),
+    progress_pct: progressPct,
+    remaining: Math.max(0, amount(item.remaining) ?? target - rawProgress),
+    earned: item.earned === true || item.achieved === true,
+    earned_at: typeof item.earned_at === "string"
+      ? item.earned_at
+      : typeof item.achieved_at === "string" ? item.achieved_at : null,
+    icon_key: label(item.icon_key, "achievement"),
+    sort_order: amount(item.sort_order) ?? 0,
+  };
+}
+
+async function loadGrowth(): Promise<AchievementState> {
+  const data = object(await api.getGamification());
+  const badges = rows(data.badges).map(parseBadge);
+  const milestones = rows(data.milestones).map(parseMilestone);
+
+  const apiFeatured = rows(data.featured_milestones).map(parseMilestone);
+  const featured = apiFeatured.length > 0
+    ? apiFeatured
+    : milestones
+        .filter((milestone) => !milestone.earned)
+        .slice()
+        .sort((a, b) => b.progress_pct - a.progress_pct || a.sort_order - b.sort_order)
+        .slice(0, 3);
+  const achieved = milestones
+    .filter((milestone) => milestone.earned && milestone.earned_at)
+    .slice()
+    .sort((a, b) => new Date(b.earned_at!).getTime() - new Date(a.earned_at!).getTime());
+
+  const nextLevel = amount(data.next_level);
+  const nextLevelName = label(data.next_level_name, "");
+
+  return {
+    level: amount(data.level) ?? 1,
+    level_name: label(data.level_name, "Beginner"),
+    xp: amount(data.xp) ?? 0,
+    xp_progress_pct: Math.max(0, Math.min(100, amount(data.xp_progress_pct) ?? 0)),
+    xp_to_next: Math.max(0, amount(data.xp_to_next) ?? 0),
+    next_level: typeof nextLevel === "number" && nextLevel > 0 ? nextLevel : null,
+    next_level_name: nextLevelName || null,
+    tracking_streak_days: amount(data.tracking_streak_days) ?? 0,
+    longest_streak_days: amount(data.longest_streak_days) ?? 0,
+    badges,
+    milestones,
+    featured_milestones: featured,
+    latest_milestone: achieved[0] || null,
+    badge_summary: {
+      earned: badges.filter((badge) => badge.earned).length,
+      total: badges.length,
+    },
+    milestone_summary: {
+      earned: milestones.filter((milestone) => milestone.earned).length,
+      total: milestones.length,
+    },
+  };
+}
 
 // ── Motion variants ───────────────────────────────────────────────────────
 const container: Variants = {
@@ -33,10 +132,6 @@ const container: Variants = {
 const item: Variants = {
   hidden: { opacity: 0, y: 14 },
   show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
-};
-const itemQuick: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
 };
 
 // ── Real Sign-Out Button ──────────────────────────────────────────────────
@@ -85,7 +180,6 @@ type SettingsRow = {
 
 type SettingsGroup = { title: string; items: SettingsRow[] };
 
-
 // ── Settings groups (6) ───────────────────────────────────────────────────
 const SETTING_GROUPS: SettingsGroup[] = [
   {
@@ -98,14 +192,14 @@ const SETTING_GROUPS: SettingsGroup[] = [
   {
     title: "Membership",
     items: [
-      { label: "Plan", desc: "Free tier · upgrade for unlimited AI", icon: Crown,  comingSoon: true },
+      { label: "Plan", desc: "Free tier · upgrade for unlimited AI", icon: Crown, comingSoon: true },
       { label: "Billing History", desc: "Invoices and receipts", icon: CreditCard, comingSoon: true },
     ],
   },
   {
     title: "Data & Privacy",
     items: [
-      { label: "Connections", desc: `Linked accounts`, href: "/you/connections", icon: ShieldCheck },
+      { label: "Connections", desc: "Linked accounts", href: "/you/connections", icon: ShieldCheck },
       { label: "Privacy Center", desc: "Consent, data inventory", href: "/you/privacy", icon: EyeOff },
       { label: "Security", desc: "2FA, sessions, activity", href: "/you/security", icon: Lock },
       { label: "Data & Export", desc: "Export or delete your data", href: "/you/export", icon: Download },
@@ -184,38 +278,34 @@ function ThemeSwitch() {
 export default function YouPage() {
   const { toast } = useToast();
   const { user } = useUser();
-  const growth=useResource(loadGrowth);
+  const growth = useResource(loadGrowth);
   const { openUserProfile } = useClerk();
-  const router=useRouter();
-  const [showAllAchievements,setShowAllAchievements]=React.useState(false);
-  const gamification=growth.data;
-  if(!gamification) return <ResourceState loading={growth.loading} error={growth.error} retry={growth.reload}/>;
-  const securityData={two_factor_enabled:user?.twoFactorEnabled===true};
-  const verifiedFactors=Number(user?.primaryEmailAddress?.verification?.status==='verified')+Number(securityData.two_factor_enabled);
+  const router = useRouter();
+  const gamification = growth.data;
+  if (!gamification) return <ResourceState loading={growth.loading} error={growth.error} retry={growth.reload} />;
+
+  const securityData = { two_factor_enabled: user?.twoFactorEnabled === true };
+  const verifiedFactors = Number(user?.primaryEmailAddress?.verification?.status === "verified") + Number(securityData.two_factor_enabled);
   const score = verifiedFactors;
-  const scoreColor = securityColor(score*50);
-  const scorePct = score*50;
-
-  const xpPct = Math.round((gamification.xp / Math.max(1,gamification.xp_to_next_level)) * 100);
-  const xpRemaining = gamification.xp_to_next_level - gamification.xp;
-
-  // Latest achieved milestone (most recent date among achieved)
-  const achievedMilestones = gamification.milestones.filter((m) => m.achieved);
-  const latestAchieved = achievedMilestones
-    .slice()
-    .sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())[0];
-  // Next unachieved with progress
-  const nextMilestone = gamification.milestones.find((m) => !m.achieved);
+  const scoreColor = securityColor(score * 50);
+  const scorePct = score * 50;
 
   const openSetting = (entry: string) => {
-    if(entry==='Profile editing'||entry==='Profile'){openUserProfile();return;}
-    if(entry==='Full achievements page'){setShowAllAchievements(value=>!value);return;}
-    if (['Plan', 'Billing History', 'Calendar Sync', 'WhatsApp Alerts', 'UPI Autopay'].includes(entry)) {
-      toast({title: entry, description: 'This service is not connected in this app yet. No subscription, sync or payment has been started.'});
+    if (entry === "Profile editing" || entry === "Profile") { openUserProfile(); return; }
+    if (["Plan", "Billing History", "Calendar Sync", "WhatsApp Alerts", "UPI Autopay"].includes(entry)) {
+      toast({ title: entry, description: "This service is not connected in this app yet. No subscription, sync or payment has been started." });
       return;
     }
-    const destinations:Record<string,string>={"Payment Methods":"/you/connections","Help Center":"/help","Contact Support":"/help","About FinCopilot":"/help","Notifications":"/you/preferences","Currency":"/you/preferences","Language":"/you/preferences"};
-    router.push(destinations[entry]||'/you');
+    const destinations: Record<string, string> = {
+      "Payment Methods": "/you/connections",
+      "Help Center": "/help",
+      "Contact Support": "/help",
+      "About FinCopilot": "/help",
+      "Notifications": "/you/preferences",
+      "Currency": "/you/preferences",
+      "Language": "/you/preferences",
+    };
+    router.push(destinations[entry] || "/you");
   };
 
   return (
@@ -227,12 +317,8 @@ export default function YouPage() {
     >
       {/* ── Header ──────────────────────────────────────────────────── */}
       <motion.header variants={item} className="pt-1">
-        <h1 className="font-display font-bold text-[28px] tracking-[-0.02em] text-foreground">
-          You
-        </h1>
-        <p className="text-[14px] text-(--text-secondary) mt-1">
-          Profile, achievements, and settings
-        </p>
+        <h1 className="font-display font-bold text-[28px] tracking-[-0.02em] text-foreground">You</h1>
+        <p className="text-[14px] text-(--text-secondary) mt-1">Profile, achievements, and settings</p>
       </motion.header>
 
       {/* ── Profile Hero Card ───────────────────────────────────────── */}
@@ -248,14 +334,12 @@ export default function YouPage() {
           `,
         }}
       >
-        {/* Subtle gold corner accent */}
         <div
           aria-hidden
           className="absolute -top-12 -right-12 w-40 h-40 rounded-full opacity-[0.18] blur-2xl pointer-events-none"
           style={{ background: "var(--gold)" }}
         />
 
-        {/* Edit button */}
         <button
           type="button"
           onClick={() => openSetting("Profile editing")}
@@ -266,7 +350,6 @@ export default function YouPage() {
         </button>
 
         <div className="flex items-center gap-5 relative">
-          {/* Avatar with gradient ring */}
           <div className="relative shrink-0">
             <div
               className="absolute -inset-1 rounded-full opacity-60 blur-[6px]"
@@ -285,7 +368,6 @@ export default function YouPage() {
             )}
           </div>
 
-          {/* Identity */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-display font-bold text-[22px] tracking-[-0.01em] text-foreground truncate">
@@ -311,184 +393,12 @@ export default function YouPage() {
         </div>
       </motion.section>
 
-      {/* ── Gamification Hub ────────────────────────────────────────── */}
-      <motion.section variants={item} aria-label="Achievements" className="premium-card p-5 sm:p-6">
-        {/* Header strip */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <Award className="w-4 h-4 text-[var(--gold)]" />
-            <h3 className="font-display font-semibold text-[15px] tracking-[-0.01em] text-foreground">
-              Achievements
-            </h3>
-          </div>
-          <Badge label={`${gamification.badges.filter((b) => b.earned).length}/${gamification.badges.length} badges`} variant="gold" />
-        </div>
-
-        {/* Level ring + streak row */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Level ring */}
-          <div className="flex items-center gap-4 p-3 rounded-[var(--radius-md)] bg-[var(--surface-subtle)]/60">
-            <div className="relative shrink-0">
-              <ProgressRing pct={xpPct} size={72} stroke={7} color="var(--gold)" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-display font-bold text-[18px] leading-none tabular-nums text-foreground">
-                  {gamification.level}
-                </span>
-                <span className="font-mono text-[8px] uppercase tracking-wider text-(--text-tertiary) mt-0.5">level</span>
-              </div>
-            </div>
-            <div className="min-w-0">
-              <p className="font-display font-semibold text-[13px] text-foreground truncate">{gamification.level_name}</p>
-              <p className="text-[11px] text-(--text-tertiary) mt-0.5 tabular-nums">
-                <CountUp value={gamification.xp} format={(v) => Math.round(v).toLocaleString("en-IN")} /> / {gamification.xp_to_next_level.toLocaleString("en-IN")} XP
-              </p>
-            </div>
-          </div>
-
-          {/* Streak */}
-          <div className="flex items-center gap-4 p-3 rounded-[var(--radius-md)] bg-[var(--surface-subtle)]/60">
-            <div
-              className="w-[72px] h-[72px] rounded-full flex items-center justify-center shrink-0"
-              style={{ background: "color-mix(in oklab, var(--warning) 14%, transparent)" }}
-            >
-              <Flame className="w-8 h-8 text-(--warning)" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-display font-bold text-[22px] leading-none tabular-nums text-foreground">
-                <CountUp value={gamification.tracking_streak_days} /><span className="text-[12px] font-medium text-(--text-tertiary) ml-1">days</span>
-              </p>
-              <p className="text-[11px] text-(--text-tertiary) mt-1.5">Tracking streak · best {gamification.longest_streak_days}d</p>
-            </div>
-          </div>
-        </div>
-
-        {/* XP bar */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-(--text-tertiary)">XP to level {gamification.level + 1}</span>
-            <span className="text-[11px] font-medium text-(--text-secondary) tabular-nums">
-              {xpRemaining.toLocaleString("en-IN")} XP to go
-            </span>
-          </div>
-          <div className="h-2.5 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${xpPct}%` }}
-              transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-              className="h-full rounded-full"
-              style={{ background: "linear-gradient(90deg, var(--accent), var(--gold))" }}
-            />
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-[var(--border-subtle)] my-5" />
-
-        {/* Badges */}
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="font-mono text-[10px] uppercase tracking-[0.1em] text-(--text-tertiary)">Badges</h4>
-          <span className="text-[10px] font-mono text-(--text-tertiary)">{gamification.badges.filter((b) => b.earned).length} of {gamification.badges.length} earned</span>
-        </div>
-        <div className="grid grid-cols-6 gap-2">
-          {gamification.badges.map((b, i) => (
-            <motion.div
-              key={b.id}
-              variants={itemQuick}
-              custom={i}
-              title={b.name}
-              className="flex flex-col items-center gap-1.5"
-            >
-              <div
-                className={`w-12 h-12 rounded-[14px] flex items-center justify-center text-[22px] transition-transform hover:scale-105 ${b.earned ? "" : "opacity-40 grayscale"}`}
-                style={{
-                  background: b.earned ? "color-mix(in oklab, var(--gold) 14%, var(--surface))" : "var(--surface-subtle)",
-                  boxShadow: b.earned ? "inset 0 0 0 1px color-mix(in oklab, var(--gold) 25%, transparent)" : "inset 0 0 0 1px var(--border-subtle)",
-                }}
-              >
-                {b.earned ? b.icon : <Lock className="w-4 h-4 text-(--text-tertiary)" />}
-              </div>
-              <span className={`text-[9.5px] font-medium leading-tight text-center w-full truncate ${b.earned ? "text-(--text-secondary)" : "text-(--text-tertiary)"}`}>
-                {b.name}
-              </span>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-[var(--border-subtle)] my-5" />
-
-        {/* Milestones preview */}
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="font-mono text-[10px] uppercase tracking-[0.1em] text-(--text-tertiary)">Milestones</h4>
-          <span className="text-[10px] font-mono text-(--text-tertiary)">{achievedMilestones.length} of {gamification.milestones.length} complete</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Latest achieved */}
-          {latestAchieved && (
-            <div className="p-3 rounded-[var(--radius-md)] bg-[var(--positive-light)]/40 border border-(--border-subtle)">
-              <div className="flex items-start gap-2.5">
-                <div
-                  className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
-                  style={{ background: "color-mix(in oklab, var(--positive) 16%, transparent)" }}
-                >
-                  <Check className="w-4 h-4 text-(--positive)" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground truncate">{latestAchieved.title}</p>
-                  <p className="text-[11px] text-(--text-tertiary) mt-0.5 leading-snug line-clamp-2">{latestAchieved.description}</p>
-                  <p className="text-[10px] font-mono text-(--positive) mt-1.5">
-                    ✓ {formatDate(latestAchieved.date, { style: "long" })}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Next unachieved */}
-          {nextMilestone && (
-            <div className="p-3 rounded-[var(--radius-md)] bg-[var(--surface-subtle)]/60 border border-(--border-subtle)">
-              <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0 bg-[var(--surface-subtle)]">
-                  <span className="text-[16px]">{nextMilestone.icon}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-foreground truncate">{nextMilestone.title}</p>
-                  <p className="text-[11px] text-(--text-tertiary) mt-0.5 leading-snug line-clamp-2">{nextMilestone.description}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-subtle)] overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(100, Math.round(((nextMilestone.progress || 0) / (nextMilestone.target || 1)) * 100))}%` }}
-                        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
-                        className="h-full rounded-full"
-                        style={{ background: "var(--accent)" }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-mono text-(--text-tertiary) tabular-nums shrink-0">
-                      {nextMilestone.progress}/{nextMilestone.target}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* View all */}
-        <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            onClick={() => openSetting("Full achievements page")}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:text-(--accent-hover) transition-colors"
-          >
-            View all achievements
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </motion.section>
+      {/* ── Data-driven Achievement Hub ─────────────────────────────── */}
+      <motion.div variants={item}>
+        <AchievementHub data={gamification} />
+      </motion.div>
 
       {/* ── Sign-in checklist Card ─────────────────────────────────────── */}
-      {showAllAchievements && <motion.section initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="premium-card p-6 grid gap-4 sm:grid-cols-2" aria-label="All achievements">{gamification.milestones.map(milestone=><div key={milestone.id} className="rounded-xl border border-(--border) p-4"><h3 className="font-semibold">{milestone.title}</h3><p className="text-sm text-(--text-secondary) mt-2">{milestone.description}</p><p className="text-xs mt-3">{milestone.achieved?'Completed':`${milestone.progress} / ${milestone.target}`}</p></div>)}</motion.section>}
       <motion.section variants={item} aria-label="Security">
         <Link href="/you/security" className="premium-card p-5 flex items-center gap-4 group block hover:border-[var(--border-strong)]">
           <div className="relative shrink-0">
@@ -571,7 +481,6 @@ export default function YouPage() {
                   </Link>
                 );
               }
-              // For theme toggle rows, don't wrap in button (ThemeSwitch has its own button)
               if (row.toggle === "theme") {
                 return (
                   <div key={row.label} className={cls}>
@@ -593,7 +502,7 @@ export default function YouPage() {
       <motion.section variants={item} aria-label="Danger zone" className="flex flex-col items-center gap-3 pt-2">
         <SignOutButton />
         <p className="font-mono text-[10px] uppercase tracking-wider text-(--text-tertiary)">
-          FinCopilot · v{process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0'}
+          FinCopilot · v{process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0"}
         </p>
       </motion.section>
     </motion.div>

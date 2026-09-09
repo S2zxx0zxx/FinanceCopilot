@@ -1,147 +1,45 @@
 import { dbClient } from '../../db/client.js';
+import { achievementService } from '../../domains/gamification/achievement.service.js';
 
-/**
- * FIX (audit P1 #43): the user's "today" must be in IST (Asia/Kolkata),
- * not UTC. Without this, a user who opens the app at 23:30 IST gets
- * "today" = the previous UTC day, so `last_active_date === today` is
- * FALSE and the streak increments a day early — and the user who opens
- * the app at 00:30 IST gets "yesterday" in UTC and the streak resets
- * incorrectly. Falls back to UTC slice on environments without Intl.
- */
-function toIstDateString(date) {
+function toLocalDateString(date, timeZone = 'Asia/Kolkata') {
     try {
         return new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric', month: '2-digit', day: '2-digit'
+            timeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
         }).format(date);
     } catch {
-        return date.toISOString().split('T')[0];
+        return date.toISOString().slice(0, 10);
     }
 }
 
+function dayDistance(fromDate, toDate) {
+    const [fy, fm, fd] = fromDate.split('-').map(Number);
+    const [ty, tm, td] = toDate.split('-').map(Number);
+    const fromUtc = Date.UTC(fy, fm - 1, fd);
+    const toUtc = Date.UTC(ty, tm - 1, td);
+    return Math.round((toUtc - fromUtc) / 86400000);
+}
+
 /**
- * Gamification Controller — streaks, XP, levels, badges, milestones
- * Gamification ONLY rewards positive financial actions (per 11fs regulatory guidance).
+ * Gamification Controller
+ *
+ * V2 contract:
+ * - achievement progress is derived from authoritative domain data;
+ * - clients cannot grant badges or write milestone progress;
+ * - streak ticks remain idempotent per user's configured calendar day;
+ * - level thresholds come from gamification_levels, not a controller constant.
  */
 export class GamificationController {
     /**
      * GET /api/v1/gamification
-     * Returns the user's complete gamification state: level, XP, streak, badges, milestones.
+     * Returns a complete, data-driven achievement read model.
      */
     static async getGamificationState(req, res, next) {
         try {
-            const userId = req.user.userId;
-
-            // 1. Get gamification state (or create if not exists)
-            let stateResult = await dbClient.query(
-                `SELECT * FROM gamification_state WHERE user_id = $1`, [userId]
-            );
-            if (stateResult.rowCount === 0) {
-                // Initialize gamification state for new user
-                await dbClient.query(
-                    `INSERT INTO gamification_state (user_id, tracking_streak_days, longest_streak_days, level, level_name, xp, xp_to_next_level)
-                     VALUES ($1, 0, 0, 1, 'Beginner', 0, 1000)`, [userId]
-                );
-                stateResult = await dbClient.query(
-                    `SELECT * FROM gamification_state WHERE user_id = $1`, [userId]
-                );
-
-                // Seed default badges
-                const defaultBadges = [
-                    { name: 'Early Adopter', icon: '🚀' },
-                    { name: 'Consistent Tracker', icon: '📅' },
-                    { name: 'Goal Getter', icon: '🎯' },
-                    { name: 'Smart Saver', icon: '💎' },
-                    { name: 'AI Explorer', icon: '🧠' },
-                    { name: 'Budget Ninja', icon: '🥷' },
-                ];
-                for (const badge of defaultBadges) {
-                    await dbClient.query(
-                        `INSERT INTO gamification_badges (user_id, badge_name, icon, earned) VALUES ($1, $2, $3, false)
-                         ON CONFLICT (user_id, badge_name) DO NOTHING`,
-                        [userId, badge.name, badge.icon]
-                    );
-                }
-
-                // Seed default milestones
-                const defaultMilestones = [
-                    { title: 'First Account Connected', description: 'You linked your first bank account', icon: '🔗', target: 1 },
-                    { title: '7-Day Tracking Streak', description: 'Tracked your money for 7 consecutive days', icon: '🔥', target: 7 },
-                    { title: 'First Goal Created', description: 'You set your first financial goal', icon: '🎯', target: 1 },
-                    { title: '30-Day Streak', description: 'Tracked your money for 30 consecutive days', icon: '⚡', target: 30 },
-                    { title: '50-Day Streak', description: 'Track your money for 50 consecutive days', icon: '🏆', target: 50 },
-                    { title: 'Budget Master', description: 'Stayed under budget for an entire month', icon: '📊', target: 1 },
-                    { title: 'Savings Champion', description: 'Saved more than 30% of your income', icon: '💰', target: 1 },
-                    { title: 'AI Conversation', description: 'Had your first conversation with FinCopilot AI', icon: '🤖', target: 1 },
-                    { title: 'Emergency Fund: 3 Months', description: 'Build a 3-month emergency fund', icon: '🛡️', target: 3 },
-                    { title: 'Debt-Free', description: 'Pay off all credit card debt', icon: '✨', target: 1 },
-                ];
-                for (const ms of defaultMilestones) {
-                    await dbClient.query(
-                        `INSERT INTO gamification_milestones (user_id, title, description, icon, target)
-                         VALUES ($1, $2, $3, $4, $5)`,
-                        [userId, ms.title, ms.description, ms.icon, ms.target]
-                    );
-                }
-            }
-
-            const state = stateResult.rows[0];
-
-            // 2. Get badges
-            const badgesResult = await dbClient.query(
-                `SELECT badge_name, icon, earned, earned_at FROM gamification_badges WHERE user_id = $1 ORDER BY earned DESC, badge_name ASC`, [userId]
-            );
-
-            // 3. Get milestones
-            const milestonesResult = await dbClient.query(
-                `SELECT milestone_id, title, description, icon, achieved, progress, target, achieved_at
-                 FROM gamification_milestones WHERE user_id = $1 ORDER BY achieved DESC, title ASC`, [userId]
-            );
-
-            // 4. Get recent XP events (last 10)
-            const xpEventsResult = await dbClient.query(
-                `SELECT event_id, action_type, xp_awarded, description, created_at
-                 FROM xp_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT 10`, [userId]
-            );
-
-            // 5. Calculate XP progress percentage
-            const xpProgress = state.xp_to_next_level > 0
-                ? Math.round((parseInt(state.xp, 10) / parseInt(state.xp_to_next_level, 10)) * 100)
-                : 0;
-
-            res.json({
-                tracking_streak_days: parseInt(state.tracking_streak_days, 10),
-                longest_streak_days: parseInt(state.longest_streak_days, 10),
-                total_actions: parseInt(state.total_actions, 10),
-                level: parseInt(state.level, 10),
-                level_name: state.level_name,
-                xp: parseInt(state.xp, 10),
-                xp_to_next_level: parseInt(state.xp_to_next_level, 10),
-                xp_progress_pct: xpProgress,
-                xp_to_next: parseInt(state.xp_to_next_level, 10) - parseInt(state.xp, 10),
-                badges: badgesResult.rows.map(b => ({
-                    name: b.badge_name,
-                    icon: b.icon,
-                    earned: b.earned,
-                    earned_at: b.earned_at,
-                })),
-                milestones: milestonesResult.rows.map(m => ({
-                    id: m.milestone_id,
-                    title: m.title,
-                    description: m.description,
-                    icon: m.icon,
-                    achieved: m.achieved,
-                    progress: parseInt(m.progress, 10),
-                    target: parseInt(m.target, 10),
-                    achieved_at: m.achieved_at,
-                })),
-                recent_xp_events: xpEventsResult.rows.map(e => ({
-                    action_type: e.action_type,
-                    xp_awarded: parseInt(e.xp_awarded, 10),
-                    description: e.description,
-                    created_at: e.created_at,
-                })),
-            });
+            const state = await achievementService.getState(req.user.userId);
+            res.json(state);
         } catch (err) {
             next(err);
         }
@@ -149,201 +47,130 @@ export class GamificationController {
 
     /**
      * POST /api/v1/gamification/streak/tick
-     * Increment the daily tracking streak (called when user opens the app).
+     * Counts one active tracking day. Repeated calls on the same local date are
+     * no-ops, and concurrent requests are serialized with SELECT ... FOR UPDATE.
      */
     static async tickStreak(req, res, next) {
+        const userId = req.user.userId;
+        let client;
         try {
-            const userId = req.user.userId;
-            // FIX (audit P1 #43): use IST date, NOT UTC. See toIstDateString above.
-            const today = toIstDateString(new Date());
+            client = await dbClient.connect();
+            await client.query('BEGIN');
 
-            const state = await dbClient.query(`SELECT * FROM gamification_state WHERE user_id = $1`, [userId]);
-            if (state.rowCount === 0) {
-                return res.status(404).json({ error: 'Gamification state not initialized' });
+            await client.query(
+                `INSERT INTO gamification_state
+                    (user_id, tracking_streak_days, longest_streak_days, level, level_name, xp, xp_to_next_level)
+                 VALUES ($1, 0, 0, 1, 'Beginner', 0, 500)
+                 ON CONFLICT (user_id) DO NOTHING`,
+                [userId]
+            );
+
+            const stateResult = await client.query(
+                `SELECT gs.*, COALESCE(u.timezone, 'Asia/Kolkata') AS timezone
+                 FROM gamification_state gs
+                 JOIN users u ON u.user_id = gs.user_id
+                 WHERE gs.user_id = $1
+                 FOR UPDATE OF gs`,
+                [userId]
+            );
+            const current = stateResult.rows[0];
+            if (!current) {
+                throw new Error('Gamification state could not be initialized');
             }
 
-            const current = state.rows[0];
-            // FIX (audit P1 #43): last_active_date is stored in TIMESTAMPTZ but we
-            // compare it against the IST calendar date. Coerce via IST formatter
-            // so a 23:30 IST entry from yesterday doesn't match today's UTC string.
+            const timeZone = current.timezone || 'Asia/Kolkata';
+            const today = toLocalDateString(new Date(), timeZone);
             const lastActive = current.last_active_date
-                ? toIstDateString(new Date(current.last_active_date))
+                ? toLocalDateString(new Date(current.last_active_date), timeZone)
                 : null;
 
-            let newStreak = parseInt(current.tracking_streak_days, 10);
+            let newStreak = Number(current.tracking_streak_days) || 0;
             let xpAwarded = 0;
 
-            if (lastActive === today) {
-                // Already ticked today — no-op
-                return res.json({ streak: newStreak, xp_awarded: 0, message: 'Already counted today' });
-            }
-
-            if (lastActive) {
-                const daysDiff = Math.floor((new Date(today) - new Date(lastActive)) / (1000 * 60 * 60 * 24));
-                if (daysDiff === 1) {
-                    // Consecutive day — increment streak
-                    newStreak += 1;
-                    xpAwarded = 10; // +10 XP for daily tracking
-                } else if (daysDiff > 1) {
-                    // Streak broken — reset
+            if (lastActive !== today) {
+                if (!lastActive) {
                     newStreak = 1;
-                    xpAwarded = 5;
-                }
-            } else {
-                newStreak = 1;
-                xpAwarded = 10;
-            }
-
-            const newLongest = Math.max(newStreak, parseInt(current.longest_streak_days, 10));
-            const newXP = parseInt(current.xp, 10) + xpAwarded;
-            const newTotalActions = parseInt(current.total_actions, 10) + 1;
-
-            // Level up check
-            let newLevel = parseInt(current.level, 10);
-            let newLevelName = current.level_name;
-            let newXPToNext = parseInt(current.xp_to_next_level, 10);
-
-            // NOTE (audit P1 #41): levels are intentionally hardcoded for V1.
-            // The progression curve (500 / 1500 / 2500 / 5000 / 10000 XP) is a
-            // product decision, not derived from a config table. If/when XP
-            // thresholds need to be tunable without a redeploy, lift into a
-            // `gamification_levels` table — for now, hardcoded is intentional.
-            const LEVELS = [
-                { level: 1, name: 'Beginner', xpRequired: 0 },
-                { level: 2, name: 'Money Saver', xpRequired: 500 },
-                { level: 3, name: 'Finance Tracker', xpRequired: 1500 },
-                { level: 4, name: 'Money Master', xpRequired: 2500 },
-                { level: 5, name: 'Wealth Wizard', xpRequired: 5000 },
-                { level: 6, name: 'Finance Guru', xpRequired: 10000 },
-            ];
-
-            for (const lvl of LEVELS) {
-                if (newXP >= lvl.xpRequired) {
-                    newLevel = lvl.level;
-                    newLevelName = lvl.name;
-                    newXPToNext = (LEVELS.find(l => l.level === lvl.level + 1)?.xpRequired || newXP + 2500) - newXP;
-                }
-            }
-
-            await dbClient.query(
-                `UPDATE gamification_state
-                 SET tracking_streak_days = $2, longest_streak_days = $3, last_active_date = $4,
-                     xp = $5, level = $6, level_name = $7, xp_to_next_level = $8,
-                     total_actions = $9, updated_at = NOW()
-                 WHERE user_id = $1`,
-                [userId, newStreak, newLongest, today, newXP, newLevel, newLevelName, newXPToNext, newTotalActions]
-            );
-
-            // Log XP event
-            if (xpAwarded > 0) {
-                await dbClient.query(
-                    `INSERT INTO xp_events (user_id, action_type, xp_awarded, description)
-                     VALUES ($1, 'daily_tracking', $2, $3)`,
-                    [userId, xpAwarded, `Daily tracking streak: ${newStreak} days`]
-                );
-            }
-
-            // Check milestone progress (7, 30, 50 day streaks)
-            const streakMilestones = [
-                { title: '7-Day Tracking Streak', target: 7 },
-                { title: '30-Day Streak', target: 30 },
-                { title: '50-Day Streak', target: 50 },
-            ];
-            for (const ms of streakMilestones) {
-                if (newStreak >= ms.target) {
-                    await dbClient.query(
-                        `UPDATE gamification_milestones SET achieved = true, progress = $3, achieved_at = NOW()
-                         WHERE user_id = $1 AND title = $2 AND achieved = false`,
-                        [userId, ms.title, ms.target]
-                    );
+                    xpAwarded = 10;
                 } else {
-                    await dbClient.query(
-                        `UPDATE gamification_milestones SET progress = $3
-                         WHERE user_id = $1 AND title = $2 AND achieved = false`,
-                        [userId, ms.title, newStreak]
+                    const diff = dayDistance(lastActive, today);
+                    if (diff === 1) {
+                        newStreak += 1;
+                        xpAwarded = 10;
+                    } else if (diff > 1) {
+                        newStreak = 1;
+                        xpAwarded = 5;
+                    } else {
+                        // Clock/timezone anomalies must never inflate a streak.
+                        newStreak = Math.max(1, newStreak);
+                        xpAwarded = 0;
+                    }
+                }
+
+                const newLongest = Math.max(newStreak, Number(current.longest_streak_days) || 0);
+                const newXp = Math.max(0, Number(current.xp) || 0) + xpAwarded;
+                const totalActions = Math.max(0, Number(current.total_actions) || 0) + 1;
+
+                await client.query(
+                    `UPDATE gamification_state
+                     SET tracking_streak_days = $2,
+                         longest_streak_days = $3,
+                         last_active_date = $4,
+                         xp = $5,
+                         total_actions = $6,
+                         updated_at = NOW()
+                     WHERE user_id = $1`,
+                    [userId, newStreak, newLongest, today, newXp, totalActions]
+                );
+
+                if (xpAwarded > 0) {
+                    await client.query(
+                        `INSERT INTO xp_events (user_id, action_type, xp_awarded, description)
+                         VALUES ($1, 'daily_tracking', $2, $3)`,
+                        [userId, xpAwarded, `Daily tracking streak: ${newStreak} days`]
                     );
                 }
             }
 
+            await client.query('COMMIT');
+            client.release();
+            client = null;
+
+            // Recalculate level and achievement unlocks from the authoritative state.
+            const refreshed = await achievementService.getState(userId);
             res.json({
-                streak: newStreak,
-                longest_streak: newLongest,
+                streak: refreshed.tracking_streak_days,
+                longest_streak: refreshed.longest_streak_days,
                 xp_awarded: xpAwarded,
-                total_xp: newXP,
-                level: newLevel,
-                level_name: newLevelName,
+                total_xp: refreshed.xp,
+                level: refreshed.level,
+                level_name: refreshed.level_name,
+                xp_to_next: refreshed.xp_to_next,
+                message: lastActive === today ? 'Already counted today' : 'Tracking day recorded'
             });
         } catch (err) {
+            if (client) {
+                try { await client.query('ROLLBACK'); } catch { /* no-op */ }
+                client.release();
+            }
             next(err);
         }
     }
 
     /**
-     * POST /api/v1/gamification/badges/:badgeName/earn
-     * Earn a badge (called when user achieves a specific action).
+     * Legacy endpoints intentionally remain as explicit 405 responses so older
+     * clients fail safely instead of being able to self-award achievements.
      */
-    static async earnBadge(req, res, next) {
-        try {
-            const userId = req.user.userId;
-            const { badgeName } = req.params;
-            const result = await dbClient.query(
-                `UPDATE gamification_badges SET earned = true, earned_at = NOW()
-                 WHERE user_id = $1 AND badge_name = $2 AND earned = false
-                 RETURNING *`,
-                [userId, badgeName]
-            );
-            if (result.rowCount === 0) {
-                return res.status(404).json({ error: 'RESOURCE_NOT_FOUND', message: 'Badge not found or already earned' });
-            }
-            res.json({ badge: result.rows[0] });
-        } catch (err) {
-            next(err);
-        }
+    static async earnBadge(_req, res) {
+        return res.status(405).json({
+            error: 'SERVER_MANAGED_ACHIEVEMENT',
+            message: 'Badges are unlocked automatically from verified FinCopilot activity.'
+        });
     }
 
-    /**
-     * POST /api/v1/gamification/milestones/:id/progress
-     * Update progress on a milestone.
-     */
-    static async updateMilestoneProgress(req, res, next) {
-        try {
-            const userId = req.user.userId;
-            const { id } = req.params;
-            const { progress } = req.body;
-            const result = await dbClient.query(
-                `UPDATE gamification_milestones SET progress = $3
-                 WHERE user_id = $1 AND milestone_id = $2 AND achieved = false
-                 RETURNING *`,
-                [userId, id, progress]
-            );
-            if (result.rowCount === 0) {
-                return res.status(404).json({ error: 'RESOURCE_NOT_FOUND', message: 'Milestone not found or already achieved' });
-            }
-
-            // Check if milestone is now complete
-            const milestone = result.rows[0];
-            if (parseInt(milestone.progress, 10) >= parseInt(milestone.target, 10)) {
-                await dbClient.query(
-                    `UPDATE gamification_milestones SET achieved = true, achieved_at = NOW()
-                     WHERE milestone_id = $1`,
-                    [milestone.milestone_id]
-                );
-                // Award XP for milestone completion
-                await dbClient.query(
-                    `INSERT INTO xp_events (user_id, action_type, xp_awarded, description)
-                     VALUES ($1, 'milestone_achieved', $2, $3)`,
-                    [userId, 100, `Milestone achieved: ${milestone.title}`]
-                );
-                // Add XP to state
-                await dbClient.query(
-                    `UPDATE gamification_state SET xp = xp + 100, updated_at = NOW() WHERE user_id = $1`,
-                    [userId]
-                );
-            }
-
-            res.json({ milestone: result.rows[0] });
-        } catch (err) {
-            next(err);
-        }
+    static async updateMilestoneProgress(_req, res) {
+        return res.status(405).json({
+            error: 'SERVER_MANAGED_ACHIEVEMENT',
+            message: 'Milestone progress is calculated automatically from verified FinCopilot activity.'
+        });
     }
 }

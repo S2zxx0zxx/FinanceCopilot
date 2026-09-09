@@ -74,6 +74,8 @@ export const api = {
     apiFetch("/import/upload-intent", { method: "POST", body: JSON.stringify({ fileName, mimeType, account_id }) }),
   confirmUpload: (jobId: string, storageKey: string) =>
     apiFetch("/import/confirm", { method: "POST", body: JSON.stringify({ job_id: jobId, storage_key: storageKey }) }),
+  getImportJobs: () => apiFetch("/import/jobs"),
+  retryImportJob: (jobId: string) => apiFetch(`/import/replay/${encodeURIComponent(jobId)}`, { method: "POST" }),
 
   getTransactions: (params?: Record<string, string>) => {
     const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
