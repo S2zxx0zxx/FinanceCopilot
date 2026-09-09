@@ -405,12 +405,6 @@ export function AchievementHub({ data }: { data: AchievementState }) {
   );
   const [expanded, setExpanded] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!selectedBadgeKey || !data.badges.some((badge) => badge.key === selectedBadgeKey)) {
-      setSelectedBadgeKey(data.badges[0]?.key || null);
-    }
-  }, [data.badges, selectedBadgeKey]);
-
   const selectedBadge = data.badges.find((badge) => badge.key === selectedBadgeKey) || data.badges[0] || null;
   const featured = data.featured_milestones.length > 0
     ? data.featured_milestones.slice(0, 3)
