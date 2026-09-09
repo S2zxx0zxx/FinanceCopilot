@@ -9,6 +9,25 @@ function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
 }
 
+function toLocalDateString(date, timeZone = 'Asia/Kolkata') {
+    try {
+        return new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(date);
+    } catch {
+        return date.toISOString().slice(0, 10);
+    }
+}
+
+function dayDistance(fromDate, toDate) {
+    const [fy, fm, fd] = fromDate.split('-').map(Number);
+    const [ty, tm, td] = toDate.split('-').map(Number);
+    return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86400000);
+}
+
 /**
  * AchievementService
  *
@@ -29,6 +48,99 @@ export class AchievementService {
              ON CONFLICT (user_id) DO NOTHING`,
             [userId]
         );
+    }
+
+    /**
+     * Records one real app-tracking day in the user's configured timezone.
+     * Idempotent for repeated reads/refreshes and serialized for concurrent tabs.
+     */
+    async recordDailyActivity(userId) {
+        await this.ensureState(userId);
+
+        const client = await this.db.connect();
+        try {
+            await client.query('BEGIN');
+            const stateResult = await client.query(
+                `SELECT gs.*, COALESCE(u.timezone, 'Asia/Kolkata') AS timezone
+                 FROM gamification_state gs
+                 JOIN users u ON u.user_id = gs.user_id
+                 WHERE gs.user_id = $1
+                 FOR UPDATE OF gs`,
+                [userId]
+            );
+            const current = stateResult.rows[0];
+            if (!current) throw new Error('Gamification state could not be initialized');
+
+            const timeZone = current.timezone || 'Asia/Kolkata';
+            const today = toLocalDateString(new Date(), timeZone);
+            const lastActive = current.last_active_date
+                ? toLocalDateString(new Date(current.last_active_date), timeZone)
+                : null;
+
+            if (lastActive === today) {
+                await client.query('COMMIT');
+                return {
+                    recorded: false,
+                    streak: numberValue(current.tracking_streak_days),
+                    longest_streak: numberValue(current.longest_streak_days),
+                    xp_awarded: 0
+                };
+            }
+
+            const currentStreak = numberValue(current.tracking_streak_days);
+            const diff = lastActive ? dayDistance(lastActive, today) : null;
+            let newStreak = 1;
+            let xpAwarded = 10;
+
+            if (diff === 1) {
+                newStreak = currentStreak + 1;
+            } else if (diff !== null && diff > 1) {
+                newStreak = 1;
+                xpAwarded = 5;
+            } else if (diff !== null && diff <= 0) {
+                // Clock/timezone anomalies must never inflate progress.
+                newStreak = Math.max(1, currentStreak);
+                xpAwarded = 0;
+            }
+
+            const newLongest = Math.max(newStreak, numberValue(current.longest_streak_days));
+            const newXp = Math.max(0, numberValue(current.xp)) + xpAwarded;
+            const totalActions = Math.max(0, numberValue(current.total_actions)) + 1;
+
+            await client.query(
+                `UPDATE gamification_state
+                 SET tracking_streak_days = $2,
+                     longest_streak_days = $3,
+                     last_active_date = $4,
+                     xp = $5,
+                     total_actions = $6,
+                     updated_at = NOW()
+                 WHERE user_id = $1`,
+                [userId, newStreak, newLongest, today, newXp, totalActions]
+            );
+
+            if (xpAwarded > 0) {
+                await client.query(
+                    `INSERT INTO xp_events (user_id, action_type, xp_awarded, description)
+                     VALUES ($1, 'daily_tracking', $2, $3)`,
+                    [userId, xpAwarded, `Daily tracking streak: ${newStreak} days`]
+                );
+            }
+
+            await client.query('COMMIT');
+            return {
+                recorded: true,
+                streak: newStreak,
+                longest_streak: newLongest,
+                xp_awarded: xpAwarded,
+                total_xp: newXp
+            };
+        } catch (error) {
+            try { await client.query('ROLLBACK'); } catch { /* no-op */ }
+            throw error;
+        } finally {
+            client.release();
+        }
     }
 
     async collectMetrics(userId) {
@@ -242,8 +354,9 @@ export class AchievementService {
         };
     }
 
-    async getState(userId) {
+    async getState(userId, { recordActivity = true } = {}) {
         await this.ensureState(userId);
+        if (recordActivity) await this.recordDailyActivity(userId);
 
         const [stateResult, definitions, metrics, xpEventsResult] = await Promise.all([
             this.db.query(
