@@ -23,7 +23,7 @@ export class SafeToSpendEngine {
         const horizonDays = parseInt(stsConfig.horizon_days, 10);
         const safetyBuffer = parseInt(stsConfig.safety_buffer_paise, 10);
         
-        // Horizoncutoff date
+        // Horizon cutoff date
         const horizonDate = new Date();
         horizonDate.setDate(horizonDate.getDate() + horizonDays);
         const horizonDateStr = horizonDate.toISOString().split('T')[0];
@@ -54,6 +54,20 @@ export class SafeToSpendEngine {
         if (coverage === 'no_coverage' || freshness === 'stale') confidence = 'low';
         else if (coverage === 'partial' || freshness === 'unknown') confidence = 'medium';
 
+        // Evidence completeness is deliberately separate from coverage/freshness trust.
+        // This prevents the UI from implying that currently-unmodelled planning inputs
+        // (for example future income or essential-spend baselines) are verified facts.
+        const planningEvidence = {
+            expected_income: expectedIncomePolicyResult.evidence_status || 'UNKNOWN',
+            essential_spending: essentialSpendingPolicyResult.evidence_status || 'UNKNOWN'
+        };
+        const evidenceStates = Object.values(planningEvidence);
+        const planningDataStatus = evidenceStates.includes('NO_EVIDENCE')
+            ? 'incomplete'
+            : evidenceStates.includes('PARTIAL_EVIDENCE') || evidenceStates.includes('UNKNOWN')
+                ? 'partial'
+                : 'complete';
+
         // 8. Construct immutable input payload
         const inputSnapshot = {
             formula: 'Available Cash + Expected Income - Upcoming Commitments - Essential Spending - Safety Buffer',
@@ -64,6 +78,8 @@ export class SafeToSpendEngine {
                 essential_spending_paise: essentialSpending,
                 safety_buffer_paise: safetyBuffer
             },
+            evidence: planningEvidence,
+            planning_data_status: planningDataStatus,
             horizon_days: horizonDays,
             rulebook_version: PendingPolicy.VERSION
         };
@@ -83,7 +99,10 @@ export class SafeToSpendEngine {
             snapshot_id: snapshotId,
             safe_to_spend_paise: finalSts,
             currency: 'INR',
-            trust: confidence
+            trust: confidence,
+            horizon_days: horizonDays,
+            planning_data_status: planningDataStatus,
+            planning_evidence: planningEvidence
         };
     }
 }

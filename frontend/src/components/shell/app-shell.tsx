@@ -23,7 +23,7 @@ const loadShellNotifications=async()=>rows(await api.getNotifications());
 type NavItem={href:string;label:string;icon:React.ComponentType<{className?:string;strokeWidth?:number}>;exactMatch?:boolean;description:string};
 const NAV_SECTIONS:{label:string;items:NavItem[]}[]=[
  {label:"Your money",items:[
-  {href:"/",label:"Today at a glance",icon:Home,exactMatch:true,description:"Dashboard and your daily financial picture"},
+  {href:"/",label:"Dashboard",icon:Home,exactMatch:true,description:"Dashboard and your daily financial picture"},
   {href:"/money",label:"Money overview",icon:Wallet,description:"All account balances in one place"},
   {href:"/accounts",label:"Account vault",icon:Layers,description:"Your banks, cards and cash accounts"},
   {href:"/transactions",label:"Activity journal",icon:ArrowUpRight,description:"Search transactions and import statements"},
@@ -329,7 +329,7 @@ function AppShellInner({ children }: Readonly<{ children: React.ReactNode }>) {
                 aria-label={item.label}
               >
                 <Icon className="w-5 h-5" strokeWidth={active ? 2.2 : 1.8} />
-                <span className="text-[10px] font-medium">{{"/":"Today","/money":"Money","/plan":"Plan","/ai":"Copilot"}[item.href]??item.label}</span>
+                <span className="text-[10px] font-medium">{{"/":"Dashboard","/money":"Money","/plan":"Plan","/ai":"Copilot"}[item.href]??item.label}</span>
               </Link>
             );
           })}
