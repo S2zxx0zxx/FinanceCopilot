@@ -155,4 +155,22 @@ export class GamificationController {
             next(err);
         }
     }
+
+    /**
+     * Legacy endpoints intentionally remain as explicit 405 responses so older
+     * clients fail safely instead of being able to self-award achievements.
+     */
+    static async earnBadge(_req, res) {
+        return res.status(405).json({
+            error: 'SERVER_MANAGED_ACHIEVEMENT',
+            message: 'Badges are unlocked automatically from verified FinCopilot activity.'
+        });
+    }
+
+    static async updateMilestoneProgress(_req, res) {
+        return res.status(405).json({
+            error: 'SERVER_MANAGED_ACHIEVEMENT',
+            message: 'Milestone progress is calculated automatically from verified FinCopilot activity.'
+        });
+    }
 }
