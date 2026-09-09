@@ -13,6 +13,7 @@ export default function TransactionsPage() {
   const { isLoaded, userId } = useAuth();
   const [offset,setOffset]=React.useState(0);
   const [total,setTotal]=React.useState(0);
+  const [reviewOnly,setReviewOnly]=React.useState(false);
   const [direction,setDirection]=React.useState('all');
   const [viewAccount,setViewAccount]=React.useState('all');
   const [revision,setRevision]=React.useState(0);
@@ -92,7 +93,7 @@ export default function TransactionsPage() {
     setError(null);
     setLoading(true);
     if (!isLoaded || !userId) return;
-    api.getTransactions({limit:"50",offset:String(offset),...(direction!=="all"?{direction}:{}),...(viewAccount!=="all"?{accountId:viewAccount}:{})})
+    api.getTransactions({...(reviewOnly?{needsReview:"true"}:{}),limit:"50",offset:String(offset),...(direction!=="all"?{direction}:{}),...(viewAccount!=="all"?{accountId:viewAccount}:{})})
       .then((res: any) => {
         if (!mounted) return;
         setTxs(res.transactions || []);
@@ -106,7 +107,7 @@ export default function TransactionsPage() {
         if (mounted) setLoading(false);
       });
     return () => { mounted = false; };
-  }, [isLoaded, userId,offset,direction,viewAccount,revision]);
+  }, [isLoaded, userId,offset,direction,viewAccount,reviewOnly,revision]);
 
   const filtered = txs.filter((t: any) => 
     label(t.merchant_name, "").toLowerCase().includes(filter.toLowerCase()) || 
@@ -143,7 +144,7 @@ export default function TransactionsPage() {
           <label className="text-sm">Import into account<select aria-label="Account for statement import" value={accountId} onChange={e=>setAccountId(e.target.value)} className="block w-full p-2 mt-2 rounded-lg border border-(--border) bg-(--surface)"><option value="">Select an account</option>{importAccounts.map(account=><option key={label(account.account_id)} value={label(account.account_id)}>{label(account.institution_name)}</option>)}</select></label>
           <div><label className="text-sm" htmlFor="institution">Add a savings account</label><div className="flex gap-2 mt-2"><input id="institution" maxLength={120} value={institution} onChange={e=>setInstitution(e.target.value)} placeholder="Institution name" className="min-w-0 p-2 rounded-lg border border-(--border) bg-(--surface)" /><button disabled={!institution.trim()} onClick={addAccount} className="text-accent disabled:opacity-50">Add account</button></div></div>
         </section>
-        <div className="flex flex-col sm:flex-row gap-3"><select aria-label="Filter transaction direction" value={direction} onChange={e=>{setDirection(e.target.value);setOffset(0);}} className="min-h-11 rounded-xl border border-(--border) bg-(--surface) px-3"><option value="all">Money in and out</option><option value="credit">Money in</option><option value="debit">Money out</option></select><select aria-label="Filter transactions by account" value={viewAccount} onChange={e=>{setViewAccount(e.target.value);setOffset(0);}} className="min-h-11 rounded-xl border border-(--border) bg-(--surface) px-3"><option value="all">Every account</option>{importAccounts.map(account=><option key={label(account.account_id)} value={label(account.account_id)}>{label(account.institution_name)}</option>)}</select><button onClick={()=>setRevision(value=>value+1)} className="min-h-11 rounded-xl px-4 text-accent bg-(--surface-subtle)">Refresh activity</button></div>
+        <div className="flex flex-col sm:flex-row gap-3"><label className="flex min-h-11 items-center gap-2 px-3 text-sm"><input type="checkbox" checked={reviewOnly} onChange={event=>{setReviewOnly(event.target.checked);setOffset(0);}} className="h-5 w-5 accent-(--accent)"/>Needs review</label><select aria-label="Filter transaction direction" value={direction} onChange={e=>{setDirection(e.target.value);setOffset(0);}} className="min-h-11 rounded-xl border border-(--border) bg-(--surface) px-3"><option value="all">Money in and out</option><option value="credit">Money in</option><option value="debit">Money out</option></select><select aria-label="Filter transactions by account" value={viewAccount} onChange={e=>{setViewAccount(e.target.value);setOffset(0);}} className="min-h-11 rounded-xl border border-(--border) bg-(--surface) px-3"><option value="all">Every account</option>{importAccounts.map(account=><option key={label(account.account_id)} value={label(account.account_id)}>{label(account.institution_name)}</option>)}</select><button onClick={()=>setRevision(value=>value+1)} className="min-h-11 rounded-xl px-4 text-accent bg-(--surface-subtle)">Refresh activity</button></div>
         <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-(--text-tertiary)" />
         <input value={filter} onChange={e => setFilter(e.target.value)} aria-label="Search current transaction page" placeholder="Search the current page..." className="w-full pl-10 pr-4 py-3 rounded-[12px] bg-[var(--surface)] border border-[var(--border)] text-[14px] focus:border-[var(--accent)] outline-none transition-colors" />
@@ -157,7 +158,7 @@ export default function TransactionsPage() {
               <div className="w-10 h-10 rounded-[10px] bg-[var(--surface-subtle)] flex items-center justify-center text-[16px] shrink-0">{categoryIcon(tx.category)}</div>
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-medium truncate">{tx.merchant_name}</p>
-                <p className="text-[12px] text-(--text-tertiary) capitalize">{tx.category} · {formatDate(tx.date || tx.observed_at)}{tx.pending && <span className="ml-1.5 text-(--warning)">· Pending</span>}</p>
+                <p className="text-[12px] text-(--text-tertiary) capitalize">{tx.category} · {formatDate(tx.date || tx.observed_at)}{tx.needs_review===true&&<span className="ml-2 text-(--warning)">Review needed</span>}{tx.pending && <span className="ml-1.5 text-(--warning)">· Pending</span>}</p>
               </div>
               <span className={`text-[14px] font-semibold tabular-nums shrink-0 ${isIncome ? "text-(--positive)" : ""}`}>{isIncome ? "+" : ""}{formatPaise(tx.amount_paise)}</span>
             </Link>

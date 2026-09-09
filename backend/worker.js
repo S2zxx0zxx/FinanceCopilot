@@ -4,6 +4,7 @@ import { IngestionWorker } from './workers/ingestion.worker.js';
 import { NormalizationWorker } from './workers/normalization.worker.js';
 import { ReconciliationWorker } from './workers/reconciliation.worker.js';
 import { dbClient } from './db/client.js';
+import { ExportWorker } from './workers/export.worker.js';
 
 /**
  * FinCopilot — Background Worker Master Process
@@ -30,6 +31,7 @@ async function startWorkers() {
     // 2. Normalization Worker (Polls for 'raw' source records)
     const normalizationWorker = new NormalizationWorker();
     normalizationWorker.startPolling(5000); // Poll every 5s
+    new ExportWorker().startPolling(5000);
 
     // 3. Reconciliation Worker (Simulated Cron since it's tenant-based)
     // Note: In a real system, we'd query active tenants. Here we mock a systemic run.

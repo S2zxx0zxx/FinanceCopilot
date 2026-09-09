@@ -145,6 +145,7 @@ export function setupRoutes(app, dependencies) {
     
     router.post('/trust/export',                        requireAuth, TrustController.requestExport);
     router.get('/trust/export/status',                  requireAuth, TrustController.getExportStatus);
+    router.get('/trust/export/:id/download', requireAuth, TrustController.downloadExport);
     router.patch('/internal/export/status',             validateInternalWebhook, TrustController._internalUpdateExportStatus);
     
     router.post('/trust/deletion',                      requireAuth, TrustController.requestDeletion);

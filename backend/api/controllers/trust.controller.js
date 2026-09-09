@@ -141,35 +141,43 @@ export class TrustController {
     }
 
     static async requestExport(req, res, next) {
+        const requestedFormat=req.body?.format ?? 'csv';
+        if(typeof requestedFormat!=='string'||!['csv','json','pdf'].includes(requestedFormat.toLowerCase()))return res.status(422).json({error:'Choose csv, json or pdf.'});
+        const format=requestedFormat.toLowerCase();let client;
         try {
-            const db = dbClient;
-            // FIX (audit P0 #8): export_jobs table EXISTS (migration 016).
-            // Previously this returned a fake `export_${Date.now()}` stub that
-            // the frontend could never poll to COMPLETED. Now we INSERT a real
-            // row that the queue worker updates via _internalUpdateExportStatus.
-            const requestedFormat = req.body?.format ?? 'csv';
-            if (typeof requestedFormat !== 'string' || !['csv', 'json', 'pdf'].includes(requestedFormat.toLowerCase())) {
-                return res.status(400).json({ error: 'Choose csv, json or pdf.' });
-            }
-            const format = requestedFormat.toLowerCase();
-            const { rows } = await db.query(
-                `INSERT INTO export_jobs (user_id, status, format)
-                 VALUES ($1, 'PROCESSING', $2)
-                 RETURNING job_id`,
-                [req.user.userId, format]
-            );
-            const jobId = rows[0]?.job_id;
-            const { AuditRepo } = await import('../../db/repositories.js');
-            await AuditRepo.logEvent('EXPORT_REQUESTED', 'user', req.user.userId, req.user.userId, { format, job_id: jobId });
-            res.json({ status: 'PROCESSING', jobId, format });
-        } catch (err) { next(err); }
+            client=await dbClient.connect();await client.query('BEGIN');
+            await client.query('SELECT user_id FROM users WHERE user_id=$1 FOR UPDATE',[req.user.userId]);
+            const active=await client.query("SELECT job_id FROM export_jobs WHERE user_id=$1 AND status='PROCESSING' LIMIT 1",[req.user.userId]);
+            if(active.rows.length){await client.query('ROLLBACK');return res.status(409).json({error:'An export is already processing. Refresh its status before requesting another.'});}
+            const recent=await client.query("SELECT COUNT(*)::int AS count FROM export_jobs WHERE user_id=$1 AND created_at>NOW()-INTERVAL '1 hour'",[req.user.userId]);
+            if(recent.rows[0].count>=5){await client.query('ROLLBACK');return res.status(429).json({error:'Up to five exports can be requested each hour.'});}
+            const result=await client.query("INSERT INTO export_jobs(user_id,status,format) VALUES($1,'PROCESSING',$2) RETURNING job_id",[req.user.userId,format]);
+            const jobId=result.rows[0].job_id;
+            await client.query("INSERT INTO audit_events(event_type,entity_type,entity_id,actor,metadata) VALUES('EXPORT_REQUESTED','user',$1,$1,$2)",[req.user.userId,{format,job_id:jobId}]);
+            await client.query('COMMIT');return res.status(202).json({status:'PROCESSING',jobId,format});
+        }catch(error){if(client)await client.query('ROLLBACK');next(error);}finally{client?.release();}
+    }
+
+    static async downloadExport(req,res,next){
+        try {
+            const result=await dbClient.query(`SELECT a.content,a.mime_type,j.format FROM export_jobs j
+                JOIN export_artifacts a ON a.job_id=j.job_id WHERE j.job_id=$1 AND j.user_id=$2
+                AND j.status='COMPLETED' AND j.expires_at>NOW()`,[req.params.id,req.user.userId]);
+            if(!result.rows.length)return res.status(404).json({error:'Export is unavailable or expired. Request a new export.'});
+            const artifact=result.rows[0];
+            res.setHeader('Cache-Control','private, no-store');
+            res.setHeader('X-Content-Type-Options','nosniff');
+            res.setHeader('Content-Type',artifact.mime_type);
+            res.setHeader('Content-Disposition',`attachment; filename="FinanceCopilot-export.${['csv','json','pdf'].includes(artifact.format)?artifact.format:'bin'}"`);
+            return res.send(Buffer.from(artifact.content));
+        }catch(error){next(error);}
     }
 
     static async getExportStatus(req, res, next) {
         // FIX (audit P0 #8): export_jobs table now exists (migration 016).
         try {
             const { rows } = await dbClient.query(
-                `SELECT job_id, status, format, download_url, created_at, updated_at
+                `SELECT job_id, CASE WHEN status='COMPLETED' AND expires_at<NOW() THEN 'EXPIRED' ELSE status END AS status, format, download_url, created_at, updated_at, expires_at, error_message
                  FROM export_jobs
                  WHERE user_id = $1
                  ORDER BY created_at DESC LIMIT 1`,

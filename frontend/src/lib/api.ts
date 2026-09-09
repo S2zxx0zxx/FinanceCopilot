@@ -88,6 +88,7 @@ export const api = {
       }))};
     });
   },
+  updateTransaction: (id:string,data:{merchant_normalized:string;transaction_type:string;reviewed?:boolean}) => apiFetch(`/transactions/${encodeURIComponent(id)}`,{method:"PUT",body:JSON.stringify(data)}),
   getTransactionDetail: (id: string) => apiFetch(`/transactions/${id}`),
 
   getGoals: () => apiFetch("/goals"),
@@ -149,6 +150,13 @@ export const api = {
   getSecuritySessions: () => apiFetch("/trust/security/sessions"),
   revokeSession: (id: string) =>
     apiFetch(`/trust/security/sessions/revoke`, { method: "POST", body: JSON.stringify({ id }) }),
+  downloadExport: async (id:string) => {
+    const token=await getAuthToken();
+    if(!token)throw new ApiError("Sign in to download your export.",401);
+    const response=await fetch(`${API_BASE}/trust/export/${encodeURIComponent(id)}/download`,{headers:{Authorization:`Bearer ${token}`},cache:"no-store"});
+    if(!response.ok)throw new ApiError("Export is not ready or has expired. Refresh its status.",response.status);
+    return response.blob();
+  },
   getExportStatus: () => apiFetch<{status?: string; job?: {job_id: string; status: string; format: "csv" | "json" | "pdf"; download_url?: string; created_at: string}}>("/trust/export/status"),
   requestExport: (format?: string) =>
     apiFetch<{jobId: string; status: string}>("/trust/export", { method: "POST", body: JSON.stringify({ format: format || "csv" }) }),

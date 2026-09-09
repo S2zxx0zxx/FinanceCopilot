@@ -38,7 +38,7 @@ const FORMAT_CONFIG: Record<
 > = {
   csv: {
     label: "CSV",
-    desc: "Spreadsheet-friendly",
+    desc: "Complete records / CSV",
     icon: <FileSpreadsheet className="w-4 h-4" />,
   },
   json: {
@@ -48,7 +48,7 @@ const FORMAT_CONFIG: Record<
   },
   pdf: {
     label: "PDF",
-    desc: "Printable report",
+    desc: "Printable inventory summary",
     icon: <FileText className="w-4 h-4" />,
   },
 };
@@ -129,7 +129,7 @@ export default function ExportPage() {
       const job = res.job;
       if (!["csv", "json", "pdf"].includes(job.format)) throw new Error("Unsupported export format returned.");
       setHistory([{ id: job.job_id, date: job.created_at, format: job.format,
-        size: "Size not reported", status: job.status === "COMPLETED" && job.download_url ? "ready" : job.status === "FAILED" ? "failed" : "processing",
+        size: "Size not reported", status: job.status === "COMPLETED" && job.download_url ? "ready" : ["FAILED","EXPIRED"].includes(job.status) ? "failed" : "processing",
         downloadUrl: job.status === "COMPLETED" ? job.download_url : undefined }]);
     }).catch((error: unknown) => {
       if (active) setStatusError(error instanceof Error ? error.message : "Could not load export status.");
@@ -160,7 +160,8 @@ export default function ExportPage() {
   const handleDownloadFromHistory = async (entry: ExportHistoryEntry) => {
     if (entry.status !== "ready" || !entry.downloadUrl) return;
     try {
-      await triggerDownload(entry.format, { downloadUrl: entry.downloadUrl });
+      const blob=await api.downloadExport(entry.id);
+      await triggerDownload(entry.format, { blob });
     } catch {
       toast({ title: "Download failed", description: "Refresh the export status and try again.", variant: "destructive" });
     }
@@ -266,8 +267,7 @@ export default function ExportPage() {
         <div className="premium-card p-5 flex flex-col gap-4">
           <div>
             <p className="text-[13px] text-(--text-secondary) leading-normal">
-              Request an archive in your preferred format. Processing time depends on
-              the export service; the latest request status appears below.
+              JSON and CSV include your retained accounts, transactions, goals, budgets, recurring series and AI insights. CSV stores each record as JSON in a section-labelled row. PDF is a printable record-count summary. Files expire after 24 hours. Each export supports up to 10,000 records per section and 20 MB; larger requests fail explicitly.
             </p>
           </div>
 
