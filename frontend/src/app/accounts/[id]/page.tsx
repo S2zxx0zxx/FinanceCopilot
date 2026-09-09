@@ -1,4 +1,5 @@
 "use client";
+import { BalanceCard } from "@/components/shared/balance-card";
 import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -35,8 +36,8 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
         <h1 className="font-display font-bold text-[24px] tracking-[-0.02em]">{label(acc.institution_name)}</h1>
       </div>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="premium-card p-6">
-        <div className="flex items-center justify-between mb-4"><span className="text-[11px] font-mono uppercase tracking-widest text-(--text-secondary)">Recorded net activity</span><Link href="/data-coverage" className="text-xs text-accent">Review coverage</Link></div>
-        <p className="font-display font-bold text-[40px] tabular-nums tracking-[-0.03em]">{money(balances.available_balance_paise)}</p>
+        <BalanceCard institution={label(acc.institution_name)} amountPaise={amount(balances.available_balance_paise)} lastFour={label(acc.account_number_last4,'')} accountType={label(acc.account_type)} tone="midnight" />
+        <Link href="/data-coverage" className="inline-flex items-center text-xs text-accent min-h-11 mt-3">Review data coverage</Link>
         <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-(--border-subtle)">
           <div><span className="text-[11px] font-mono uppercase tracking-wider text-(--text-tertiary)">Type</span><p className="text-[15px] font-medium capitalize mt-1">{label(acc.account_type).replaceAll("_", " ")}</p></div>
           <div><span className="text-[11px] font-mono uppercase tracking-wider text-(--text-tertiary)">Account No.</span><p className="text-[15px] font-medium mt-1">•••• {label(acc.account_number_last4)}</p></div>
@@ -44,7 +45,7 @@ export default function AccountDetailPage({ params }: { params: Promise<{ id: st
           <div><span className="text-[11px] font-mono uppercase tracking-wider text-(--text-tertiary)">Account status</span><p className="text-[15px] font-medium mt-1">{acc.is_active===true?"Active":"Inactive"}</p></div>
         </div>
         <p className="mt-5 text-xs text-(--text-secondary)">This view reflects imported activity. It does not include an opening balance or guarantee your current bank balance.</p>
-        <Link href={`/transactions?account=${encodeURIComponent(id)}`} className="inline-flex min-h-11 items-center mt-4 px-4 rounded-xl bg-accent text-accent-foreground text-sm">Import a statement for this account</Link>
+        {acc.is_active===true&&<Link href={`/transactions?account=${encodeURIComponent(id)}`} className="inline-flex min-h-11 items-center mt-4 px-4 rounded-xl bg-accent text-accent-foreground text-sm">Import a statement for this account</Link>}
       </motion.div>
     </div>
   );

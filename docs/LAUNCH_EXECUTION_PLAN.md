@@ -46,3 +46,23 @@ Original audit findings remain the coverage baseline. Each finding must be mappe
 - F07: fabricated peer cohort/median constants now unavailable explicitly; personal metric calculation review remains open.
 - Verification: current main production frontend build passed TypeScript and 34 static pages. Isolated PostgreSQL applied 28 migration files and passed imports, normalization, stale leases, duplicate prevention, tenant isolation, month-end and cashflow checks.
 - No production migration, deployment or push was performed in this checkpoint. Export delivery, deletion, opening balances and remaining workstreams above are still open.
+
+## Screen-by-screen visual upgrade scope
+Preserve existing features, cards and information. Upgrade layout, spacing, hierarchy, long-text handling, keyboard focus, touch targets, reduced motion and truthful chart data on every route. Balance cards use a shared dimensional account-card design with masked account suffixes and hide/show controls; no invented card details or bank-network affiliation.
+
+- [ ] Today/dashboard: credit-card summary, real cashflow and category charts, responsive quick actions.
+- [ ] Money: shared balance treatment; correct balance/coverage semantics and real historical chart.
+- [ ] Accounts/list/detail/connect: responsive card collection, account actions and connection states.
+- [ ] Activity/detail: responsive record tables, import status, review workflow and transaction evidence.
+- [ ] Spending/income: actual category/source charts and accessible numeric alternatives.
+- [ ] Plan/budgets/goals/detail/bills: progress, allocation and calendar visualizations from saved records.
+- [ ] Forecast/health/liabilities/coverage: distinguish recorded, estimated and unavailable data; readable uncertainty.
+- [ ] Copilot/home/chat/insight/purchase/leaks: consistent cards, safe actions and responsive conversation.
+- [ ] Search/help: keyboard-friendly results, guides and useful navigation.
+- [ ] You/preferences/security/privacy/connections/export: preserve existing rich layouts, consistent action hierarchy.
+- [ ] Sign-in/sign-up/onboarding and landing: mobile form/layout, loading/error and navigation review.
+- [ ] Final viewport audit: 360px, 768px and desktop; keyboard, reduced motion and long values.
+
+Started: reusable 3D balance-card component with pointer lighting, restrained tilt, reduced-motion handling, private amount toggle, real account suffix and responsive typography; integrated into Account vault while preserving search, filters, creation and statement import.
+
+Visual implementation checkpoint: Today, Money, Accounts, Account detail, Income, Budgets and Goals now use the new balance treatment and/or recorded-value charts. Search, creation, imports, account details and existing goal/budget cards remain. Money now uses auth-scoped resources and explicit partial failure states instead of zero-balance fallbacks. TypeScript passed. Authenticated browser preview requires sign-in; visual viewport review has not been claimed. Remaining screens and backend work remain open.

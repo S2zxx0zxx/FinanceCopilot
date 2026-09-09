@@ -1,4 +1,5 @@
 "use client";
+import { ValueBars } from "@/components/charts/value-bars";
 import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -24,7 +25,8 @@ export default function IncomePage() {
         <p className="font-display font-bold text-[36px] tabular-nums mt-2">{incomeData.effective_income_paise===null?"Unavailable":formatPaise(incomeData.effective_income_paise)}</p>
         <p className="text-sm text-(--text-secondary) mt-2">Posted income from your records. Refunds and transfers are excluded.</p><div className="flex flex-wrap gap-3 mt-5"><Link href="/transactions" className="min-h-11 px-4 rounded-xl bg-accent text-accent-foreground flex items-center text-sm">Explore activity</Link><Link href="/recurring" className="min-h-11 px-4 rounded-xl bg-(--surface-subtle) flex items-center text-sm">Review recurring income</Link></div>
       </motion.div>
-      <section className="premium-card overflow-hidden"><h2 className="p-5 font-semibold">Sources this month ? {incomeData.sources.length}</h2>{incomeData.sources.length===0&&<p className="p-5 text-sm text-(--text-secondary)">No eligible income recorded for this period. Import your statement history to begin.</p>}
+      <ValueBars title="Where your income comes from" description="Compare actual posted income by source for this period. Refunds and transfers are excluded." data={incomeData.sources.map(source=>({name:source.source_name,value:source.amount_paise}))}/>
+      <section className="premium-card overflow-hidden"><h2 className="p-5 font-semibold">Sources this month / {incomeData.sources.length}</h2>{incomeData.sources.length===0&&<p className="p-5 text-sm text-(--text-secondary)">No eligible income recorded for this period. Import your statement history to begin.</p>}
         {incomeData.sources.map((src, i) => (
           <div key={i} className={`flex items-center justify-between p-4 ${i < incomeData.sources.length - 1 ? "border-b border-(--border-subtle)" : ""}`}>
             <div><p className="text-[14px] font-medium">{src.source_name}</p><p className="text-xs text-(--text-tertiary) mt-1">{src.record_count??"Unknown"} records</p>{src.is_recurring && <Badge label="Recurring" variant="positive" />}</div>

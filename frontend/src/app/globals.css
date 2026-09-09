@@ -315,6 +315,25 @@
 }
 
 /* Skeleton */
+.balance-card-stage { perspective: 1100px; min-width: 0; }
+.balance-card {
+  position: relative; isolation: isolate; overflow: hidden; color: #fff;
+  padding: clamp(1.25rem, 3vw, 2rem); border-radius: 1.65rem;
+  border: 1px solid rgb(255 255 255 / .23);
+  background: radial-gradient(ellipse at 10% 0%, #3d9f82 0%, transparent 55%), linear-gradient(125deg,#104d40,#062d28 60%,#041a1c);
+  box-shadow: 0 24px 48px -24px rgb(0 28 23 / .6), inset 0 1px 0 rgb(255 255 255 / .3);
+  transform: rotateX(var(--card-rx,0deg)) rotateY(var(--card-ry,0deg));
+  transition: transform 180ms ease-out, box-shadow 250ms ease-out;
+}
+.balance-card--midnight { background: radial-gradient(ellipse at 0% 0%,#516b9f,transparent 65%),linear-gradient(125deg,#233752,#111b30 70%,#0d1221); }
+.balance-card--plum { background: radial-gradient(ellipse at 0% 0%,#986da1,transparent 65%),linear-gradient(125deg,#55375e,#2d233b 70%,#171421); }
+.balance-card::after { content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(circle at var(--light-x,25%) var(--light-y,0%),rgb(255 255 255 / .13),transparent 50%); }
+.balance-card__contours { position:absolute; width:30rem; height:30rem; right:-17rem; top:-5rem; border-radius:50%; border:1px solid rgb(255 255 255 / .12); box-shadow:0 0 0 20px rgb(255 255 255 / .025),0 0 0 45px rgb(255 255 255 / .025),0 0 0 75px rgb(255 255 255 / .025),0 0 0 110px rgb(255 255 255 / .025); transform:rotate(-30deg); }
+.balance-card__chip { display:block; width:2.5rem; height:1.9rem; border-radius:.45rem; border:1px solid #d4c6a0; background:linear-gradient(90deg,transparent 32%,#907c50 33%,transparent 35%,transparent 65%,#907c50 66%,transparent 68%),linear-gradient(0deg,#c4b484 30%,#88764e 32%,#e1d4ac 35%,#e1d4ac 65%,#88764e 68%,#c4b484 70%); box-shadow:inset 0 1px 2px #fff6; }
+.balance-card__amount { font-size:clamp(1.65rem,4.5vw,2.65rem); line-height:1.15; letter-spacing:-.035em; overflow-wrap:anywhere; }
+@media (prefers-reduced-motion:reduce) { .balance-card { transform:none !important; } }
+@media (max-width:480px) { .balance-card { border-radius:1.25rem; } }
+
 .skeleton {
   background: linear-gradient(90deg, var(--surface-subtle) 25%, var(--surface-hover) 50%, var(--surface-subtle) 75%);
   background-size: 200% 100%;

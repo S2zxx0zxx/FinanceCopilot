@@ -1,4 +1,5 @@
 "use client";
+import { BalanceCard } from "@/components/shared/balance-card";
 
 import * as React from "react";
 import Link from "next/link";
@@ -76,16 +77,8 @@ export default function HomePage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{[{href:'/transactions',title:'Import a statement',description:'Bring your latest activity in'},{href:'/budgets',title:'Set a spending limit',description:'Give each category a plan'},{href:'/goals',title:'Build a milestone',description:'Save towards something meaningful'},{href:'/ai/chat',title:'Ask your copilot',description:'Explore your financial questions'}].map(action=><Link key={action.href} href={action.href} className="premium-card p-4 min-h-24 hover:border-accent transition-colors"><p className="font-semibold text-sm">{action.title}</p><p className="text-xs text-(--text-secondary) mt-2">{action.description}</p></Link>)}</div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="lg:col-span-2 bg-(--surface) border border-border rounded-[20px] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-[13px] text-(--text-secondary) font-medium">Recorded net activity</p>
-              <div className="flex items-baseline gap-3 mt-1">
-                <MoneyValue value={home.available_balance_paise} className="font-display font-bold text-[36px] leading-none tabular-nums tracking-[-0.02em] text-(--text)" />
-              </div>
-            </div>
-            <Link href="/data-coverage" className="text-xs text-accent min-h-11 flex items-center">Review data coverage</Link>
-          </div>
-          <p className="text-xs text-(--text-secondary) mb-4">Based on imported records; opening balances are not included.</p>
+          <div className="mb-5"><BalanceCard institution="Your money overview" amountPaise={amount(home.available_balance_paise)} accountType="All recorded accounts" href="/money" note="Based on imported records; opening balances are not included." /></div>
+          <Link href="/data-coverage" className="inline-flex min-h-11 text-xs text-accent mb-2 items-center">Review data coverage</Link>
           <div className="flex gap-3 mb-5">
             <Link href="/transactions" className="px-4 py-2.5 rounded-[12px] bg-(--surface-subtle) border border-border text-[13px] font-semibold text-(--text-secondary) hover:bg-(--surface-hover) transition-colors">Import activity</Link>
             <Link href="/accounts" className="px-4 py-2.5 rounded-[12px] bg-linear-to-r from-accent to-(--accent-bright) text-accent-foreground text-[13px] font-semibold hover:shadow-[0_4px_20px_-4px_var(--accent-glow)] transition-shadow">Explore accounts</Link>

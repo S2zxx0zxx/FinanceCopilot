@@ -1,4 +1,5 @@
 "use client";
+import { ValueBars } from "@/components/charts/value-bars";
 import * as React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -13,7 +14,7 @@ import { ResourceState } from "@/components/shared/resource-state";
 import { rows,object,amount,label } from "@/lib/response";
 const loadGoals=async()=>rows(object(await api.getGoals()).goals).map(row=>{
  const target=amount(row.target_amount_paise);const current=amount(row.current_amount_paise);
- return {...row,name:label(row.name),goal_type:label(row.goal_type),pace:{...object(row.pace),progress_pct:target&&current!==null?Math.round(Math.min(100,Math.max(0,current/target*100))):null}};
+ return {...row,name:label(row.name),goal_type:label(row.goal_type),pace:{...object(row.pace??{}),progress_pct:target&&current!==null?Math.round(Math.min(100,Math.max(0,current/target*100))):null}};
 });
 
 
@@ -30,7 +31,7 @@ export default function GoalsPage() {
   const filtered=goals.filter(goal=>goal.name.toLowerCase().includes(query.toLowerCase())&&(status==='all'||goal.status===status));
   return (
     <div className="flex flex-col gap-6 max-w-4xl">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div><h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">Dream milestones</h1><p className="text-[14px] text-(--text-secondary) mt-1">{goals.length} goals to explore</p></div>
         <NewGoalDialog
           open={dialogOpen}
@@ -42,6 +43,7 @@ export default function GoalsPage() {
         />
       </div>
       <section className="premium-card p-5 sm:p-6"><h2 className="font-display text-xl font-semibold">Make room for what matters</h2><p className="text-sm text-(--text-secondary) mt-2">Create a target, record contributions and follow your progress without mixing plans with money already saved.</p><div className="flex flex-col sm:flex-row gap-3 mt-5"><input aria-label="Search goals" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a milestone" className="flex-1 min-h-11 px-3 rounded-xl border border-(--border) bg-(--surface)"/><select aria-label="Filter goal status" value={status} onChange={e=>setStatus(e.target.value)} className="min-h-11 px-3 rounded-xl border border-(--border) bg-(--surface)"><option value="all">All goals</option>{Array.from(new Set(goals.map(goal=>label(goal.status)))).map(value=><option key={value} value={value}>{value}</option>)}</select></div></section>
+      <ValueBars title="Your milestones, funded" description="Actual recorded contributions for the milestones matching your filters. Planned contributions are not counted as saved money." data={filtered.map(goal=>({name:goal.name,value:amount(goal.current_amount_paise)}))}/>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {goals.length === 0 && (
           <div className="premium-card p-8 col-span-full flex flex-col items-center text-center gap-3">
