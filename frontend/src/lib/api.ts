@@ -157,7 +157,7 @@ export const api = {
     if(!response.ok)throw new ApiError("Export is not ready or has expired. Refresh its status.",response.status);
     return response.blob();
   },
-  getExportStatus: () => apiFetch<{status?: string; job?: {job_id: string; status: string; format: "csv" | "json" | "pdf"; download_url?: string; created_at: string}}>("/trust/export/status"),
+  getExportStatus: () => apiFetch<{status?: string; job?: {job_id: string; status: string; format: "csv" | "json" | "pdf"; download_url?: string; created_at: string; size_bytes?:number; error_message?:string; expires_at?:string}}>("/trust/export/status"),
   requestExport: (format?: string) =>
     apiFetch<{jobId: string; status: string}>("/trust/export", { method: "POST", body: JSON.stringify({ format: format || "csv" }) }),
   requestDeletion: () =>

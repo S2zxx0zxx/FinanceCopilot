@@ -66,3 +66,13 @@ Preserve existing features, cards and information. Upgrade layout, spacing, hier
 Started: reusable 3D balance-card component with pointer lighting, restrained tilt, reduced-motion handling, private amount toggle, real account suffix and responsive typography; integrated into Account vault while preserving search, filters, creation and statement import.
 
 Visual implementation checkpoint: Today, Money, Accounts, Account detail, Income, Budgets and Goals now use the new balance treatment and/or recorded-value charts. Search, creation, imports, account details and existing goal/budget cards remain. Money now uses auth-scoped resources and explicit partial failure states instead of zero-balance fallbacks. TypeScript passed. Authenticated browser preview requires sign-in; visual viewport review has not been claimed. Remaining screens and backend work remain open.
+
+## Verified continuation checkpoint
+- Current main includes the merged premium dashboard at 174f79b; no feature-branch commits discarded.
+- Transaction detail maps actual API fields and provides corrections plus explicit review confirmation. Review mutations check ownership/direction/type, preserve source records, and atomically write audit records. Activity exposes a needs-review filter.
+- Export delivery is implemented for JSON/CSV records and PDF inventory summaries, with an authenticated owned download, 24-hour artifact expiry, lease recovery, bounded size and record limits. Monetary paise fields export as strings. Requires migration 028_export_delivery.sql and the worker process in the target environment.
+- Export status now displays actual byte-derived file size and server failure/expiry feedback.
+- Deletion request is atomic and idempotent: queue failure rolls back account disabling. Actual provider/object/database purge and grace-period recovery remain OPEN.
+- Isolated PostgreSQL evidence: all 29 migration files applied; import, normalization recovery, review, JSON/CSV/PDF delivery, unauthorized download, expiry cleanup and deletion-request rollback checks passed. Latest TypeScript passed.
+- Fresh dependency audit attempt failed because the npm advisory endpoint disconnected. This is NOT an audit pass; the earlier install reported 9 advisories requiring reconciliation.
+- Final full-codebase review is still pending until the remaining execution workstreams above are completed. Production migration/deployment and authenticated viewport verification have not been performed.

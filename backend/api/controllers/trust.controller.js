@@ -177,7 +177,7 @@ export class TrustController {
         // FIX (audit P0 #8): export_jobs table now exists (migration 016).
         try {
             const { rows } = await dbClient.query(
-                `SELECT job_id, CASE WHEN status='COMPLETED' AND expires_at<NOW() THEN 'EXPIRED' ELSE status END AS status, format, download_url, created_at, updated_at, expires_at, error_message
+                `SELECT job_id, CASE WHEN status='COMPLETED' AND expires_at<NOW() THEN 'EXPIRED' ELSE status END AS status, format, download_url, created_at, updated_at, expires_at, error_message, (SELECT octet_length(content) FROM export_artifacts WHERE export_artifacts.job_id=export_jobs.job_id) AS size_bytes
                  FROM export_jobs
                  WHERE user_id = $1
                  ORDER BY created_at DESC LIMIT 1`,
@@ -211,33 +211,20 @@ export class TrustController {
     }
 
     static async requestDeletion(req, res, next) {
+        let client;
         try {
-            const db = dbClient;
-            const userId = req.user.userId;
-
-            // FIX (audit P0 #9): ADR-006 mandates soft-delete with a 30-day grace
-            // period — the old `DELETE FROM users` was a hard delete with no audit
-            // trail and no grace window. We now flip is_deleted, set deleted_at,
-            // enqueue a deletion_jobs row, and emit an audit event.
-            await db.query(
-                `UPDATE users SET is_deleted = TRUE, deleted_at = NOW(), updated_at = NOW()
-                 WHERE user_id = $1`,
-                [userId]
-            );
-
-            const { rows } = await db.query(
-                `INSERT INTO deletion_jobs (user_id, status)
-                 VALUES ($1, 'PROCESSING')
-                 RETURNING job_id`,
-                [userId]
-            );
-            const jobId = rows[0]?.job_id;
-
-            const { AuditRepo } = await import('../../db/repositories.js');
-            await AuditRepo.logEvent('DELETION_REQUESTED', 'user', userId, userId, { job_id: jobId });
-
-            res.json({ status: 'PROCESSING', jobId });
-        } catch (err) { next(err); }
+            client=await dbClient.connect();await client.query('BEGIN');
+            const userId=req.user.userId;
+            const user=await client.query('SELECT user_id FROM users WHERE user_id=$1 FOR UPDATE',[userId]);
+            if(!user.rows.length){await client.query('ROLLBACK');return res.status(404).json({error:'Account not found.'});}
+            const existing=await client.query("SELECT job_id FROM deletion_jobs WHERE user_id=$1 AND status='PROCESSING' ORDER BY created_at DESC LIMIT 1",[userId]);
+            if(existing.rows.length){await client.query('COMMIT');return res.json({status:'PROCESSING',jobId:existing.rows[0].job_id});}
+            await client.query('UPDATE users SET is_deleted=true,deleted_at=NOW(),updated_at=NOW() WHERE user_id=$1',[userId]);
+            const result=await client.query("INSERT INTO deletion_jobs(user_id,status) VALUES($1,'PROCESSING') RETURNING job_id",[userId]);
+            const jobId=result.rows[0].job_id;
+            await client.query("INSERT INTO audit_events(event_type,entity_type,entity_id,actor,metadata) VALUES('DELETION_REQUESTED','user',$1,$1,$2)",[userId,{job_id:jobId}]);
+            await client.query('COMMIT');return res.status(202).json({status:'PROCESSING',jobId});
+        } catch(error){if(client)await client.query('ROLLBACK');next(error);}finally{client?.release();}
     }
 
     static async getDeletionStatus(req, res, next) {

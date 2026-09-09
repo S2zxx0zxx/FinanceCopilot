@@ -127,9 +127,11 @@ export default function ExportPage() {
     api.getExportStatus().then((res) => {
       if (!active || !res.job) return;
       const job = res.job;
+      if (job.status === "FAILED") setStatusError(job.error_message || "Export failed. Please request a new export.");
+      if (job.status === "EXPIRED") setStatusError("This export expired. Request a new file.");
       if (!["csv", "json", "pdf"].includes(job.format)) throw new Error("Unsupported export format returned.");
       setHistory([{ id: job.job_id, date: job.created_at, format: job.format,
-        size: "Size not reported", status: job.status === "COMPLETED" && job.download_url ? "ready" : ["FAILED","EXPIRED"].includes(job.status) ? "failed" : "processing",
+        size: typeof job.size_bytes === "number" ? `${(job.size_bytes/1024).toFixed(1)} KB` : "Size not reported", status: job.status === "COMPLETED" && job.download_url ? "ready" : ["FAILED","EXPIRED"].includes(job.status) ? "failed" : "processing",
         downloadUrl: job.status === "COMPLETED" ? job.download_url : undefined }]);
     }).catch((error: unknown) => {
       if (active) setStatusError(error instanceof Error ? error.message : "Could not load export status.");
