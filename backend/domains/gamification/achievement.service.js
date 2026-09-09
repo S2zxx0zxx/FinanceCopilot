@@ -270,9 +270,11 @@ export class AchievementService {
         const state = stateResult.rows[0] || {};
         const xp = Math.max(0, numberValue(state.xp));
         const levelState = await this.resolveLevel(xp);
+        const legacyNextLevelThreshold = levelState.next_level_xp ?? xp;
 
-        // Keep legacy columns coherent for any older read paths, while the V2 API
-        // returns the unambiguous level fields below.
+        // Keep the legacy field coherent as an absolute XP threshold. New clients
+        // should use xp_to_next + next_level_xp, but older consumers can still
+        // safely interpret xp_to_next_level as the next total-XP target.
         await this.db.query(
             `UPDATE gamification_state
              SET level = $2,
@@ -283,7 +285,7 @@ export class AchievementService {
                AND (level IS DISTINCT FROM $2
                  OR level_name IS DISTINCT FROM $3
                  OR xp_to_next_level IS DISTINCT FROM $4)`,
-            [userId, levelState.level, levelState.level_name, levelState.xp_to_next]
+            [userId, levelState.level, levelState.level_name, legacyNextLevelThreshold]
         );
 
         const badges = definitions.badges.map(definition =>
@@ -308,6 +310,7 @@ export class AchievementService {
             total_actions: numberValue(state.total_actions),
             xp,
             ...levelState,
+            xp_to_next_level: legacyNextLevelThreshold,
             badges,
             milestones,
             featured_milestones: incompleteByCloseness.slice(0, 3),
