@@ -26,6 +26,19 @@ function profilePayload(row) {
     };
 }
 
+function isAvatarSchemaNotReady(err) {
+    // PostgreSQL undefined_table / undefined_column. These codes are expected
+    // only when application code has been started before migration 029.
+    return err?.code === '42P01' || err?.code === '42703';
+}
+
+function respondAvatarSchemaNotReady(res) {
+    return res.status(503).json({
+        error: 'PROFILE_AVATAR_SCHEMA_NOT_READY',
+        message: 'Profile avatar data is not ready yet. Apply pending database migrations and retry.',
+    });
+}
+
 export class ProfileController {
     static async getMe(req, res, next) {
         try {
@@ -33,6 +46,7 @@ export class ProfileController {
             if (!rows.length) return res.status(404).json({ error: 'User not found' });
             res.json(profilePayload(rows[0]));
         } catch (err) {
+            if (isAvatarSchemaNotReady(err)) return respondAvatarSchemaNotReady(res);
             next(err);
         }
     }
@@ -47,12 +61,13 @@ export class ProfileController {
             );
             res.json({ presets: rows });
         } catch (err) {
+            if (isAvatarSchemaNotReady(err)) return respondAvatarSchemaNotReady(res);
             next(err);
         }
     }
 
     static async updateAvatar(req, res, next) {
-        const client = await dbClient.connect();
+        let client;
         try {
             const mode = req.body?.mode;
             const presetId = req.body?.preset_avatar_id ?? null;
@@ -76,6 +91,7 @@ export class ProfileController {
                 });
             }
 
+            client = await dbClient.connect();
             await client.query('BEGIN');
 
             if (mode === 'preset') {
@@ -120,10 +136,13 @@ export class ProfileController {
 
             res.json({ profile: profilePayload(profile.rows[0]) });
         } catch (err) {
-            try { await client.query('ROLLBACK'); } catch {}
+            if (client) {
+                try { await client.query('ROLLBACK'); } catch {}
+            }
+            if (isAvatarSchemaNotReady(err)) return respondAvatarSchemaNotReady(res);
             next(err);
         } finally {
-            client.release();
+            client?.release();
         }
     }
 }
