@@ -1,0 +1,223 @@
+.studio {
+  overflow: hidden;
+  border-radius: 26px !important;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 82%, rgba(214, 179, 108, .35)) !important;
+  background:
+    radial-gradient(circle at 8% -8%, rgba(214, 179, 108, .14), transparent 34%),
+    radial-gradient(circle at 96% 2%, rgba(148, 163, 184, .12), transparent 32%),
+    color-mix(in srgb, var(--surface-elevated) 97%, transparent) !important;
+  box-shadow: 0 34px 90px -34px rgba(0, 0, 0, .78), inset 0 1px 0 rgba(255, 255, 255, .06) !important;
+  backdrop-filter: blur(24px);
+}
+
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 4px 2px 18px;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(214, 179, 108, .4), var(--border), transparent);
+}
+
+.previewRing {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 4px;
+  background: conic-gradient(from 215deg, #7b633b, #f5e4b7 18%, #aeb4bd 34%, #f4d187 55%, #6f737a 73%, #d6b36c 88%, #7b633b);
+  box-shadow: 0 16px 38px -20px rgba(214, 179, 108, .76), 0 0 0 1px rgba(255, 255, 255, .08);
+}
+
+.previewInner {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--surface);
+}
+
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: min(48dvh, 430px);
+  overflow-y: auto;
+  padding: 2px 3px 4px;
+  scrollbar-width: thin;
+}
+
+.presetCard {
+  --avatar-tone: 214 179 108;
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 132px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  padding: 12px 9px 10px;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 50% 15%, rgb(var(--avatar-tone) / .12), transparent 46%),
+    linear-gradient(150deg, color-mix(in srgb, var(--surface-elevated) 97%, transparent), var(--surface));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+  transition: transform 180ms cubic-bezier(.16, 1, .3, 1), border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.presetCard::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 38%, rgba(255, 255, 255, .10) 47%, transparent 57%);
+  transform: translateX(-42%);
+  opacity: 0;
+  transition: opacity 180ms ease, transform 600ms cubic-bezier(.16, 1, .3, 1);
+}
+
+.presetCard:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, rgb(var(--avatar-tone)) 46%, var(--border));
+  box-shadow: 0 16px 30px -24px rgb(var(--avatar-tone) / .72), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+.presetCard:hover::before {
+  opacity: 1;
+  transform: translateX(42%);
+}
+
+.presetCard:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.presetCardSelected {
+  border-color: rgba(214, 179, 108, .72);
+  background:
+    radial-gradient(circle at 50% 12%, rgba(244, 209, 135, .20), transparent 46%),
+    linear-gradient(150deg, color-mix(in srgb, var(--surface-elevated) 95%, rgba(214, 179, 108, .05)), var(--surface));
+  box-shadow: 0 18px 38px -28px rgba(214, 179, 108, .9), inset 0 0 0 1px rgba(255, 235, 191, .14), inset 0 1px 0 rgba(255, 255, 255, .1);
+}
+
+.avatarFrame {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 25%, rgba(255,255,255,.13), transparent 48%),
+    var(--surface-subtle);
+  border: 1px solid rgba(255,255,255,.09);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 24px -20px rgba(0,0,0,.8);
+}
+
+.avatarFrame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.selectionMark {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #16130d;
+  background: linear-gradient(145deg, #fff5d8, #d6b36c 70%, #99753c);
+  border: 1px solid rgba(255,255,255,.6);
+  box-shadow: 0 5px 14px -6px rgba(0,0,0,.75);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.secondaryButton,
+.primaryButton {
+  min-height: 44px;
+  border-radius: 13px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.secondaryButton {
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+.secondaryButton:hover { color: var(--text); border-color: var(--border-strong); }
+
+.primaryButton {
+  color: #17130b;
+  border: 1px solid rgba(255,255,255,.45);
+  background: linear-gradient(135deg, #f8ecd0, #d7b267 50%, #a47c3d);
+  box-shadow: 0 14px 24px -16px rgba(214,179,108,.9), inset 0 1px 0 rgba(255,255,255,.75);
+}
+
+.primaryButton:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 18px 30px -17px rgba(214,179,108,.95), inset 0 1px 0 rgba(255,255,255,.8); }
+.secondaryButton:active,
+.primaryButton:not(:disabled):active { transform: scale(.98); }
+.primaryButton:disabled { cursor: not-allowed; opacity: .48; }
+
+.error {
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+  border-radius: 12px;
+  padding: 9px 11px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  font-size: 12px;
+}
+
+@media (min-width: 520px) {
+  .presetGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .previewRing { width: 88px; height: 88px; }
+  .presetCard { min-height: 122px; }
+  .avatarFrame { width: 66px; height: 66px; }
+  .footer { align-items: stretch; flex-direction: column-reverse; }
+  .secondaryButton,
+  .primaryButton { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presetCard,
+  .presetCard::before,
+  .secondaryButton,
+  .primaryButton { transition: none; }
+}
