@@ -22,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ProfileAvatar } from "@/components/profile/profile-avatar";
 import { formatPaise } from "@/lib/format";
 import styles from "./dashboard-premium.module.css";
 
@@ -29,6 +30,9 @@ export type DashboardProfile = {
   display_name?: unknown;
   email?: unknown;
   created_at?: unknown;
+  avatar_mode?: unknown;
+  preset_avatar_url?: unknown;
+  preset_avatar_label?: unknown;
 };
 
 function text(value: unknown, fallback = "") {
@@ -45,26 +49,39 @@ function memberSince(value: unknown) {
 export function DashboardProfileMenu({ user }: Readonly<{ user: DashboardProfile }>) {
   const email = text(user.email, "Signed-in account");
   const displayName = text(user.display_name, email.includes("@") ? email.split("@")[0] : "Your profile");
-  const initial = displayName.charAt(0).toUpperCase() || "U";
   const joined = memberSince(user.created_at);
+  const presetLabel = text(user.preset_avatar_label, "");
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className={styles.profileTrigger} aria-label={`Open profile menu for ${displayName}`}>
-          {initial}
+          <ProfileAvatar
+            avatarMode={user.avatar_mode}
+            presetAvatarUrl={user.preset_avatar_url}
+            displayName={displayName}
+            size={40}
+            className="pointer-events-none"
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={10} className={styles.profileMenu}>
         <div className={styles.profileHero}>
           <div className="relative z-10 flex items-center gap-3">
-            <div className={styles.profileAvatar}>{initial}</div>
+            <div className={styles.profileAvatar}>
+              <ProfileAvatar
+                avatarMode={user.avatar_mode}
+                presetAvatarUrl={user.preset_avatar_url}
+                displayName={displayName}
+                size={46}
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[14px] font-semibold text-(--text)">{displayName}</p>
               <p className="truncate text-[12px] text-(--text-secondary) mt-0.5">{email}</p>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className="inline-flex items-center gap-1 rounded-full border border-(--border) bg-(--surface-subtle) px-2 py-1 text-[10px] text-(--text-secondary)">
-                  <ShieldCheck className="h-3 w-3" /> FinCopilot account
+                  <ShieldCheck className="h-3 w-3" /> {user.avatar_mode === "preset" && presetLabel ? presetLabel : "FinCopilot account"}
                 </span>
                 {joined && <span className="text-[10px] text-(--text-tertiary)">Member since {joined}</span>}
               </div>
