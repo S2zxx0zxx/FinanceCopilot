@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { setupRoutes } from './api/routes.js';
 import setupAIRoutes from './api/ai.routes.js';
 import { setupAARoutes } from './api/routes/aa.routes.js';
+import { setupProfileRoutes } from './api/routes/profile.routes.js';
 import { dbClient } from './db/client.js';
 import { IngestionService } from './domains/ingestion/ingestion.service.js';
 import { R2StorageAdapter } from './adapters/storage/r2.adapter.js';
@@ -150,6 +151,7 @@ if (config.setu.enabled) {
 
 const dependencies = { ingestionService, aaService };
 setupRoutes(app, dependencies);
+setupProfileRoutes(app);
 setupAIRoutes(app, dbClient);
 if (aaService) {
     setupAARoutes(app, aaService, { webhookSecret: config.setu.webhookSecret });
