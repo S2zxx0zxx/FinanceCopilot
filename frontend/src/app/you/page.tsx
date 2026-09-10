@@ -9,18 +9,20 @@ import {
   ShieldCheck, Lock, EyeOff, Download, Bell, User, ChevronRight,
   Pencil, CreditCard, IndianRupee, Languages, Sun, Moon,
   HelpCircle, MessageSquare, Info, LogOut, Crown, Calendar, MessageCircle,
-  Zap, type LucideIcon,
+  Zap, Sparkles, type LucideIcon,
 } from "lucide-react";
 
 import { formatDate, getScoreLabel } from "@/lib/format";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { Badge, ProgressRing, CountUp } from "@/components/shared";
 import { AchievementHub, type AchievementBadgeData, type AchievementMilestoneData, type AchievementState } from "@/components/achievements/achievement-hub";
+import { AvatarPicker } from "@/components/profile/avatar-picker";
+import { ProfileAvatar } from "@/components/profile/profile-avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useResource } from "@/hooks/use-resource";
 import { ResourceState } from "@/components/shared/resource-state";
 import { object, rows, label, amount } from "@/lib/response";
-import { api } from "@/lib/api";
+import { api, type FinCopilotProfile } from "@/lib/api";
 
 const BADGE_TONES = new Set(["amber", "emerald", "azure", "violet", "rose", "cyan"]);
 const BADGE_TIERS = new Set(["core", "advanced", "elite"]);
@@ -122,6 +124,14 @@ async function loadGrowth(): Promise<AchievementState> {
       total: milestones.length,
     },
   };
+}
+
+async function loadAvatarStudio() {
+  const [profile, presetResponse] = await Promise.all([
+    api.getProfile(),
+    api.getProfileAvatarPresets(),
+  ]);
+  return { profile, presets: presetResponse.presets };
 }
 
 // ── Motion variants ───────────────────────────────────────────────────────
@@ -279,16 +289,35 @@ export default function YouPage() {
   const { toast } = useToast();
   const { user } = useUser();
   const growth = useResource(loadGrowth);
+  const avatarStudio = useResource(loadAvatarStudio);
   const { openUserProfile } = useClerk();
   const router = useRouter();
+  const [avatarPickerOpen, setAvatarPickerOpen] = React.useState(false);
+  const [savedProfile, setSavedProfile] = React.useState<FinCopilotProfile | null>(null);
   const gamification = growth.data;
   if (!gamification) return <ResourceState loading={growth.loading} error={growth.error} retry={growth.reload} />;
+
+  const avatarProfile = savedProfile || avatarStudio.data?.profile || null;
+  const avatarPresets = avatarStudio.data?.presets || [];
+  const displayName = user?.fullName || avatarProfile?.display_name || "FinCopilot User";
 
   const securityData = { two_factor_enabled: user?.twoFactorEnabled === true };
   const verifiedFactors = Number(user?.primaryEmailAddress?.verification?.status === "verified") + Number(securityData.two_factor_enabled);
   const score = verifiedFactors;
   const scoreColor = securityColor(score * 50);
   const scorePct = score * 50;
+
+  const openAvatarStudio = () => {
+    if (!avatarProfile || avatarPresets.length === 0) {
+      toast({
+        title: "Avatar Studio is still loading",
+        description: avatarStudio.error ? "Avatar choices could not load. Retry the page and try again." : "Give FinCopilot a moment to load your avatar choices.",
+        variant: avatarStudio.error ? "destructive" : "default",
+      });
+      return;
+    }
+    setAvatarPickerOpen(true);
+  };
 
   const openSetting = (entry: string) => {
     if (entry === "Profile editing" || entry === "Profile") { openUserProfile(); return; }
@@ -343,42 +372,48 @@ export default function YouPage() {
         <button
           type="button"
           onClick={() => openSetting("Profile editing")}
-          aria-label="Edit profile"
+          aria-label="Edit account profile"
           className="absolute top-4 right-4 w-9 h-9 rounded-[10px] flex items-center justify-center text-(--text-secondary) hover:text-foreground hover:bg-(--surface-subtle) transition-colors z-10"
         >
           <Pencil className="w-4 h-4" />
         </button>
 
         <div className="flex items-center gap-5 relative">
-          <div className="relative shrink-0">
-            <div
-              className="absolute -inset-1 rounded-full opacity-60 blur-[6px]"
+          <button
+            type="button"
+            onClick={openAvatarStudio}
+            aria-label="Change profile avatar"
+            className="group relative shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--accent) focus-visible:ring-offset-2 focus-visible:ring-offset-(--surface)"
+          >
+            <span
+              className="absolute -inset-1 rounded-full opacity-65 blur-[6px] transition-opacity group-hover:opacity-100"
               style={{ background: "linear-gradient(135deg, var(--accent), var(--gold))" }}
               aria-hidden
             />
-            {user?.imageUrl ? (
-              <img src={user.imageUrl} alt="Avatar" className="relative w-20 h-20 rounded-full object-cover shadow-md z-10" />
-            ) : (
-              <div
-                className="relative w-20 h-20 rounded-full flex items-center justify-center text-accent-foreground font-display font-bold text-[30px] shrink-0 shadow-md"
-                style={{ background: "linear-gradient(135deg, var(--accent), var(--gold))" }}
-              >
-                {user?.firstName?.charAt(0) || user?.emailAddresses?.[0]?.emailAddress?.charAt(0)?.toUpperCase() || "U"}
-              </div>
-            )}
-          </div>
+            <ProfileAvatar
+              avatarMode={avatarProfile?.avatar_mode}
+              presetAvatarUrl={avatarProfile?.preset_avatar_url}
+              displayName={displayName}
+              accountImageUrl={user?.imageUrl}
+              size={80}
+              className="relative z-10 shadow-md transition-transform duration-200 group-hover:scale-[1.03]"
+            />
+            <span className="absolute -bottom-1 -right-1 z-20 grid h-7 w-7 place-items-center rounded-full border border-white/40 bg-linear-to-br from-[#f8ecd0] to-[#c79b50] text-[#17130b] shadow-lg transition-transform group-hover:scale-110" aria-hidden="true">
+              <Sparkles className="h-3.5 w-3.5" />
+            </span>
+          </button>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pr-8">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-display font-bold text-[22px] tracking-[-0.01em] text-foreground truncate">
-                {user?.fullName || "FinCopilot User"}
+                {displayName}
               </h2>
               <Badge label={`Level ${gamification.level || 1}`} variant="gold" />
             </div>
             <div className="flex flex-col gap-0.5 mt-1.5 text-[13px] text-(--text-secondary)">
               <span className="flex items-center gap-1.5 truncate">
                 <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">email</span>
-                <span className="truncate">{user?.primaryEmailAddress?.emailAddress || "—"}</span>
+                <span className="truncate">{user?.primaryEmailAddress?.emailAddress || avatarProfile?.email || "—"}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">phone</span>
@@ -386,12 +421,35 @@ export default function YouPage() {
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="text-(--text-tertiary) font-mono text-[11px] uppercase tracking-wider">member</span>
-                <span>Since {user ? formatDate(user.createdAt!.toISOString(), { style: "long" }) : "—"}</span>
+                <span>Since {user ? formatDate(user.createdAt!.toISOString(), { style: "long" }) : avatarProfile?.created_at ? formatDate(avatarProfile.created_at, { style: "long" }) : "—"}</span>
               </span>
+              <button type="button" onClick={openAvatarStudio} className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full border border-(--border) bg-(--surface-subtle) px-2.5 py-1.5 text-[10px] font-semibold text-(--text-secondary) transition-colors hover:border-(--border-strong) hover:text-foreground">
+                <Sparkles className="h-3 w-3 text-(--gold)" />
+                {avatarProfile?.avatar_mode === "preset" ? `${avatarProfile.preset_avatar_label || "Preset"} avatar` : "Choose FinCopilot avatar"}
+              </button>
             </div>
           </div>
         </div>
       </motion.section>
+
+      {avatarProfile && (
+        <AvatarPicker
+          open={avatarPickerOpen}
+          onOpenChange={setAvatarPickerOpen}
+          profile={avatarProfile}
+          presets={avatarPresets}
+          accountImageUrl={user?.imageUrl}
+          onSaved={profile => {
+            setSavedProfile(profile);
+            toast({
+              title: "Avatar updated",
+              description: profile.avatar_mode === "preset"
+                ? `${profile.preset_avatar_label || "Your FinCopilot avatar"} is now active.`
+                : "Your signed-in account avatar is active again.",
+            });
+          }}
+        />
+      )}
 
       {/* ── Data-driven Achievement Hub ─────────────────────────────── */}
       <motion.div variants={item}>
