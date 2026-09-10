@@ -26,7 +26,7 @@ const dashboardSources = {
   insights: api.getAIHomeFeed,
   spending: api.getSpendingStory,
   game: api.getGamification,
-  user: api.getMe,
+  user: api.getProfile,
   money: api.getMoneyState,
   income: api.getIncome,
 };
