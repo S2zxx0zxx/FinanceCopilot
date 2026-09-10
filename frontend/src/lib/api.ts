@@ -49,6 +49,27 @@ export type AAConsentStart = {
   status: string;
 };
 
+export type ProfileAvatarMode = "account" | "preset";
+
+export type ProfileAvatarPreset = {
+  preset_id: string;
+  label: string;
+  asset_path: string;
+  alt_text: string;
+  sort_order: number;
+};
+
+export type FinCopilotProfile = {
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+  created_at: string;
+  avatar_mode: ProfileAvatarMode;
+  preset_avatar_id: string | null;
+  preset_avatar_url: string | null;
+  preset_avatar_label: string | null;
+};
+
 export const api = {
   getHomeState: () => apiFetch("/financial-state/home"),
   getMoneyState: () => apiFetch("/financial-state/money"),
@@ -163,8 +184,15 @@ export const api = {
   requestDeletion: () =>
     apiFetch("/trust/deletion", { method: "POST" }),
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Profile / Auth ─────────────────────────────────────────────────────────
   getMe: () => apiFetch("/auth/me"),
+  getProfile: () => apiFetch<FinCopilotProfile>("/profile"),
+  getProfileAvatarPresets: () => apiFetch<{ presets: ProfileAvatarPreset[] }>("/profile/avatar-presets"),
+  updateProfileAvatar: (mode: ProfileAvatarMode, presetAvatarId: string | null = null) =>
+    apiFetch<{ profile: FinCopilotProfile }>("/profile/avatar", {
+      method: "PATCH",
+      body: JSON.stringify({ mode, preset_avatar_id: presetAvatarId }),
+    }),
   getPreferences: () => apiFetch("/preferences"),
   updatePreferences: (data: any) => apiFetch("/preferences", { method: "PUT", body: JSON.stringify(data) }),
   getDataQuality: () => apiFetch("/data-quality"),
