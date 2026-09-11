@@ -1,6 +1,6 @@
 """Minimal JSON-RPC 2.0 MCP client used by the agent runtime.
 
-Talks to one or more MCP servers (Securo's built-in + any user-supplied).
+Talks to one or more MCP servers (FinCopilot's built-in + any user-supplied).
 Per call, mints a short-lived JWT scoped to (user_id, conversation_id).
 """
 from __future__ import annotations
@@ -37,7 +37,7 @@ class _ServerSpec:
 
 def _parse_servers() -> list[_ServerSpec]:
     s = get_agent_settings()
-    out = [_ServerSpec(name="securo", url=s.builtin_mcp_url)]
+    out = [_ServerSpec(name="fincopilot", url=s.builtin_mcp_url)]
     extra = (s.extra_mcp_servers or "").strip()
     if extra:
         for raw in extra.split(","):
@@ -79,7 +79,7 @@ class MCPClient:
         result = await self._post("tools/list", {}, token=token)
         out: list[ToolHandle] = []
         for t in (result or {}).get("tools", []):
-            extras = t.get("_securo") or {}
+            extras = t.get("_fincopilot") or {}
             out.append(ToolHandle(
                 server=self.name,
                 name=t.get("name") or "",

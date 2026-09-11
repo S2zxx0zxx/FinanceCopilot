@@ -1,7 +1,7 @@
 import { execSync, execFileSync } from 'node:child_process'
-const officialReleaseRepo = 'https://github.com/securo-finance/securo.git'
+const officialReleaseRepo = 'https://github.com/S2zxx0zxx/FinanceCopilot.git'
 const officialLatestReleaseApi =
-  'https://api.github.com/repos/securo-finance/securo/releases/latest'
+  'https://api.github.com/repos/S2zxx0zxx/FinanceCopilot/releases/latest'
 const semverPattern =
   /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
 
@@ -194,7 +194,7 @@ async function getLatestOfficialReleaseTagFromApi() {
     const response = await fetch(officialLatestReleaseApi, {
       headers: {
         Accept: 'application/vnd.github+json',
-        'User-Agent': 'securo-frontend-build',
+        'User-Agent': 'fincopilot-frontend-build',
       },
       signal: AbortSignal.timeout(3000),
     })

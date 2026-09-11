@@ -172,7 +172,7 @@ type RecentItem = {
   sublabel?: string | null
 }
 
-const RECENT_KEY = 'securo.cmdk.recent'
+const RECENT_KEY = 'fincopilot.cmdk.recent'
 const RECENT_MAX = 5
 
 function loadRecents(): RecentItem[] {
@@ -669,7 +669,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             <div className="flex items-center justify-between gap-4 border-t border-border/60 bg-muted/30 px-4 py-2">
               <div className="flex items-center gap-1.5 text-[10.5px] text-muted-foreground">
                 <CircleDollarSign size={11} className="text-primary" />
-                <span className="font-semibold tracking-tight text-foreground/90">Securo</span>
+                <span className="font-semibold tracking-tight text-foreground/90">FinCopilot</span>
                 <span className="text-muted-foreground/50">/</span>
                 <span>{t('cmdk.footer.tagline')}</span>
               </div>

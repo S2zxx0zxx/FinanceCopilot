@@ -25,9 +25,9 @@ interface BackupDialogProps {
 /**
  * Asks for an optional password before downloading the workspace archive.
  *
- * Empty means the plain zip Securo has always produced. A password produces an
+ * Empty means the plain zip FinCopilot has always produced. A password produces an
  * AES-256 zip, which any standard archiver can open, so the backup stays usable
- * even without Securo. Nothing about the password is sent anywhere else or
+ * even without FinCopilot. Nothing about the password is sent anywhere else or
  * stored: lose it and the archive is gone, which the dialog says out loud.
  */
 export function BackupDialog({ open, onClose }: BackupDialogProps) {

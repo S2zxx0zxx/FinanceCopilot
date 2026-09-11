@@ -26,7 +26,7 @@ interface OAuthConnectDialogProps {
   supportsAssetSync?: boolean
 }
 
-const LAST_COUNTRY_KEY = 'securo:lastOAuthCountry'
+const LAST_COUNTRY_KEY = 'fincopilot:lastOAuthCountry'
 
 const REGION_NAMES: Intl.DisplayNames | null = (() => {
   try {

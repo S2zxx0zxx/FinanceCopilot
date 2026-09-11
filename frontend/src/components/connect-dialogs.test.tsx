@@ -42,7 +42,7 @@ it('ignores an earlier country request after back navigation and another selecti
 })
 
 it('waits for banks in the remembered country instead of showing an empty result', async () => {
-  localStorage.setItem('securo:lastOAuthCountry', 'DE')
+  localStorage.setItem('fincopilot:lastOAuthCountry', 'DE')
   let finish!: (data: unknown) => void
   api.listInstitutions.mockResolvedValueOnce({ countries: ['DE'] })
     .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))

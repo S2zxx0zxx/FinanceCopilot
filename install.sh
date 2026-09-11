@@ -14,7 +14,7 @@ success() { echo -e "${GREEN}[OK]${NC} $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
 error()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
-REPO_URL="https://github.com/securo-finance/securo.git"
+REPO_URL="https://github.com/S2zxx0zxx/FinanceCopilot.git"
 COMPOSE_FILE="docker-compose.prod.yml"
 HEALTH_URL="http://localhost:8000/api/health"
 HEALTH_TIMEOUT=60
@@ -283,9 +283,9 @@ setup_repo() {
     return
   fi
 
-  info "Cloning Securo repository..."
-  git clone "$REPO_URL" securo
-  cd securo
+  info "Cloning FinCopilot repository..."
+  git clone "$REPO_URL" fincopilot
+  cd fincopilot
   success "Repository cloned"
 }
 
@@ -318,7 +318,7 @@ start_services() {
   info "Pulling latest images..."
   "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" pull
 
-  info "Starting Securo..."
+  info "Starting FinCopilot..."
   "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d
 
   success "Containers started"
@@ -326,12 +326,12 @@ start_services() {
 
 # ── Health Check ─────────────────────────────────────────────────────────────
 wait_for_health() {
-  info "Waiting for Securo to be ready (up to ${HEALTH_TIMEOUT}s)..."
+  info "Waiting for FinCopilot to be ready (up to ${HEALTH_TIMEOUT}s)..."
   local elapsed=0
 
   while [ "$elapsed" -lt "$HEALTH_TIMEOUT" ]; do
     if curl -sf "$HEALTH_URL" > /dev/null 2>&1; then
-      success "Securo is healthy"
+      success "FinCopilot is healthy"
       return
     fi
     sleep 3
@@ -348,7 +348,7 @@ wait_for_health() {
 main() {
   echo ""
   echo -e "${BOLD}╔══════════════════════════════════════╗${NC}"
-  echo -e "${BOLD}║         Securo Installer             ║${NC}"
+  echo -e "${BOLD}║         FinCopilot Installer             ║${NC}"
   echo -e "${BOLD}╚══════════════════════════════════════╝${NC}"
   echo ""
 
@@ -362,14 +362,14 @@ main() {
 
   echo ""
   echo -e "${GREEN}${BOLD}════════════════════════════════════════${NC}"
-  echo -e "${GREEN}${BOLD}  Securo is running!${NC}"
+  echo -e "${GREEN}${BOLD}  FinCopilot is running!${NC}"
   echo -e "${GREEN}${BOLD}  Open ${APP_URL}${NC}"
   echo -e "${GREEN}${BOLD}════════════════════════════════════════${NC}"
   echo ""
   echo -e "  Useful commands:"
   echo -e "    ${BLUE}$COMPOSE_CMD_DISPLAY -f $COMPOSE_FILE logs -f${NC}    # View logs"
   echo -e "    ${BLUE}$COMPOSE_CMD_DISPLAY -f $COMPOSE_FILE ps${NC}         # Container status"
-  echo -e "    ${BLUE}$COMPOSE_CMD_DISPLAY -f $COMPOSE_FILE down${NC}       # Stop Securo"
+  echo -e "    ${BLUE}$COMPOSE_CMD_DISPLAY -f $COMPOSE_FILE down${NC}       # Stop FinCopilot"
   echo ""
 }
 

@@ -1,7 +1,7 @@
 """Market-price data providers (stocks, ETFs, crypto, funds).
 
 Asset valuation from a live public quote — the user enters a ticker and
-quantity, the provider returns the price, and Securo tracks the value
+quantity, the provider returns the price, and FinCopilot tracks the value
 over time. This is deliberately separate from `BankProvider`: there's no
 per-user authentication and no accounts/transactions, just a symbol
 lookup backed by a public data source (Yahoo Finance today).
@@ -125,7 +125,7 @@ class YFinanceProvider(MarketPriceProvider):
 
     def __init__(self) -> None:
         # Imported lazily so a broken or missing yfinance install only hits
-        # the market-price code paths — the rest of Securo keeps booting.
+        # the market-price code paths — the rest of FinCopilot keeps booting.
         import yfinance as yf
 
         # Global config singleton — the canonical knob in yfinance 1.x.

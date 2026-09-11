@@ -10,7 +10,7 @@
  *     platform already knows, and each new jurisdiction pack would add ten
  *     more.
  *   - It is correct in more locales than we translate into. The browser
- *     answers in the user's own language even where Securo has no locale
+ *     answers in the user's own language even where FinCopilot has no locale
  *     file, and it declines and capitalises properly, which a flat string
  *     table cannot do.
  *

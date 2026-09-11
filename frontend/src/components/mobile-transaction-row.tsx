@@ -65,7 +65,7 @@ export function MobileTransactionRow({
       ref={highlighted ? highlightedRowRef : undefined}
       className={`flex items-center gap-3 pl-3 pr-3 py-3 border-b border-border last:border-0 transition-colors ${
         selected ? 'bg-primary/5' : 'bg-card'
-      } ${highlighted ? 'securo-highlight-flash' : ''} ${
+      } ${highlighted ? 'fincopilot-highlight-flash' : ''} ${
         virtual ? 'opacity-80' : ''
       } ${
         virtual || tx.is_shared || !canWrite ? 'cursor-default' : 'cursor-pointer active:bg-muted/60'

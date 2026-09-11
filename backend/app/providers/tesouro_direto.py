@@ -217,7 +217,7 @@ class TesouroDiretoProvider:
     def _download_csv(self) -> str:
         response = requests.get(
             self.url,
-            headers={"User-Agent": "Securo TesouroDiretoProvider"},
+            headers={"User-Agent": "FinCopilot TesouroDiretoProvider"},
             timeout=30,
         )
         response.raise_for_status()

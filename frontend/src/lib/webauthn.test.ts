@@ -31,7 +31,7 @@ function installWebAuthn(get = vi.fn()) {
   vi.stubGlobal('navigator', { credentials: { get } })
   vi.stubGlobal('window', {
     isSecureContext: true,
-    location: { hostname: 'securo.example.com' },
+    location: { hostname: 'fincopilot.example.com' },
     PublicKeyCredential: FakePublicKeyCredential,
   })
   return get

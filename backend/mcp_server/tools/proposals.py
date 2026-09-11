@@ -1,8 +1,8 @@
 """Propose-mutations.
 
-In Securo's own runtime these tools NEVER write to the DB. They return a
+In FinCopilot's own runtime these tools NEVER write to the DB. They return a
 structured proposal that the agent surfaces to the user. The user confirms
-in the UI, which calls the existing Securo write endpoint to do the real
+in the UI, which calls the existing FinCopilot write endpoint to do the real
 change. Keeps MCP safe and gives the user a chance to review.
 
 When called via an *external* token (Claude Desktop, n8n, custom clients
@@ -10,7 +10,7 @@ When called via an *external* token (Claude Desktop, n8n, custom clients
 case the tools accept an extra `apply: true` flag: first call returns
 the preview as usual; a follow-up call with `apply=true` performs the
 write directly. Internal callers never set `apply`, so behavior is
-unchanged for Securo's own UI.
+unchanged for FinCopilot's own UI.
 """
 
 from __future__ import annotations
@@ -65,7 +65,7 @@ from mcp_server.tools._helpers import (
 # the caller re-invokes with apply=true on the external transport).
 _PROPOSAL_PREFACE = (
     "[PROPOSAL — PREVIEW ONLY, NOT EXECUTED. The user MUST confirm before "
-    "the change happens. In Securo's UI an Apply button + diff card render "
+    "the change happens. In FinCopilot's UI an Apply button + diff card render "
     "automatically — do not duplicate the details in your reply. When you "
     "are running through an external MCP client (no Apply button in chat), "
     "pass apply=true on a follow-up call AFTER the user explicitly "
@@ -82,7 +82,7 @@ _APPLY_FIELD = {
     "description": (
         "External clients only. When true (and the call is authenticated "
         "with an external MCP token), executes the change instead of "
-        "returning a preview. Ignored by Securo's internal runtime."
+        "returning a preview. Ignored by FinCopilot's internal runtime."
     ),
 }
 

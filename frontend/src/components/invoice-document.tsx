@@ -6,7 +6,7 @@ import type { InvoiceDocumentPayload } from '@/types'
 /**
  * The invoice as a document.
  *
- * Deliberately not a Securo card. This is the artifact the client
+ * Deliberately not a FinCopilot card. This is the artifact the client
  * receives: a sheet of paper, presented on a recessed surface so it
  * reads as paper on a desk rather than as a panel that forgot the
  * theme. It is light in both themes because the printed thing is light

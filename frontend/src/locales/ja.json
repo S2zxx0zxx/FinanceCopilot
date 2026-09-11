@@ -61,7 +61,7 @@
     "archiveConfirmDescription": "ワークスペース「{{name}}」が一覧から削除されます。データは保持され、管理者が後から復元できます。"
   },
   "app": {
-    "name": "Securo",
+    "name": "FinCopilot",
     "versionAriaLabel": "実行中のバージョン: {{version}}",
     "versionLabel": "バージョン {{version}}",
     "updateAvailable": "更新があります",
@@ -239,7 +239,7 @@
       "presetTracking": "入金を追跡",
       "presetDocument": "書類を発行",
       "presetTrackingHint": "請求書の発行は別の場所で行います。ここでは誰がいくら未払いか、入金されたかを追跡します。",
-      "presetDocumentHint": "Securoがクライアントに送る請求書を作成します。請求内容の入力が必要です。",
+      "presetDocumentHint": "FinCopilotがクライアントに送る請求書を作成します。請求内容の入力が必要です。",
       "numberPrefix": "番号の接頭辞",
       "paymentTerms": "支払条件(日)",
       "issuerName": "あなたの事業者名",
@@ -367,7 +367,7 @@
       "notOurs": "この書類は他で発行されたものです",
       "notOursHint": "受領したファイルを添付すると、届いたままの形でここに表示されます。",
       "ourPage": "請求書",
-      "rendered": "Securoが生成 · {{date}}",
+      "rendered": "FinCopilotが生成 · {{date}}",
       "kindLabel": "書類の種類",
       "fromSystem": "{{source}}から · {{date}}",
       "fromUpload": "アップロード · {{date}}"
@@ -462,8 +462,8 @@
     "passkeysDescription": "セキュリティキーやデバイスのパスキーで、パスワードなしでサインインできます。登録済みのパスキーはパスワードログインの第二要素としても機能します。パスキーのみのサインインでは、キーが本人確認を代行するため認証コードの入力は省かれます。",
     "passkeyLoadError": "パスキーを読み込めませんでした",
     "passkeyUnsupported": "このブラウザはパスキーに対応していません。",
-    "passkeyInsecureContext": "パスキーにはセキュアな接続が必要です。HTTPSで開くか、http://localhostでSecuroを開いてください。",
-    "passkeyIpAddress": "IPアドレスではパスキーは機能しません。HTTPSのドメイン名か、http://localhostでSecuroを開いてください。",
+    "passkeyInsecureContext": "パスキーにはセキュアな接続が必要です。HTTPSで開くか、http://localhostでFinCopilotを開いてください。",
+    "passkeyIpAddress": "IPアドレスではパスキーは機能しません。HTTPSのドメイン名か、http://localhostでFinCopilotを開いてください。",
     "passkeyDomainError": "このドメインはブラウザにパスキー用として拒否されました。設定されたドメインをHTTPSで開いてください。",
     "passkeyDomainMismatch": "このアドレスはサーバーに設定されたパスキードメイン(WEBAUTHN_RP_ID)の範囲外です。",
     "passkeyDuplicate": "このデバイスにはすでにこのアカウントのパスキーがあります。",
@@ -939,7 +939,7 @@
       "openBridge": "SimpleFIN Bridgeでトークンを生成",
       "tokenLabel": "セットアップトークン",
       "tokenPlaceholder": "受け取ったトークンを貼り付けてください…",
-      "tokenHelp": "セットアップトークンは1回限りです。Securoはトークンから非公開のアクセスURLを取得し、暗号化して保存します。",
+      "tokenHelp": "セットアップトークンは1回限りです。FinCopilotはトークンから非公開のアクセスURLを取得し、暗号化して保存します。",
       "connect": "接続",
       "connecting": "接続中…",
       "simplefin": {
@@ -978,7 +978,7 @@
     "syncAssets": "投資資産をインポート",
     "syncAssetsHint": "無効にすると、この接続は口座と取引を同期しますが、プロバイダーの投資保有はそのままにします。",
     "initialSyncSettings": "同期オプション",
-    "initialSyncSettingsDesc": "コネクタを開く前にSecuroがインポートする内容を選択してください。",
+    "initialSyncSettingsDesc": "コネクタを開く前にFinCopilotがインポートする内容を選択してください。",
     "continueToConnector": "コネクタへ進む"
   },
   "settings": {
@@ -1300,9 +1300,9 @@
     "outflowColumn": "出金列",
     "selectColumn": "列を選択...",
     "columnMapping": "列のマッピング",
-    "columnMappingHint": "CSVの列をSecuroの項目に対応させます。自動検出のままにすると検出された列を保持します。",
+    "columnMappingHint": "CSVの列をFinCopilotの項目に対応させます。自動検出のままにすると検出された列を保持します。",
     "columnAutoDetect": "自動検出",
-    "mappingNeeded": "CSVの列を自動認識できませんでした。続行するには、下でSecuroの項目にマッピングしてください。",
+    "mappingNeeded": "CSVの列を自動認識できませんでした。続行するには、下でFinCopilotの項目にマッピングしてください。",
     "failedRowsWarning": "このファイルの{{count}}行を解析できず、スキップしました。",
     "viewDetails": "詳細を表示",
     "failedRowsTitle": "解析できなかったCSV行",
@@ -1809,11 +1809,11 @@
     "you": "あなた",
     "memberName": "名前",
     "memberEmail": "メールアドレス",
-    "memberEmailHint": "任意 — 後でSecuroユーザーとして招待する場合に便利です。",
-    "linkedUser": "連携Securoユーザー",
+    "memberEmailHint": "任意 — 後でFinCopilotユーザーとして招待する場合に便利です。",
+    "linkedUser": "連携FinCopilotユーザー",
     "linkedUserNone": "— 未連携(非ユーザー) —",
-    "linkedUserHint": "既存のSecuroユーザーを選んでメンバーに連携するか、未連携のままアカウントを持たない人を追加します。",
-    "willLinkToUser": "既存のSecuroユーザー{{email}}に連携されます",
+    "linkedUserHint": "既存のFinCopilotユーザーを選んでメンバーに連携するか、未連携のままアカウントを持たない人を追加します。",
+    "willLinkToUser": "既存のFinCopilotユーザー{{email}}に連携されます",
     "sharedWithYou": "あなたと共有",
     "sharedRowBadge": "共有 · {{group}}",
     "sharedRowBadgeAuthor": "{{author}} · {{group}}",
@@ -1894,7 +1894,7 @@
     "show": "金額を表示"
   },
   "setup": {
-    "title": "Securoへようこそ",
+    "title": "FinCopilotへようこそ",
     "description": "管理者アカウントを作成して始めましょう。",
     "confirmPassword": "パスワード(確認)",
     "createAdmin": "管理者アカウントを作成",
@@ -1922,14 +1922,14 @@
     "passwordLabel": "パスワード(任意)",
     "passwordPlaceholder": "空欄で暗号化しないバックアップ",
     "passwordTooShort": "{{min}}文字以上にしてください",
-    "encryptionNote": "アーカイブはAES-256で暗号化され、標準的なアーカイバで開けます。Securoはこのパスワードを保存せず、パスワードなしではファイルを復元できません。",
+    "encryptionNote": "アーカイブはAES-256で暗号化され、標準的なアーカイバで開けます。FinCopilotはこのパスワードを保存せず、パスワードなしではファイルを復元できません。",
     "successEncrypted": "暗号化バックアップをダウンロードしました"
   },
   "update": {
     "title": "サーバーの更新",
     "runningLabel": "実行中",
     "newVersionAvailable": "新しいバージョン:",
-    "description": "Securoの新しいバージョンが利用できます。以下に該当する場合は更新を検討してください:",
+    "description": "FinCopilotの新しいバージョンが利用できます。以下に該当する場合は更新を検討してください:",
     "reasonFeatures": "最新の機能と改善を使いたい",
     "reasonBugs": "新しいバージョンで解決される可能性のある問題が発生している",
     "releaseNotesHintBefore": "更新前に",
@@ -2029,7 +2029,7 @@
   },
   "agents": {
     "title": "エージェント",
-    "subtitle": "Securoのデータの上に会話型アシスタントを作成します。各エージェントは独自のナレッジベース、ツール、プロバイダーを持てます。",
+    "subtitle": "FinCopilotのデータの上に会話型アシスタントを作成します。各エージェントは独自のナレッジベース、ツール、プロバイダーを持てます。",
     "newAgent": "新規エージェント",
     "newConversation": "新規会話",
     "conversationsCount": "会話",
@@ -2196,14 +2196,14 @@
     },
     "mcpExternal": {
       "title": "外部MCPアクセス",
-      "subtitle": "外部エージェント(Claude Desktop、ChatGPT、n8n、カスタムクライアント)をSecuro内蔵のMCPサーバーに接続します。下のトークンはあなたのユーザーに限定され、{{days}}日で失効します。",
+      "subtitle": "外部エージェント(Claude Desktop、ChatGPT、n8n、カスタムクライアント)をFinCopilot内蔵のMCPサーバーに接続します。下のトークンはあなたのユーザーに限定され、{{days}}日で失効します。",
       "copy": "コピー",
       "copied": "コピーしました",
       "copyFailed": "コピーに失敗しました",
       "mint": "トークンを生成",
       "minting": "生成中…",
       "mintFailed": "トークンを生成できませんでした",
-      "warning": "今すぐコピーしてください — Securoはトークンを保存しないため、再表示できません。失効はAGENTS_MCP_JWT_SECRETのローテーションで行います。",
+      "warning": "今すぐコピーしてください — FinCopilotはトークンを保存しないため、再表示できません。失効はAGENTS_MCP_JWT_SECRETのローテーションで行います。",
       "regenerate": "別のトークンを生成",
       "snippets": {
         "token": "トークン",
@@ -2254,7 +2254,7 @@
       "optional": "任意",
       "empty": {
         "title": "接続はまだありません",
-        "subtitle": "接続を追加して、ローカルのOllama、OpenAI、Anthropic、任意のOpenAI互換エンドポイントをSecuroに指し示してください。"
+        "subtitle": "接続を追加して、ローカルのOllama、OpenAI、Anthropic、任意のOpenAI互換エンドポイントをFinCopilotに指し示してください。"
       }
     }
   },

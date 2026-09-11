@@ -144,7 +144,7 @@ async def export_rules(
     return JSONResponse(
         content=payload.model_dump(mode="json"),
         headers={
-            "Content-Disposition": 'attachment; filename="securo-categorization-rules.json"',
+            "Content-Disposition": 'attachment; filename="fincopilot-categorization-rules.json"',
         },
     )
 

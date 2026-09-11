@@ -52,8 +52,8 @@ function topItemsBySize(items: TransactionCalendarItem[], limit: number) {
 type CalendarMarkerTone = 'income' | 'expense' | 'transfer' | 'projected'
 type CalendarDensity = 'compact' | 'detailed'
 type CalendarMetric = 'balance' | 'activity'
-const CALENDAR_DENSITY_STORAGE_KEY = 'securo.transactionCalendar.density'
-const CALENDAR_METRIC_STORAGE_KEY = 'securo.transactionCalendar.metric'
+const CALENDAR_DENSITY_STORAGE_KEY = 'fincopilot.transactionCalendar.density'
+const CALENDAR_METRIC_STORAGE_KEY = 'fincopilot.transactionCalendar.metric'
 
 function readCalendarDensity(): CalendarDensity {
   if (typeof window === 'undefined') return 'compact'

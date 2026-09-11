@@ -16,8 +16,8 @@ from jose import JWTError, jwt
 from app.agents.config import get_agent_settings
 
 
-JWT_ISSUER = "securo-backend"
-JWT_AUDIENCE = "securo-mcp"
+JWT_ISSUER = "fincopilot-backend"
+JWT_AUDIENCE = "fincopilot-mcp"
 JWT_ALGO = "HS256"
 
 
@@ -32,7 +32,7 @@ class CallContext:
     conversation_id: Optional[uuid.UUID] = None
     agent_id: Optional[uuid.UUID] = None
     # True when the JWT was minted for an external agent (Claude Desktop,
-    # n8n, etc.) rather than Securo's own runtime. Used for log tagging;
+    # n8n, etc.) rather than FinCopilot's own runtime. Used for log tagging;
     # tool authorization is identical (same user scope).
     external: bool = False
 

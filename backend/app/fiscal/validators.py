@@ -93,7 +93,7 @@ def validate_none(value: str) -> None:
     """Accept anything non-empty.
 
     Used by `other` and by every document whose format is not globally
-    defined. This is what lets a jurisdiction Securo has never shipped
+    defined. This is what lets a jurisdiction FinCopilot has never shipped
     store a real document today.
     """
     return None

@@ -59,7 +59,7 @@ const SHIPPED_NAME: Record<string, string> = {
 /** What the file says it is. A categorization export dropped into the
  *  matching importer would otherwise arrive as a file with no rules in
  *  it and look like it worked. */
-const POLICY_FORMAT = 'securo-reconciliation-rules'
+const POLICY_FORMAT = 'fincopilot-reconciliation-rules'
 
 const NODE_TITLE: Record<string, string> = {
   'reconciliation.match_invoice': 'reconciliation.node.invoices',

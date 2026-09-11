@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useWorkspace } from '@/contexts/workspace-context'
 
-/** The Securo fields a CSV column can be mapped to; `*` marks the required ones. */
+/** The FinCopilot fields a CSV column can be mapped to; `*` marks the required ones. */
 const MAPPABLE_FIELDS = [
   { key: 'ticker', required: true },
   { key: 'date', required: true },

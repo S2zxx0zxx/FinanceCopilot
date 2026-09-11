@@ -40,8 +40,8 @@ Transactions are randomly distributed across the date range: 75% debit, 25% cred
 
 | Flag | Default | Description |
 |---|---|---|
-| `--email` | `test@securo.app` | Email of the seed user |
-| `--password` | `Securo123!` | Password of the seed user |
+| `--email` | `test@fincopilot.app` | Email of the seed user |
+| `--password` | `FinCopilot123!` | Password of the seed user |
 | `--start-date` | `2024-01-01` | Earliest date for all seeded data (format: `YYYY-MM-DD`) |
 | `--scale` | `1.0` | Multiplier for transaction and recurring transaction counts |
 | `--accounts` | `5` | Number of accounts (max 5) |
@@ -84,7 +84,7 @@ docker compose exec backend python scripts/seed_perf.py \
 
 # Seed a second user without touching the default one
 docker compose exec backend python scripts/seed_perf.py \
-  --email analyst@securo.app --password Securo123!
+  --email analyst@fincopilot.app --password FinCopilot123!
 
 # Re-seed only transactions (skip wipe, then add more — only works on a fresh user)
 docker compose exec backend python scripts/seed_perf.py --no-reset

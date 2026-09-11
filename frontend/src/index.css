@@ -143,7 +143,7 @@
   outline: none;
 }
 
-@keyframes securo-highlight-flash {
+@keyframes fincopilot-highlight-flash {
   0% {
     background-color: color-mix(in srgb, var(--primary) 22%, transparent);
     box-shadow: inset 3px 0 0 var(--primary);
@@ -158,62 +158,62 @@
   }
 }
 
-.securo-highlight-flash {
-  animation: securo-highlight-flash 2.4s ease-out;
+.fincopilot-highlight-flash {
+  animation: fincopilot-highlight-flash 2.4s ease-out;
 }
 
 /* Soft ambient aurora for the auth brand panel. Drifting, blurred purple
    blobs over a deep indigo base — slow enough to feel alive, not busy.
    Only transform/opacity animate, never layout. */
-@keyframes securo-aurora-1 {
+@keyframes fincopilot-aurora-1 {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(7%, 10%, 0) scale(1.18); }
 }
-@keyframes securo-aurora-2 {
+@keyframes fincopilot-aurora-2 {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1.12); }
   50% { transform: translate3d(-9%, -7%, 0) scale(1); }
 }
-@keyframes securo-aurora-3 {
+@keyframes fincopilot-aurora-3 {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(6%, -11%, 0) scale(1.22); }
 }
 
-.securo-aurora {
+.fincopilot-aurora {
   position: absolute;
   border-radius: 9999px;
   filter: blur(72px);
   will-change: transform;
 }
-.securo-aurora-1 {
+.fincopilot-aurora-1 {
   top: -12%;
   left: -8%;
   width: 62%;
   height: 62%;
   opacity: 0.55;
   background: radial-gradient(circle at center, #818cf8 0%, transparent 70%);
-  animation: securo-aurora-1 24s ease-in-out infinite;
+  animation: fincopilot-aurora-1 24s ease-in-out infinite;
 }
-.securo-aurora-2 {
+.fincopilot-aurora-2 {
   right: -12%;
   bottom: -18%;
   width: 68%;
   height: 68%;
   opacity: 0.5;
   background: radial-gradient(circle at center, #a78bfa 0%, transparent 70%);
-  animation: securo-aurora-2 29s ease-in-out infinite;
+  animation: fincopilot-aurora-2 29s ease-in-out infinite;
 }
-.securo-aurora-3 {
+.fincopilot-aurora-3 {
   top: 28%;
   left: 22%;
   width: 46%;
   height: 46%;
   opacity: 0.4;
   background: radial-gradient(circle at center, #c4b5fd 0%, transparent 70%);
-  animation: securo-aurora-3 33s ease-in-out infinite;
+  animation: fincopilot-aurora-3 33s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .securo-aurora {
+  .fincopilot-aurora {
     animation: none;
   }
 }

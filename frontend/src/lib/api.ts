@@ -909,7 +909,7 @@ export const groups = {
 export type { TransactionSplitsInput }
 
 // User lookup: exact-match resolution for linking group members to
-// existing Securo users. Returns null on miss (404).
+// existing FinCopilot users. Returns null on miss (404).
 export interface UserLookupResult {
   id: string
   email: string
@@ -975,7 +975,7 @@ export const rules = {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `securo-categorization-rules-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `fincopilot-categorization-rules-${new Date().toISOString().slice(0, 10)}.json`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -1062,7 +1062,7 @@ export const reconciliation = {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `securo-reconciliation-rules-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `fincopilot-reconciliation-rules-${new Date().toISOString().slice(0, 10)}.json`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -1332,7 +1332,7 @@ export const assets = {
     const url = URL.createObjectURL(new Blob([data], { type: 'text/csv;charset=utf-8;' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = 'securo-asset-orders.csv'
+    a.download = 'fincopilot-asset-orders.csv'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -1462,7 +1462,7 @@ export const backup = {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `securo-backup-${new Date().toISOString().slice(0, 10)}.zip`
+    a.download = `fincopilot-backup-${new Date().toISOString().slice(0, 10)}.zip`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

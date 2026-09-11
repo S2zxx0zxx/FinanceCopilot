@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { shouldShowPendingBadge } from './transaction-status'
 
 describe('shouldShowPendingBadge', () => {
-  it('shows pending for transactions managed by Securo', () => {
+  it('shows pending for transactions managed by FinCopilot', () => {
     expect(shouldShowPendingBadge({ status: 'pending', source: 'manual' })).toBe(true)
     expect(shouldShowPendingBadge({ status: 'pending', source: 'recurring' })).toBe(true)
   })

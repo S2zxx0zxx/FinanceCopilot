@@ -39,7 +39,7 @@ class _RedisStore:
         self.store.pop(key, None)
 
 
-BROWSER_ORIGIN = "https://securo.test"
+BROWSER_ORIGIN = "https://fincopilot.test"
 
 
 @pytest.fixture(autouse=True)
@@ -85,7 +85,7 @@ async def test_register_and_list_passkey(
     assert options_response.status_code == 200
     options_data = options_response.json()
     assert options_data["challenge_id"]
-    assert options_data["options"]["rp"]["name"] == "Securo"
+    assert options_data["options"]["rp"]["name"] == "FinCopilot"
     assert options_data["options"]["user"]["name"] == test_user.email
 
     verification = SimpleNamespace(
@@ -740,7 +740,7 @@ async def test_register_options_reject_loopback_ip_origin(client: AsyncClient, a
 
 
 async def test_register_options_reject_insecure_origin(client: AsyncClient, auth_headers: dict):
-    response = await _register_options(client, auth_headers, "http://securo.example.com")
+    response = await _register_options(client, auth_headers, "http://fincopilot.example.com")
 
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "passkey_origin_insecure"
@@ -750,7 +750,7 @@ async def test_register_options_use_configured_rp_id_for_subdomain(
     client: AsyncClient,
     auth_headers: dict,
 ):
-    settings = SimpleNamespace(webauthn_rp_id="example.com", webauthn_origin="", webauthn_rp_name="Securo")
+    settings = SimpleNamespace(webauthn_rp_id="example.com", webauthn_origin="", webauthn_rp_name="FinCopilot")
     with patch("app.core.webauthn.get_settings", return_value=settings):
         response = await _register_options(client, auth_headers, "https://money.example.com")
 
@@ -762,7 +762,7 @@ async def test_register_options_reject_origin_outside_configured_rp_id(
     client: AsyncClient,
     auth_headers: dict,
 ):
-    settings = SimpleNamespace(webauthn_rp_id="example.com", webauthn_origin="", webauthn_rp_name="Securo")
+    settings = SimpleNamespace(webauthn_rp_id="example.com", webauthn_origin="", webauthn_rp_name="FinCopilot")
     with patch("app.core.webauthn.get_settings", return_value=settings):
         response = await _register_options(client, auth_headers, "https://not-example.com")
 

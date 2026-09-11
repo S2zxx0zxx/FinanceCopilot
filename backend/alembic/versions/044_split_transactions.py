@@ -10,7 +10,7 @@ Tables:
   social groups and B2B cost-center/project/client allocations without
   schema changes.
 - group_members: participants. `linked_user_id` is nullable so shadow
-  members (no Securo account) work from day one.
+  members (no FinCopilot account) work from day one.
 - transaction_splits: per-member share of a transaction. `share_amount`
   is always materialized in the transaction's currency; `share_type` is
   metadata for round-trip editing.
@@ -79,7 +79,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("name", sa.String(100), nullable=False),
-        # Optional link to a real Securo user. SET NULL on delete so the
+        # Optional link to a real FinCopilot user. SET NULL on delete so the
         # shadow record (and its history) survives if the linked account
         # is removed.
         sa.Column(

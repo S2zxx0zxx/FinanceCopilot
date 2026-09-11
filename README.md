@@ -1,23 +1,23 @@
 <p align="center">
-  <img src="docs/logo.svg" width="200" alt="Securo logo" />
+  <img src="docs/logo.svg" width="200" alt="FinCopilot logo" />
 </p>
-<h1 align="center">Securo</h1>
+<h1 align="center">FinCopilot</h1>
 <p align="center">
-  <a href="https://github.com/securo-finance/securo/actions/workflows/ci.yml"><img src="https://github.com/securo-finance/securo/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/S2zxx0zxx/FinanceCopilot/actions/workflows/ci.yml"><img src="https://github.com/S2zxx0zxx/FinanceCopilot/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/tassionoronha/ae627b744aaa2ba89d850ea541c311be/raw/coverage.json" alt="Coverage" />
-  <a href="https://github.com/securo-finance/securo/pkgs/container/securo-frontend"><img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/tassionoronha/ae627b744aaa2ba89d850ea541c311be/raw/downloads.json" alt="Downloads" /></a>
+  <a href="https://github.com/S2zxx0zxx/FinanceCopilot/pkgs/container/fincopilot-frontend"><img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/tassionoronha/ae627b744aaa2ba89d850ea541c311be/raw/downloads.json" alt="Downloads" /></a>
   <br />
-  <a href="https://artifacthub.io/packages/search?repo=securo"><img src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/securo" alt="Artifact Hub" /></a>
+  <a href="https://artifacthub.io/packages/search?repo=fincopilot"><img src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/fincopilot" alt="Artifact Hub" /></a>
   <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
   <a href="https://discord.gg/rUqTKtQ9S4"><img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white" alt="Join our Discord" /></a>
   <br />
-  <a href="https://usesecuro.com/">Website</a> · <a href="https://demo.usesecuro.com/">Demo</a> · <a href="https://www.usesecuro.com/roadmap">Roadmap</a> · <a href="https://docs.usesecuro.com/">Docs</a> · <a href="https://discord.gg/rUqTKtQ9S4">Discord</a> · <a href="https://cal.com/tassio/15min">Talk to the maintainer</a>
+  <a href="https://github.com/S2zxx0zxx/FinanceCopilot/">Website</a> · <a href="https://github.com/S2zxx0zxx/FinanceCopilot">Demo</a> · <a href="https://github.com/S2zxx0zxx/FinanceCopilot">Roadmap</a> · <a href="https://github.com/S2zxx0zxx/FinanceCopilot/tree/main/docs/">Docs</a> · <a href="https://discord.gg/rUqTKtQ9S4">Discord</a> · <a href="https://cal.com/tassio/15min">Talk to the maintainer</a>
 </p>
 
 <h3 align="center">Finance apps want your data. This one doesn't.</h3>
 
 <p align="center">
-We believe personal finance should actually be <em>personal</em>. No corporation should sit between you and your financial data. Securo is an open-source finance manager that runs on your own infrastructure, giving you full visibility into your accounts, spending, and habits, without surrendering a single byte to third parties. Take back control.
+We believe personal finance should actually be <em>personal</em>. No corporation should sit between you and your financial data. FinCopilot is an open-source finance manager that runs on your own infrastructure, giving you full visibility into your accounts, spending, and habits, without surrendering a single byte to third parties. Take back control.
 </p>
 
 ## Quick Start
@@ -25,20 +25,20 @@ We believe personal finance should actually be <em>personal</em>. No corporation
 **Linux & macOS** (uses Docker or Podman; installs Docker if neither is present):
 
 ```bash
-curl -fsSL https://usesecuro.com/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/S2zxx0zxx/FinanceCopilot/main/install.sh | bash
 ```
 
 **Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), then:
 
 ```bash
-git clone https://github.com/securo-finance/securo.git && cd securo
+git clone https://github.com/S2zxx0zxx/FinanceCopilot.git && cd fincopilot
 docker compose up --build
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and create an account. That's it.
 
 <p align="center">
-  <img src="docs/screenshot.png" width="800" alt="Securo dashboard" />
+  <img src="docs/screenshot.png" width="800" alt="FinCopilot dashboard" />
 </p>
 
 ## Features
@@ -83,7 +83,7 @@ ENABLE_BANKING_OAUTH_REDIRECT_URI=https://your-host/oauth/callback
 
 The redirect URI must match exactly one of the Allowed Redirect URLs in your EB application. Production EB requires HTTPS — for local development, expose your frontend via a tunnel (ngrok, cloudflared) or use the EB sandbox.
 
-> **Free tier — restricted mode.** Enable Banking's free plan requires you to pre-link the accounts you want to import inside the EB portal *before* connecting from Securo. If you skip that step, the connection returns no accounts and Securo will surface a banner with a link to the portal.
+> **Free tier — restricted mode.** Enable Banking's free plan requires you to pre-link the accounts you want to import inside the EB portal *before* connecting from FinCopilot. If you skip that step, the connection returns no accounts and FinCopilot will surface a banner with a link to the portal.
 
 ### SimpleFIN — US and international banks
 
@@ -94,14 +94,14 @@ SIMPLEFIN_ENABLED=true
 SIMPLEFIN_API_URL=https://beta-bridge.simplefin.org   # sandbox; use bridge.simplefin.org for real banks
 ```
 
-Then in Securo: **Accounts → Connect Bank → SimpleFIN**, and paste the token. The [developer page](https://beta-bridge.simplefin.org/info/developers) gives out free demo tokens if you want to try it without a real bank.
+Then in FinCopilot: **Accounts → Connect Bank → SimpleFIN**, and paste the token. The [developer page](https://beta-bridge.simplefin.org/info/developers) gives out free demo tokens if you want to try it without a real bank.
 
 ## OIDC Login (Optional)
 
-Securo can delegate login to any standard OIDC provider, including Authentik and Pocket ID. Create a confidential/web application in your provider and register this redirect URI:
+FinCopilot can delegate login to any standard OIDC provider, including Authentik and Pocket ID. Create a confidential/web application in your provider and register this redirect URI:
 
 ```
-https://your-securo-host/api/auth/oidc/callback
+https://your-fincopilot-host/api/auth/oidc/callback
 ```
 
 Then add the provider settings to `.env` and restart:
@@ -110,23 +110,23 @@ Then add the provider settings to `.env` and restart:
 OIDC_ENABLED=true
 OIDC_PROVIDER_NAME=Pocket ID
 OIDC_DISCOVERY_URL=https://id.example.com/.well-known/openid-configuration
-OIDC_CLIENT_ID=securo
+OIDC_CLIENT_ID=fincopilot
 OIDC_CLIENT_SECRET=your-client-secret
 # Optional; defaults to ${FRONTEND_URL}/api/auth/oidc/callback
-OIDC_REDIRECT_URI=https://your-securo-host/api/auth/oidc/callback
+OIDC_REDIRECT_URI=https://your-fincopilot-host/api/auth/oidc/callback
 ```
 
-To require SSO-only access after OIDC is configured, set `LOCAL_AUTH_ENABLED=false`. Securo will start in this mode only when `OIDC_ENABLED=true`, `OIDC_CLIENT_ID`, and `OIDC_DISCOVERY_URL` are all configured; otherwise startup fails with a validation error instead of leaving the instance with no usable login method. The login page shows an explicit configuration error if the server reports that neither local auth nor OIDC is available. If only the optional OIDC-config request fails, the client keeps local controls available with a warning; the backend remains authoritative and still rejects them in OIDC-only mode.
+To require SSO-only access after OIDC is configured, set `LOCAL_AUTH_ENABLED=false`. FinCopilot will start in this mode only when `OIDC_ENABLED=true`, `OIDC_CLIENT_ID`, and `OIDC_DISCOVERY_URL` are all configured; otherwise startup fails with a validation error instead of leaving the instance with no usable login method. The login page shows an explicit configuration error if the server reports that neither local auth nor OIDC is available. If only the optional OIDC-config request fails, the client keeps local controls available with a warning; the backend remains authoritative and still rejects them in OIDC-only mode.
 
-With local auth disabled, Securo rejects password and passkey login, public registration, first-admin password setup, admin or workspace-invite creation of password-backed users, forgot/reset-password requests, password updates, new passkey registration or verification, and new TOTP setup or enablement. Local credential controls are hidden from login, account, setup, registration, and admin user-management screens. Existing users, password hashes, active sessions, passkeys, and TOTP configuration are not deleted; existing passkeys and TOTP can still be removed as cleanup paths. OIDC user provisioning and existing-account linking remain controlled separately by `OIDC_AUTO_REGISTER` and `OIDC_EXISTING_USER_LINK_MODE`.
+With local auth disabled, FinCopilot rejects password and passkey login, public registration, first-admin password setup, admin or workspace-invite creation of password-backed users, forgot/reset-password requests, password updates, new passkey registration or verification, and new TOTP setup or enablement. Local credential controls are hidden from login, account, setup, registration, and admin user-management screens. Existing users, password hashes, active sessions, passkeys, and TOTP configuration are not deleted; existing passkeys and TOTP can still be removed as cleanup paths. OIDC user provisioning and existing-account linking remain controlled separately by `OIDC_AUTO_REGISTER` and `OIDC_EXISTING_USER_LINK_MODE`.
 
-On a fresh OIDC-only instance, the first account must be provisioned through OIDC. Keep `OIDC_AUTO_REGISTER=true`, enable `OIDC_SYNC_ROLES=true`, and include one of the values from `OIDC_ADMIN_ROLES` in that identity's configured roles claim so the first login becomes a Securo administrator. Do not disable OIDC auto-registration before at least one matching account exists.
+On a fresh OIDC-only instance, the first account must be provisioned through OIDC. Keep `OIDC_AUTO_REGISTER=true`, enable `OIDC_SYNC_ROLES=true`, and include one of the values from `OIDC_ADMIN_ROLES` in that identity's configured roles claim so the first login becomes a FinCopilot administrator. Do not disable OIDC auto-registration before at least one matching account exists.
 
-New OIDC users are auto-provisioned by default (`OIDC_AUTO_REGISTER=true`) using verified email addresses. Set `OIDC_AUTO_REGISTER=false` to allow only existing Securo users whose email matches the provider claim.
+New OIDC users are auto-provisioned by default (`OIDC_AUTO_REGISTER=true`) using verified email addresses. Set `OIDC_AUTO_REGISTER=false` to allow only existing FinCopilot users whose email matches the provider claim.
 
 ### Linking existing accounts
 
-An account that already exists in Securo (created with a password) is never linked to an OIDC identity automatically, so the first SSO login of an existing user is rejected by default. `OIDC_EXISTING_USER_LINK_MODE` controls that:
+An account that already exists in FinCopilot (created with a password) is never linked to an OIDC identity automatically, so the first SSO login of an existing user is rejected by default. `OIDC_EXISTING_USER_LINK_MODE` controls that:
 
 ```
 OIDC_EXISTING_USER_LINK_MODE=disabled
@@ -138,37 +138,37 @@ OIDC_EXISTING_USER_LINK_MODE=disabled
 | `verified_email` | Link the existing account when the provider sends `email_verified=true` for the same email. |
 | `email` | Link on a matching email alone, even without `email_verified`. |
 
-Use `verified_email` to move existing users to SSO without recreating their accounts and data. Only pick `email` if you trust your provider to own every address it asserts, since anyone able to set an email there could claim the matching Securo account. An OIDC identity already linked to another account is always rejected, in every mode.
+Use `verified_email` to move existing users to SSO without recreating their accounts and data. Only pick `email` if you trust your provider to own every address it asserts, since anyone able to set an email there could claim the matching FinCopilot account. An OIDC identity already linked to another account is always rejected, in every mode.
 
 ### Optional OIDC role sync
 
-Securo can also synchronize provider roles/groups into its built-in permissions when `OIDC_SYNC_ROLES=true`. The default claim is `groups`, which works well with Authentik group mappings and Pocket ID role/group assignments.
+FinCopilot can also synchronize provider roles/groups into its built-in permissions when `OIDC_SYNC_ROLES=true`. The default claim is `groups`, which works well with Authentik group mappings and Pocket ID role/group assignments.
 
 ```
 OIDC_SYNC_ROLES=true
 OIDC_ROLES_CLAIM=groups
-OIDC_ADMIN_ROLES=securo-admins
-OIDC_WORKSPACE_ROLE_MAP={"securo-owners":"owner","securo-editors":"editor","securo-viewers":"viewer"}
+OIDC_ADMIN_ROLES=fincopilot-admins
+OIDC_WORKSPACE_ROLE_MAP={"fincopilot-owners":"owner","fincopilot-editors":"editor","fincopilot-viewers":"viewer"}
 ```
 
-`OIDC_ADMIN_ROLES` grants or revokes Securo admin (`is_superuser`) on each OIDC login. `OIDC_WORKSPACE_ROLE_MAP` maps provider roles/groups to the user's Personal workspace role (`owner`, `editor`, or `viewer`); if multiple mapped roles are present, Securo applies the highest permission. Leave `OIDC_SYNC_ROLES=false` to keep all Securo roles managed locally.
+`OIDC_ADMIN_ROLES` grants or revokes FinCopilot admin (`is_superuser`) on each OIDC login. `OIDC_WORKSPACE_ROLE_MAP` maps provider roles/groups to the user's Personal workspace role (`owner`, `editor`, or `viewer`); if multiple mapped roles are present, FinCopilot applies the highest permission. Leave `OIDC_SYNC_ROLES=false` to keep all FinCopilot roles managed locally.
 
 ## Passkeys (Optional)
 
-Sign in with Touch ID, Face ID, Windows Hello, or a security key. Passkeys are on by default and need no configuration: they follow whatever address you open Securo on.
+Sign in with Touch ID, Face ID, Windows Hello, or a security key. Passkeys are on by default and need no configuration: they follow whatever address you open FinCopilot on.
 
 Two rules come from the WebAuthn standard itself, and no setting can work around them:
 
 - **An IP address is never valid.** `http://192.168.1.10:3000` cannot register passkeys.
 - **Plain HTTP is never valid, except on `localhost`.**
 
-So use passkeys on `http://localhost:3000`, or put Securo on a domain behind an HTTPS reverse proxy. When serving from a domain, point `FRONTEND_URL` at it (this also covers CORS and OAuth callbacks):
+So use passkeys on `http://localhost:3000`, or put FinCopilot on a domain behind an HTTPS reverse proxy. When serving from a domain, point `FRONTEND_URL` at it (this also covers CORS and OAuth callbacks):
 
 ```
-FRONTEND_URL=https://securo.example.com
+FRONTEND_URL=https://fincopilot.example.com
 ```
 
-To pin passkeys to one domain, set `WEBAUTHN_RP_ID` (use the parent domain if you reach Securo on several subdomains). Otherwise Securo follows the browser, and requests from an unusable address get an explanation in the UI instead of a silent failure.
+To pin passkeys to one domain, set `WEBAUTHN_RP_ID` (use the parent domain if you reach FinCopilot on several subdomains). Otherwise FinCopilot follows the browser, and requests from an unusable address get an explanation in the UI instead of a silent failure.
 
 ## Exchange Rates (Optional)
 
@@ -182,7 +182,7 @@ Rates are fetched on-demand when foreign-currency transactions are created. With
 
 ## AI Agents (Optional)
 
-Self-hosted AI assistants over your Securo data — multi-provider (OpenAI, Anthropic, Ollama, OpenAI-compatible), tool-use via MCP, per-agent RAG knowledge base, ⌘J global chat panel.
+Self-hosted AI assistants over your FinCopilot data — multi-provider (OpenAI, Anthropic, Ollama, OpenAI-compatible), tool-use via MCP, per-agent RAG knowledge base, ⌘J global chat panel.
 
 Add to `.env`:
 
@@ -222,7 +222,7 @@ Without that server the agents still chat, but they have no tools and cannot rea
 
 Parts of this codebase were built with help of AI. All code is human-reviewed and no data leaves your environment.
 
-Contributing with AI is welcome. We review the author, not the tool: whatever wrote the diff, you own its quality, its fit with where Securo is going, and everything that happens after it merges. See [Using AI](CONTRIBUTING.md#using-ai).
+Contributing with AI is welcome. We review the author, not the tool: whatever wrote the diff, you own its quality, its fit with where FinCopilot is going, and everything that happens after it merges. See [Using AI](CONTRIBUTING.md#using-ai).
 
 ## Development
 
@@ -264,7 +264,7 @@ mise frontend:build
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-Not sure where to start, or want to talk something through first? [Book 15 minutes](https://cal.com/tassio/15min) — no agenda needed. Something broken, an idea, or just what you think of Securo, all welcome.
+Not sure where to start, or want to talk something through first? [Book 15 minutes](https://cal.com/tassio/15min) — no agenda needed. Something broken, an idea, or just what you think of FinCopilot, all welcome.
 
 ## License
 

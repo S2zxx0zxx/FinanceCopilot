@@ -21,7 +21,7 @@ import { formatCurrency } from '@/lib/format'
 
 /**
  * In-chat chart, rendered when an assistant message contains a fenced
- * code block tagged `securo-chart`. The body is JSON in this shape:
+ * code block tagged `fincopilot-chart`. The body is JSON in this shape:
  *
  *   { type: "line"|"bar"|"area"|"pie", title?, currency?, data, series? }
  *

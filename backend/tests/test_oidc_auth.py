@@ -35,7 +35,7 @@ def oidc_settings(monkeypatch):
     settings.oidc_enabled = True
     settings.oidc_provider_name = "Pocket ID"
     settings.oidc_discovery_url = "https://id.example.com/.well-known/openid-configuration"
-    settings.oidc_client_id = "securo"
+    settings.oidc_client_id = "fincopilot"
     settings.oidc_client_secret = SecretStr("secret")
     settings.frontend_url = "http://test"
     settings.oidc_sync_roles = False
@@ -155,7 +155,7 @@ async def test_oidc_login_redirects_to_provider(client: AsyncClient, clean_db, o
     assert parsed.scheme == "https"
     assert parsed.netloc == "id.example.com"
     assert parsed.path == "/authorize"
-    assert params["client_id"] == ["securo"]
+    assert params["client_id"] == ["fincopilot"]
     assert params["scope"] == ["openid email profile"]
     assert params["redirect_uri"] == ["http://test/api/auth/oidc/callback"]
     assert params["code_challenge_method"] == ["S256"]
@@ -170,7 +170,7 @@ async def test_oidc_login_redirects_to_provider(client: AsyncClient, clean_db, o
 
 
 @pytest.mark.asyncio
-async def test_oidc_callback_creates_user_and_redirects_with_securo_token(
+async def test_oidc_callback_creates_user_and_redirects_with_fincopilot_token(
     client: AsyncClient, clean_db, oidc_settings, monkeypatch
 ):
     fake_redis = FakeRedis()
@@ -217,16 +217,16 @@ async def test_oidc_callback_syncs_existing_user_admin_and_workspace_role(
     client: AsyncClient, session, test_user, oidc_settings, monkeypatch
 ):
     oidc_settings.oidc_sync_roles = True
-    oidc_settings.oidc_admin_roles = "securo-admins"
+    oidc_settings.oidc_admin_roles = "fincopilot-admins"
     test_user.oidc_issuer = "https://id.example.com"
     test_user.oidc_subject = "user-sub"
     session.add(test_user)
     await session.commit()
     oidc_settings.oidc_workspace_role_map = json.dumps(
         {
-            "securo-viewers": "viewer",
-            "securo-editors": "editor",
-            "securo-owners": "owner",
+            "fincopilot-viewers": "viewer",
+            "fincopilot-editors": "editor",
+            "fincopilot-owners": "owner",
         }
     )
     fake_redis = FakeRedis()
@@ -243,7 +243,7 @@ async def test_oidc_callback_syncs_existing_user_admin_and_workspace_role(
             "sub": "user-sub",
             "email": "test@example.com",
             "email_verified": True,
-            "groups": ["securo-admins", "securo-editors"],
+            "groups": ["fincopilot-admins", "fincopilot-editors"],
         }
 
     async def fake_userinfo(discovery, access_token):
@@ -281,7 +281,7 @@ async def test_oidc_callback_sync_roles_can_revoke_admin(
     client: AsyncClient, session, test_superuser, oidc_settings, monkeypatch
 ):
     oidc_settings.oidc_sync_roles = True
-    oidc_settings.oidc_admin_roles = "securo-admins"
+    oidc_settings.oidc_admin_roles = "fincopilot-admins"
     test_superuser.oidc_issuer = "https://id.example.com"
     test_superuser.oidc_subject = "user-sub"
     session.add(test_superuser)
@@ -300,7 +300,7 @@ async def test_oidc_callback_sync_roles_can_revoke_admin(
             "sub": "user-sub",
             "email": "admin@example.com",
             "email_verified": True,
-            "groups": ["securo-users"],
+            "groups": ["fincopilot-users"],
         }
 
     async def fake_userinfo(discovery, access_token):
@@ -329,7 +329,7 @@ async def test_oidc_callback_signed_claims_override_userinfo_roles(
     client: AsyncClient, clean_db, oidc_settings, monkeypatch
 ):
     oidc_settings.oidc_sync_roles = True
-    oidc_settings.oidc_admin_roles = "securo-admins"
+    oidc_settings.oidc_admin_roles = "fincopilot-admins"
     fake_redis = FakeRedis()
     await fake_redis.set("oidc_state:state123", json.dumps({"nonce": "nonce123"}))
 
@@ -344,7 +344,7 @@ async def test_oidc_callback_signed_claims_override_userinfo_roles(
             "sub": "signed-sub",
             "email": "userinfo-override@example.com",
             "email_verified": True,
-            "groups": ["securo-users"],
+            "groups": ["fincopilot-users"],
         }
 
     async def fake_userinfo(discovery, access_token):
@@ -352,7 +352,7 @@ async def test_oidc_callback_signed_claims_override_userinfo_roles(
             "sub": "signed-sub",
             "email": "attacker@example.com",
             "email_verified": True,
-            "groups": ["securo-admins"],
+            "groups": ["fincopilot-admins"],
         }
 
     async def fake_get_redis():

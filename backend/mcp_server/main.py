@@ -1,6 +1,6 @@
 """MCP server FastAPI app. JSON-RPC 2.0 over HTTP POST /mcp.
 
-Exposes Securo's built-in tools (read-only + propose-mutations) over the
+Exposes FinCopilot's built-in tools (read-only + propose-mutations) over the
 Model Context Protocol. Runs as a separate container; gated by the
 `agents` profile in docker-compose.
 """
@@ -19,11 +19,11 @@ from mcp_server.registry import REGISTRY, call_tool, list_tools
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Securo MCP Server", openapi_url=None, docs_url=None)
+app = FastAPI(title="FinCopilot MCP Server", openapi_url=None, docs_url=None)
 
 
 SERVER_INFO = {
-    "name": "securo-builtin",
+    "name": "fincopilot-builtin",
     "version": "0.1.0",
 }
 PROTOCOL_VERSION = "2024-11-05"

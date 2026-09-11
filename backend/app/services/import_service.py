@@ -396,7 +396,7 @@ DATE_FORMAT_MAP = {
     'YYYY-MM-DD': '%Y-%m-%d',
 }
 
-# Securo fields a CSV column can be mapped to. Used to validate the
+# FinCopilot fields a CSV column can be mapped to. Used to validate the
 # user-supplied column_mapping and to drive the import-UI dropdowns.
 CSV_MAPPABLE_FIELDS = (
     'date', 'description', 'amount', 'type',
@@ -443,7 +443,7 @@ def parse_csv(
     - date_format: explicit date format (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD)
     - flip_amount: negate all parsed amounts
     - inflow_column/outflow_column: use split columns instead of single amount
-    - column_mapping: explicit Securo-field -> CSV-header map. Any field
+    - column_mapping: explicit FinCopilot-field -> CSV-header map. Any field
       present here overrides auto-detection; unmapped fields still auto-detect.
     """
     text = content.decode('utf-8-sig')  # Handle BOM
@@ -465,7 +465,7 @@ def parse_csv(
     external_id_cols = [] # External ID must be mapped explicitly
     notes_cols = ['notes', 'nota', 'observacao']
 
-    # Normalize the user-supplied column mapping (Securo field -> CSV header).
+    # Normalize the user-supplied column mapping (FinCopilot field -> CSV header).
     mapping = {
         field: value.lower().strip()
         for field, value in (column_mapping or {}).items()
@@ -479,7 +479,7 @@ def parse_csv(
         return None
 
     def resolve_col(field, candidates):
-        """Resolve a CSV column for a Securo field.
+        """Resolve a CSV column for a FinCopilot field.
 
         An explicit user mapping always wins; otherwise fall back to
         auto-detection against the known column-name candidates.

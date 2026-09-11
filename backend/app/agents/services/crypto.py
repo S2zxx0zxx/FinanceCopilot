@@ -16,7 +16,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from app.core.config import get_settings
 
 
-_SALT = b"securo-agents-llm-keys-v1"
+_SALT = b"fincopilot-agents-llm-keys-v1"
 
 
 @functools.lru_cache(maxsize=1)

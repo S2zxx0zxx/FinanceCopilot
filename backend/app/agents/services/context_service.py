@@ -63,7 +63,7 @@ async def build_context_primer(
     lines: list[str] = []
     lines.append("# Context for this conversation")
     lines.append("")
-    lines.append("The user you are helping (Securo, a personal finance app):")
+    lines.append("The user you are helping (FinCopilot, a personal finance app):")
     lines.append(f"- Identity: {_user_label(user)}")
     lines.append(f"- Primary currency: {primary_currency}")
     lines.append(f"- Preferred language: {language}")

@@ -19,7 +19,7 @@ interface Props {
  * a documentation page.
  *
  * Wrapped in React.memo at the bottom so static assistant messages
- * (including embedded `securo-chart` blocks) don't re-render on every
+ * (including embedded `fincopilot-chart` blocks) don't re-render on every
  * keystroke in the chat input — they were causing Recharts to fully
  * reanimate per character typed.
  */
@@ -72,7 +72,7 @@ function _Markdown({ children, className }: Props) {
             // body and render an inline recharts figure instead of a
             // code block. Falls back to a plain pre/code on parse error
             // so the user can still see what the model emitted.
-            if (className === 'language-securo-chart') {
+            if (className === 'language-fincopilot-chart') {
               const raw = String(children ?? '').trim()
               try {
                 const spec = JSON.parse(raw) as ChartSpec

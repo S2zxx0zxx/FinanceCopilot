@@ -46,12 +46,12 @@ async def test_list_agents_populates_conversation_and_knowledge_counts(
 async def test_set_tool_enabled_inserts_then_updates_existing_row(session, test_agent):
     # Insert path
     row = await agent_service.set_tool_enabled(
-        session, test_agent.id, "securo", "list_accounts", True
+        session, test_agent.id, "fincopilot", "list_accounts", True
     )
     assert row.enabled is True
     # Same (server, tool) pair → updates the existing row, no second insert.
     row2 = await agent_service.set_tool_enabled(
-        session, test_agent.id, "securo", "list_accounts", False
+        session, test_agent.id, "fincopilot", "list_accounts", False
     )
     # Composite primary key: same (agent_id, server, tool_name) tuple.
     assert (row2.agent_id, row2.server, row2.tool_name) == (row.agent_id, row.server, row.tool_name)
@@ -129,17 +129,17 @@ async def test_get_agent_tools_returns_merged_state(
 
     async def fake_discover(self, *, user_id, workspace_id=None, conversation_id=None, agent_id=None):
         return [
-            ToolHandle(server="securo", name="list_accounts", description="d", parameters={}),
-            ToolHandle(server="securo", name="propose_x", description="d", parameters={}, is_proposal=True),
+            ToolHandle(server="fincopilot", name="list_accounts", description="d", parameters={}),
+            ToolHandle(server="fincopilot", name="propose_x", description="d", parameters={}, is_proposal=True),
         ]
 
     with patch("app.agents.api.agents.MCPRegistry.discover", new=fake_discover), \
-         patch("app.agents.api.agents.MCPRegistry.server_names", lambda self: ["securo"]):
+         patch("app.agents.api.agents.MCPRegistry.server_names", lambda self: ["fincopilot"]):
         a = (await client.post("/api/agents", json={"name": "A"}, headers=auth_headers)).json()
         r = await client.get(f"/api/agents/{a['id']}/tools", headers=auth_headers)
         assert r.status_code == 200
         body = r.json()
-        assert body["servers"] == [{"name": "securo"}]
+        assert body["servers"] == [{"name": "fincopilot"}]
         by_name = {t["name"]: t for t in body["tools"]}
         # First-run with no AgentTool rows yet → enabled defaults to True.
         assert by_name["list_accounts"]["enabled"] is True
@@ -160,8 +160,8 @@ async def test_put_agent_tools_persists_explicit_selection(
     r = await client.put(
         f"/api/agents/{a['id']}/tools",
         json=[
-            {"server": "securo", "tool_name": "list_accounts", "enabled": True},
-            {"server": "securo", "tool_name": "create_payee", "enabled": False},
+            {"server": "fincopilot", "tool_name": "list_accounts", "enabled": True},
+            {"server": "fincopilot", "tool_name": "create_payee", "enabled": False},
         ],
         headers=auth_headers,
     )

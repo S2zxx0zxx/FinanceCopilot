@@ -25,12 +25,12 @@ depends_on = None
 _PGVECTOR_MISSING_MSG = (
     "\n\n"
     "  pgvector is not installed in your Postgres server.\n"
-    "  Securo v0.11.0+ requires pgvector for the agents knowledge base.\n\n"
+    "  FinCopilot v0.11.0+ requires pgvector for the agents knowledge base.\n\n"
     "  Fix: switch your `db` service image to a Postgres build that bundles\n"
     "  pgvector, then re-run the upgrade:\n\n"
     "      image: pgvector/pgvector:pg16   # was: postgres:16-alpine\n\n"
     "  Your data volume is preserved (same on-disk format).\n"
-    "  See https://github.com/securo-finance/securo/releases/tag/v0.11.0\n"
+    "  See https://github.com/S2zxx0zxx/FinanceCopilot/releases/tag/v0.11.0\n"
 )
 
 

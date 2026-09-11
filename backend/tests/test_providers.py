@@ -137,9 +137,9 @@ class TestOAuthRedirectDefaults:
     def test_default_honours_custom_port_and_domain(self):
         from app.providers.base import default_oauth_redirect_uri
 
-        settings = self._settings(frontend_url="https://securo.example.com/")
+        settings = self._settings(frontend_url="https://fincopilot.example.com/")
         with patch("app.core.config.get_settings", return_value=settings):
-            assert default_oauth_redirect_uri() == "https://securo.example.com/oauth/callback"
+            assert default_oauth_redirect_uri() == "https://fincopilot.example.com/oauth/callback"
 
     def test_enable_banking_uses_derived_default_when_unset(self):
         from app.providers.enable_banking import EnableBankingProvider

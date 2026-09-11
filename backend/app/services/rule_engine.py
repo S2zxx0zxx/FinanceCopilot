@@ -18,7 +18,7 @@ def _strip_accents(text: str) -> str:
 
 
 def compile_rule_regex(pattern: str) -> re.Pattern[str]:
-    """Compile a regex using Securo's runtime normalization and safety policy."""
+    """Compile a regex using FinCopilot's runtime normalization and safety policy."""
     effective_pattern = _strip_accents(pattern)
     try:
         compiled = re.compile(effective_pattern, re.IGNORECASE)

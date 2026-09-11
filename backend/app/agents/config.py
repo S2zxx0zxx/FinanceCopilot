@@ -18,7 +18,7 @@ class AgentSettings(BaseSettings):
     # the browser location (``<protocol>//<hostname>:8765/mcp``). Set this
     # when the MCP server is exposed behind an ingress/reverse proxy on a
     # custom host, subpath, or standard 80/443 port instead of ``:8765``.
-    # Example: "https://securo.example.com/mcp".
+    # Example: "https://fincopilot.example.com/mcp".
     external_mcp_url: str = ""
 
     # Comma-separated extra MCP servers users can plug in (URL[|name]).

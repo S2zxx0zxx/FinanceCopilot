@@ -125,11 +125,11 @@ export function TokenConnectDialog({
         )}
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium" htmlFor="securo-token-input">
+          <label className="text-sm font-medium" htmlFor="fincopilot-token-input">
             {t('accounts.tokenConnect.tokenLabel')}
           </label>
           <textarea
-            id="securo-token-input"
+            id="fincopilot-token-input"
             className="w-full min-h-[110px] rounded-md border border-input bg-card px-3 py-2 text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0"
             placeholder={t('accounts.tokenConnect.tokenPlaceholder')}
             value={token}

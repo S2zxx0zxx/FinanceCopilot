@@ -2,8 +2,8 @@
 
 SimpleFIN (https://www.simplefin.org) is a read-only financial interchange
 protocol. The user gets a Setup Token from a SimpleFIN server (typically the
-SimpleFIN Bridge at https://bridge.simplefin.org), pastes it into Securo,
-and Securo claims an Access URL that embeds Basic Auth credentials. From then
+SimpleFIN Bridge at https://bridge.simplefin.org), pastes it into FinCopilot,
+and FinCopilot claims an Access URL that embeds Basic Auth credentials. From then
 on, ``GET {access_url}/accounts?version=2`` returns accounts + transactions
 + holdings in a single JSON document.
 
@@ -207,7 +207,7 @@ class SimpleFinProvider(BankProvider):
             timeout=SIMPLEFIN_HTTP_TIMEOUT,
             headers={
                 "Accept": "application/json",
-                "User-Agent": "Securo/0.1 (+https://usesecuro.com)",
+                "User-Agent": "FinCopilot/0.1 (+https://usefincopilot.com)",
             },
         )
 

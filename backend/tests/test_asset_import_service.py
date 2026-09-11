@@ -284,7 +284,7 @@ async def test_dry_run_writes_nothing(
 @pytest.mark.parametrize(
     "header,row,expected_kind",
     [
-        # One export per language Securo is translated into.
+        # One export per language FinCopilot is translated into.
         ("Symbol,Date,Quantity,Price,Fee,Side", "AAPL,2026-01-15,10,150.00,1.20,buy", "buy"),
         ("Ativo;Data;Quantidade;Preço;Corretagem;Operação", "AAPL;15/01/2026;10;150,00;1,20;compra", "buy"),
         ("Activo,Fecha,Cantidad,Precio,Comisión,Operación", "AAPL,15/01/2026,10,150.00,1.20,venta", "sell"),

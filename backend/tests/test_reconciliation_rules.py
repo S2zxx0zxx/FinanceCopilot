@@ -2458,7 +2458,7 @@ async def test_the_export_carries_the_policy_that_is_actually_running(
     resp = await client.get("/api/reconciliation/rules/export", headers=biz_headers)
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["format"] == "securo-reconciliation-rules"
+    assert body["format"] == "fincopilot-reconciliation-rules"
 
     node = next(n for n in body["nodes"] if n["node"] == INVOICE_NODE)
     exported = next(r for r in node["rules"] if r["id"] == "same_client_exact")
@@ -2662,7 +2662,7 @@ async def test_a_file_of_the_wrong_kind_is_refused(client: AsyncClient, biz_head
         "/api/reconciliation/rules/import",
         headers=biz_headers,
         json={
-            "payload": {"format": "securo-categorization-rules", "rules": []},
+            "payload": {"format": "fincopilot-categorization-rules", "rules": []},
             "overwrite": True,
         },
     )

@@ -41,7 +41,7 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
-const STORAGE_KEY = 'securo.global-chat'
+const STORAGE_KEY = 'fincopilot.global-chat'
 
 interface PersistedState {
   agentId?: string

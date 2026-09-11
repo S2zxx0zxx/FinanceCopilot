@@ -129,7 +129,7 @@ async def aggregate(
         q = q.where(Transaction.status == "pending")
     # status == "all" → no filter
 
-    # Securo convention: type='debit' = expense, type='credit' = income.
+    # FinCopilot convention: type='debit' = expense, type='credit' = income.
     # Amount sign isn't authoritative because some imports normalize it.
     if tx_type == "expense":
         q = q.where(Transaction.type == "debit")

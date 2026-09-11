@@ -105,7 +105,7 @@ export default function PayeesPage() {
       // makes totalPages Infinity and of "abc" makes it NaN, and either way
       // the slice below comes back empty and the table renders no rows over
       // data that loaded fine.
-      const stored = Number(localStorage.getItem('securo.payees.pageSize'))
+      const stored = Number(localStorage.getItem('fincopilot.payees.pageSize'))
       return PAGE_SIZES.includes(stored) ? stored : DEFAULT_PAGE_SIZE
     } catch {
       return DEFAULT_PAGE_SIZE
@@ -171,7 +171,7 @@ export default function PayeesPage() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('securo.payees.pageSize', String(pageSize))
+      localStorage.setItem('fincopilot.payees.pageSize', String(pageSize))
     } catch {
       // A disabled or full storage must not prevent changing the page size.
     }

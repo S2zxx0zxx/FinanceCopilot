@@ -64,7 +64,7 @@ def list_tools() -> list[dict[str, Any]]:
             "name": s.name,
             "description": s.description,
             "inputSchema": s.parameters,
-            "_securo": {"is_proposal": s.is_proposal, "tags": s.tags},
+            "_fincopilot": {"is_proposal": s.is_proposal, "tags": s.tags},
         }
         for s in REGISTRY.values()
     ]

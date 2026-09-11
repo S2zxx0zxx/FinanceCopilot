@@ -411,7 +411,7 @@ function HistoryView({ agent, history }: { agent: Agent; history: AgentMessage[]
 
 
 /** Shown in a fresh conversation (no history, no draft). Centers the
- *  Securo mark + agent name and surfaces ~6 randomized example prompts
+ *  FinCopilot mark + agent name and surfaces ~6 randomized example prompts
  *  pulled from i18n. Picking one fills the textarea and focuses it
  *  (cheaper than auto-sending — gives the user a chance to tweak). */
 function ChatEmptyState({ agent, onPick }: { agent: Agent; onPick: (text: string) => void }) {
@@ -465,7 +465,7 @@ function ChatEmptyState({ agent, onPick }: { agent: Agent; onPick: (text: string
 
   return (
     <div className="flex flex-col items-center justify-center text-center gap-5 py-12 min-h-[65vh]">
-      {/* Brand mark — uses the primary indigo so it reads as Securo, not
+      {/* Brand mark — uses the primary indigo so it reads as FinCopilot, not
           as the agent's accent color. Transparent background. */}
       <ShellLogo size={56} className="text-primary opacity-90" />
       <div className="space-y-1 px-6">

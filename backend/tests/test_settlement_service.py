@@ -199,7 +199,7 @@ async def test_settlement_owner_isolation(
 # ---------------------------------------------------------------------------
 # receiver_transaction_id (migration 045): when a settlement is recorded,
 # the receiver-side credit transaction should be created (and pinned via
-# `receiver_transaction_id`) iff the receiver maps to a real Securo user
+# `receiver_transaction_id`) iff the receiver maps to a real FinCopilot user
 # AND that user has a checking/savings account to receive into.
 # ---------------------------------------------------------------------------
 

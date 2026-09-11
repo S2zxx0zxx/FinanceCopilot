@@ -4,7 +4,7 @@ Revision ID: 075
 Revises: 074
 Create Date: 2026-08-21
 
-One SimpleFIN connection can span multiple institutions, but Securo applied
+One SimpleFIN connection can span multiple institutions, but FinCopilot applied
 the connection's single institution_name/logo_url to every account under it.
 A connection now has institutions, and each account points at its own.
 

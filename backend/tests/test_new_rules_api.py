@@ -817,7 +817,7 @@ async def test_export_rules_serializes_category_actions_by_name(client: AsyncCli
     assert response.headers["content-type"].startswith("application/json")
     assert response.headers["content-disposition"].startswith("attachment;")
     payload = response.json()
-    assert payload["format"] == "securo-categorization-rules"
+    assert payload["format"] == "fincopilot-categorization-rules"
     assert payload["version"] == 1
     exported = {rule["name"]: rule for rule in payload["rules"]}
     assert set(exported) == {"UBER rule", "IFOOD rule", "SALARIO rule"}
@@ -832,7 +832,7 @@ async def test_import_rules_requires_overwrite_confirmation_when_rules_exist(
     client: AsyncClient, auth_headers, test_rules, test_categories
 ):
     payload = {
-        "format": "securo-categorization-rules",
+        "format": "fincopilot-categorization-rules",
         "version": 1,
         "rules": [
             {
@@ -857,7 +857,7 @@ async def test_import_rules_overwrites_existing_rules_and_maps_categories_by_nam
     client: AsyncClient, auth_headers, test_rules, test_categories
 ):
     payload = {
-        "format": "securo-categorization-rules",
+        "format": "fincopilot-categorization-rules",
         "version": 1,
         "rules": [
             {
@@ -898,7 +898,7 @@ async def test_import_rules_with_overwrite_preserves_existing_when_every_rule_is
     client: AsyncClient, auth_headers, test_rules
 ):
     payload = {
-        "format": "securo-categorization-rules",
+        "format": "fincopilot-categorization-rules",
         "version": 1,
         "rules": [
             {

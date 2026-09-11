@@ -8,7 +8,7 @@ export type PayeeSort = {
   direction: PayeeSortDirection
 }
 
-export const PAYEE_SORT_STORAGE_KEY = 'securo.payees.sort'
+export const PAYEE_SORT_STORAGE_KEY = 'fincopilot.payees.sort'
 export const DEFAULT_PAYEE_SORT: PayeeSort = { by: 'name', direction: 'asc' }
 export const INITIAL_SORT_DIRECTIONS: Record<PayeeSortBy, PayeeSortDirection> = {
   name: 'asc',

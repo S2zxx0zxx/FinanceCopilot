@@ -536,7 +536,7 @@ class PluggyProvider(BankProvider):
 
         See https://docs.pluggy.ai/docs/item-lifecycle for the state machine.
         Pluggy's own auto-sync runs daily; this triggers an on-demand pull so
-        Securo reads what the bank shows now, not what Pluggy last cached.
+        FinCopilot reads what the bank shows now, not what Pluggy last cached.
         """
         item_id = credentials.get("item_id") if credentials else None
         if not item_id:

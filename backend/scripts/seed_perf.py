@@ -6,8 +6,8 @@ Must run inside the backend container (needs app module access):
 
 Options:
     --scale FLOAT            Data volume multiplier (default: 1.0; use 0.1 for a quick smoke run)
-    --email TEXT             Seed user email (default: test@securo.app)
-    --password TEXT          Seed user password (default: Securo123!)
+    --email TEXT             Seed user email (default: test@fincopilot.app)
+    --password TEXT          Seed user password (default: FinCopilot123!)
     --no-reset               Skip wiping existing data (default: wipe and re-seed)
     --start-date YYYY-MM-DD  Earliest date for seeded data (default: 2024-01-01)
 
@@ -435,8 +435,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Seed performance stress-test data")
     parser.add_argument("--scale", type=float, default=1.0,
                         help="Volume multiplier (default 1.0; 0.1 for quick smoke run)")
-    parser.add_argument("--email", default="test@securo.app")
-    parser.add_argument("--password", default="Securo123!")
+    parser.add_argument("--email", default="test@fincopilot.app")
+    parser.add_argument("--password", default="FinCopilot123!")
     parser.add_argument("--no-reset", dest="reset", action="store_false", default=True,
                         help="Skip wiping existing seed data for this user")
     parser.add_argument("--start-date", type=date.fromisoformat, default=date(2024, 1, 1),

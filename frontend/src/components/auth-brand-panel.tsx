@@ -18,9 +18,9 @@ export function AuthBrandPanel() {
     >
       {/* Soft animated aurora */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <div className="securo-aurora securo-aurora-1" />
-        <div className="securo-aurora securo-aurora-2" />
-        <div className="securo-aurora securo-aurora-3" />
+        <div className="fincopilot-aurora fincopilot-aurora-1" />
+        <div className="fincopilot-aurora fincopilot-aurora-2" />
+        <div className="fincopilot-aurora fincopilot-aurora-3" />
       </div>
 
       {/* Oversized translucent shell, bleeding off the lower-right edge */}
@@ -47,7 +47,7 @@ export function AuthBrandPanel() {
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15">
           <ShellLogo size={20} className="text-white" />
         </div>
-        <span className="text-lg font-semibold tracking-tight">Securo</span>
+        <span className="text-lg font-semibold tracking-tight">FinCopilot</span>
       </div>
 
       {/* Tagline */}

@@ -1,7 +1,7 @@
 """Import investment orders (buys and sells) from a broker CSV.
 
 A portfolio arrives as a list of orders, not as positions: a hundred rows of
-"ticker, date, quantity, price, fee". Securo already knows how to turn orders
+"ticker, date, quantity, price, fee". FinCopilot already knows how to turn orders
 into a position — `asset_transaction_service._recompute` does the weighted
 average, the fees and the realized gain — so this module's whole job is to get
 the rows out of the file and onto the right holdings.
@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 #: them one by one. Past this the provider is having a bad day, not the file.
 _QUOTE_FALLBACK_LIMIT = 25
 
-#: Securo fields a CSV column can be mapped to, and which of them a file cannot
+#: FinCopilot fields a CSV column can be mapped to, and which of them a file cannot
 #: do without. Mirrors the transaction importer's `CSV_MAPPABLE_FIELDS`, and
 #: drives both the mapping dropdowns and the downloadable template.
 ASSET_CSV_MAPPABLE_FIELDS = (
@@ -71,7 +71,7 @@ ASSET_CSV_REQUIRED_FIELDS = ('ticker', 'date', 'quantity', 'price')
 #: after normalization. A file whose headers are recognised needs no mapping
 #: step at all; anything else falls through to the dropdowns.
 _COLUMN_CANDIDATES: dict[str, tuple[str, ...]] = {
-    # One entry per language Securo is translated into, because a broker
+    # One entry per language FinCopilot is translated into, because a broker
     # export is written in the language of the person who downloaded it.
     # Diacritics are folded before matching, so `Preço` finds `preco`; the
     # Cyrillic and Polish entries are spelled as they actually appear.

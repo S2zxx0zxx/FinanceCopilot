@@ -61,7 +61,7 @@
     "archiveConfirmDescription": "Der Workspace \"{{name}}\" wird aus deiner Liste entfernt. Die Daten bleiben erhalten und ein Administrator kann ihn später wiederherstellen."
   },
   "app": {
-    "name": "Securo",
+    "name": "FinCopilot",
     "versionAriaLabel": "Läuft mit Version {{version}}",
     "versionLabel": "Version {{version}}",
     "updateAvailable": "Update verfügbar",
@@ -239,7 +239,7 @@
       "presetTracking": "Track payments",
       "presetDocument": "Issue documents",
       "presetTrackingHint": "Sie stellen anderswo Rechnungen. Hier verfolgen Sie, wer Ihnen was schuldet und ob es ankam.",
-      "presetDocumentHint": "Securo schreibt die Rechnung, die Ihr Kunde erhält. Dafür braucht es die Positionen.",
+      "presetDocumentHint": "FinCopilot schreibt die Rechnung, die Ihr Kunde erhält. Dafür braucht es die Positionen.",
       "numberPrefix": "Number prefix",
       "paymentTerms": "Payment terms (days)",
       "issuerName": "Your business name",
@@ -367,7 +367,7 @@
       "notOurs": "Das Dokument wurde anderswo ausgestellt",
       "notOursHint": "Hängen Sie die erhaltene Datei an, dann wird sie hier genau so angezeigt, wie sie eingegangen ist.",
       "ourPage": "Rechnung",
-      "rendered": "Von Securo erzeugt · {{date}}",
+      "rendered": "Von FinCopilot erzeugt · {{date}}",
       "kindLabel": "Dokumenttyp",
       "fromSystem": "Von {{source}} · {{date}}",
       "fromUpload": "Hochgeladen · {{date}}"
@@ -462,9 +462,9 @@
     "passkeysDescription": "Verwende Sicherheitsschlüssel oder Geräte-Passkeys, um dich ohne Passwort anzumelden. Registrierte Passkeys schützen auch die Passwort-Anmeldung als zweiten Faktor; die Anmeldung nur mit Passkey überspringt den Authentifikator-Code-Schritt, da der Schlüssel bereits den Besitz nachweist.",
     "passkeyLoadError": "Passkeys konnten nicht geladen werden",
     "passkeyUnsupported": "Dieser Browser unterstützt keine Passkeys.",
-    "passkeyInsecureContext": "Passkeys erfordern eine sichere Verbindung. Öffne Securo über HTTPS oder auf http://localhost.",
-    "passkeyIpAddress": "Passkeys funktionieren nicht mit einer IP-Adresse. Öffne Securo über HTTPS auf einer Domain oder auf http://localhost.",
-    "passkeyDomainError": "Dein Browser hat diese Domain für Passkeys abgelehnt. Öffne Securo über HTTPS auf der konfigurierten Domain.",
+    "passkeyInsecureContext": "Passkeys erfordern eine sichere Verbindung. Öffne FinCopilot über HTTPS oder auf http://localhost.",
+    "passkeyIpAddress": "Passkeys funktionieren nicht mit einer IP-Adresse. Öffne FinCopilot über HTTPS auf einer Domain oder auf http://localhost.",
+    "passkeyDomainError": "Dein Browser hat diese Domain für Passkeys abgelehnt. Öffne FinCopilot über HTTPS auf der konfigurierten Domain.",
     "passkeyDomainMismatch": "Diese Adresse liegt außerhalb der auf dem Server konfigurierten Passkey-Domain (WEBAUTHN_RP_ID).",
     "passkeyDuplicate": "Dieses Gerät hat bereits einen Passkey für dein Konto.",
     "passkeyWaiting": "Warten auf dein Gerät...",
@@ -940,7 +940,7 @@
       "openBridge": "Token in der SimpleFIN Bridge erstellen",
       "tokenLabel": "Setup-Token",
       "tokenPlaceholder": "Füge das erhaltene Token ein…",
-      "tokenHelp": "Das Setup-Token ist nur einmalig verwendbar. Securo ruft eine private Zugriffs-URL ab und speichert sie verschlüsselt.",
+      "tokenHelp": "Das Setup-Token ist nur einmalig verwendbar. FinCopilot ruft eine private Zugriffs-URL ab und speichert sie verschlüsselt.",
       "connect": "Verbinden",
       "connecting": "Verbindung wird hergestellt…",
       "simplefin": {
@@ -979,7 +979,7 @@
     "syncAssets": "Investment-Assets importieren",
     "syncAssetsHint": "Wenn deaktiviert, synchronisiert diese Verbindung Konten und Transaktionen, lässt aber Investment-Bestände des Anbieters unverändert.",
     "initialSyncSettings": "Synchronisierungsoptionen",
-    "initialSyncSettingsDesc": "Wähle aus, was Securo importieren soll, bevor der Connector geöffnet wird.",
+    "initialSyncSettingsDesc": "Wähle aus, was FinCopilot importieren soll, bevor der Connector geöffnet wird.",
     "continueToConnector": "Weiter zum Connector"
   },
   "settings": {
@@ -1301,9 +1301,9 @@
     "outflowColumn": "Spalte für Ausgaben",
     "selectColumn": "Spalte auswählen...",
     "columnMapping": "Spaltenzuordnung",
-    "columnMappingHint": "Ordne deine CSV-Spalten den Securo-Feldern zu. Belasse die Einstellung auf automatischer Erkennung, um die erkannte Spalte zu behalten.",
+    "columnMappingHint": "Ordne deine CSV-Spalten den FinCopilot-Feldern zu. Belasse die Einstellung auf automatischer Erkennung, um die erkannte Spalte zu behalten.",
     "columnAutoDetect": "Automatische Erkennung",
-    "mappingNeeded": "Wir konnten deine CSV-Spalten nicht automatisch erkennen. Ordne sie unten den Securo-Feldern zu, um fortzufahren.",
+    "mappingNeeded": "Wir konnten deine CSV-Spalten nicht automatisch erkennen. Ordne sie unten den FinCopilot-Feldern zu, um fortzufahren.",
     "failedRowsWarning": "{{count}} Zeile(n) in dieser Datei konnten nicht analysiert werden und wurden übersprungen.",
     "viewDetails": "Details anzeigen",
     "failedRowsTitle": "Nicht analysierte CSV-Zeilen",
@@ -1810,11 +1810,11 @@
     "you": "Du",
     "memberName": "Name",
     "memberEmail": "E-Mail",
-    "memberEmailHint": "Optional — nützlich, wenn du sie später als Securo-Benutzer einlädst.",
-    "linkedUser": "Verknüpfter Securo-Benutzer",
+    "memberEmailHint": "Optional — nützlich, wenn du sie später als FinCopilot-Benutzer einlädst.",
+    "linkedUser": "Verknüpfter FinCopilot-Benutzer",
     "linkedUserNone": "— Nicht verknüpft (kein Benutzer) —",
-    "linkedUserHint": "Wähle einen bestehenden Securo-Benutzer aus, um das Mitglied zu verknüpfen, oder lasse es unverknüpft, um einen Nicht-Benutzer hinzuzufügen.",
-    "willLinkToUser": "Wird mit dem bestehenden Securo-Benutzer {{email}} verknüpft",
+    "linkedUserHint": "Wähle einen bestehenden FinCopilot-Benutzer aus, um das Mitglied zu verknüpfen, oder lasse es unverknüpft, um einen Nicht-Benutzer hinzuzufügen.",
+    "willLinkToUser": "Wird mit dem bestehenden FinCopilot-Benutzer {{email}} verknüpft",
     "sharedWithYou": "Mit dir geteilt",
     "sharedRowBadge": "Geteilt · {{group}}",
     "sharedRowBadgeAuthor": "{{author}} · {{group}}",
@@ -1895,7 +1895,7 @@
     "show": "Werte anzeigen"
   },
   "setup": {
-    "title": "Willkommen bei Securo",
+    "title": "Willkommen bei FinCopilot",
     "description": "Erstelle dein Administrator-Konto, um zu beginnen.",
     "confirmPassword": "Passwort bestätigen",
     "createAdmin": "Administrator-Konto erstellen",
@@ -1923,14 +1923,14 @@
     "passwordLabel": "Passwort (optional)",
     "passwordPlaceholder": "Leer lassen für ein unverschlüsseltes Backup",
     "passwordTooShort": "Mindestens {{min}} Zeichen verwenden",
-    "encryptionNote": "Das Archiv wird mit AES-256 verschlüsselt und lässt sich mit jedem Packprogramm öffnen. Securo speichert dieses Passwort nicht und kann die Datei ohne es nicht wiederherstellen.",
+    "encryptionNote": "Das Archiv wird mit AES-256 verschlüsselt und lässt sich mit jedem Packprogramm öffnen. FinCopilot speichert dieses Passwort nicht und kann die Datei ohne es nicht wiederherstellen.",
     "successEncrypted": "Verschlüsseltes Backup erfolgreich heruntergeladen"
   },
   "update": {
     "title": "Server-Update",
     "runningLabel": "läuft",
     "newVersionAvailable": "Neue Version verfügbar:",
-    "description": "Eine neue Version von Securo is verfügbar. Ziehe ein Update in Betracht, wenn du:",
+    "description": "Eine neue Version von FinCopilot is verfügbar. Ziehe ein Update in Betracht, wenn du:",
     "reasonFeatures": "Zugriff auf die neuesten Funktionen und Verbesserungen möchtest",
     "reasonBugs": "Probleme hast, die in der neuen Version behoben sein könnten",
     "releaseNotesHintBefore": "Wir empfehlen, die",
@@ -2030,7 +2030,7 @@
   },
   "agents": {
     "title": "Agenten",
-    "subtitle": "Erstelle Konversationsassistenten basierend auf deinen Securo-Daten. Jeder Agent kann seine eigene Wissensdatenbank, Werkzeuge und Anbieter haben.",
+    "subtitle": "Erstelle Konversationsassistenten basierend auf deinen FinCopilot-Daten. Jeder Agent kann seine eigene Wissensdatenbank, Werkzeuge und Anbieter haben.",
     "newAgent": "Neuer Agent",
     "newConversation": "Neue Konversation",
     "conversationsCount": "Konversationen",
@@ -2197,14 +2197,14 @@
     },
     "mcpExternal": {
       "title": "Externer MCP-Zugriff",
-      "subtitle": "Verbinde einen externen Agenten (Claude Desktop, ChatGPT, n8n, einen benutzerdefinierten Client) mit dem integrierten MCP-Server von Securo. Das unten stehende Token ist für deinen Benutzer gültig und läuft in {{days}} Tagen ab.",
+      "subtitle": "Verbinde einen externen Agenten (Claude Desktop, ChatGPT, n8n, einen benutzerdefinierten Client) mit dem integrierten MCP-Server von FinCopilot. Das unten stehende Token ist für deinen Benutzer gültig und läuft in {{days}} Tagen ab.",
       "copy": "Kopieren",
       "copied": "Kopiert",
       "copyFailed": "Kopieren fehlgeschlagen",
       "mint": "Token erstellen",
       "minting": "Wird erstellt…",
       "mintFailed": "Token konnte nicht erstellt werden",
-      "warning": "Jetzt kopieren — Securo speichert das Token nicht, wir können es nicht erneut anzeigen. Widerrufen durch Rotieren von AGENTS_MCP_JWT_SECRET.",
+      "warning": "Jetzt kopieren — FinCopilot speichert das Token nicht, wir können es nicht erneut anzeigen. Widerrufen durch Rotieren von AGENTS_MCP_JWT_SECRET.",
       "regenerate": "Anderes erstellen",
       "snippets": {
         "token": "Token",
@@ -2255,7 +2255,7 @@
       "optional": "optional",
       "empty": {
         "title": "Noch keine Verbindungen",
-        "subtitle": "Füge eine Verbindung hinzu, um Securo auf dein lokales Ollama, OpenAI, Anthropic oder einen OpenAI-kompatiblen Endpunkt zu verweisen."
+        "subtitle": "Füge eine Verbindung hinzu, um FinCopilot auf dein lokales Ollama, OpenAI, Anthropic oder einen OpenAI-kompatiblen Endpunkt zu verweisen."
       }
     }
   },

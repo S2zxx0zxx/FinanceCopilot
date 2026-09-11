@@ -41,7 +41,7 @@ class GroupSettlement(Base):
         ForeignKey("transactions.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # Receiver-side mirror: when the to_member is a linked Securo user
+    # Receiver-side mirror: when the to_member is a linked FinCopilot user
     # with at least one checking/savings account, the settlement also
     # creates a credit on their account. This column points to it.
     receiver_transaction_id: Mapped[Optional[uuid.UUID]] = mapped_column(

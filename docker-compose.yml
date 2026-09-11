@@ -1,4 +1,4 @@
-name: securo
+name: fincopilot
 
 # podman-compose groups all services into a single pod by default, which
 # interferes with per-service port mapping and networking. Disabling it makes
@@ -8,11 +8,11 @@ x-podman:
   in_pod: false
 
 x-backend-env: &backend-env
-  DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/securo
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/fincopilot
   SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production}
   DEBUG: ${DEBUG:-true}
   FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}
-  WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Securo}
+  WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-FinCopilot}
   WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-}
   WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-}
   PLUGGY_CLIENT_ID: ${PLUGGY_CLIENT_ID:-}
@@ -56,7 +56,7 @@ x-backend-env: &backend-env
   AGENTS_EXTRA_MCP_SERVERS: ${AGENTS_EXTRA_MCP_SERVERS:-}
   AGENTS_MCP_JWT_SECRET: ${AGENTS_MCP_JWT_SECRET:-dev-mcp-secret-change-in-production}
   # TTL for tokens minted from /agents/connections → "External MCP access".
-  # Used by Claude Desktop, n8n, custom clients plugging into Securo.
+  # Used by Claude Desktop, n8n, custom clients plugging into FinCopilot.
   AGENTS_MCP_EXTERNAL_TTL_DAYS: ${AGENTS_MCP_EXTERNAL_TTL_DAYS:-90}
   # LLM provider config — only the provider you actually use needs setting.
   AGENTS_DEFAULT_PROVIDER: ${AGENTS_DEFAULT_PROVIDER:-ollama}
@@ -110,7 +110,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: securo
+      POSTGRES_DB: fincopilot
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -155,7 +155,7 @@ services:
     <<: *backend-base
     command: celery -A app.worker beat --loglevel=info
 
-  # Optional: Securo built-in MCP server. Only starts under the `agents`
+  # Optional: FinCopilot built-in MCP server. Only starts under the `agents`
   # profile (`docker compose --profile agents up`). Reuses the backend
   # image, just runs a different uvicorn entry point. Modular by design —
   # users not using the agents feature pay zero cost.

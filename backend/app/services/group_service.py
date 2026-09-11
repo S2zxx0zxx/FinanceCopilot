@@ -36,7 +36,7 @@ def _tag_member_self(
     """Override `is_self` per-request so the "(you)" tag tracks the
     requesting user rather than the stored flag (which only marks the
     owner's own member). Falls back to the stored flag for an owner
-    whose self-member isn't linked to a Securo account.
+    whose self-member isn't linked to a FinCopilot account.
 
     Uses `set_committed_value` rather than a plain attribute assignment:
     a plain assignment dirties the row, and the next session commit
@@ -62,7 +62,7 @@ def _tag_member_self(
 async def _resolve_member_email(
     session: AsyncSession, email: Optional[str]
 ) -> Optional[uuid.UUID]:
-    """If `email` matches an existing Securo user, return their id.
+    """If `email` matches an existing FinCopilot user, return their id.
     Otherwise return None — the member is created as a shadow row."""
     if not email:
         return None
@@ -274,7 +274,7 @@ async def create_member(
     payload = data.model_dump()
     if payload.get("email") is not None:
         payload["email"] = str(payload["email"])
-    # Auto-link to a real Securo user if the email matches one. The
+    # Auto-link to a real FinCopilot user if the email matches one. The
     # caller can override by passing linked_user_id explicitly.
     if payload.get("linked_user_id") is None:
         payload["linked_user_id"] = await _resolve_member_email(session, payload.get("email"))

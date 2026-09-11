@@ -146,7 +146,7 @@ const ASSET_TYPES = [
   'other',
 ] as const
 
-// Map a yfinance `quoteType` to Securo's asset type. Lives here (not the
+// Map a yfinance `quoteType` to FinCopilot's asset type. Lives here (not the
 // backend) so if we ever swap the market-price provider the service stays
 // clean — all provider-specific vocabulary is translated at the edge.
 function assetTypeFromQuoteType(quoteType: string | null | undefined): string {

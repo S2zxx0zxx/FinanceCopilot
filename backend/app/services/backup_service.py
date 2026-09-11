@@ -27,7 +27,7 @@ def build_backup_archive(files: dict[str, object], password: str | None = None) 
     """Serialize `files` (name → JSON-serializable payload) into a zip.
 
     Returns the archive bytes. With a password the entries are encrypted with
-    AES-256; without one the result is byte-for-byte the plain zip Securo has
+    AES-256; without one the result is byte-for-byte the plain zip FinCopilot has
     always produced.
     """
     buf = io.BytesIO()

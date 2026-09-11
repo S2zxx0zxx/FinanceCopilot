@@ -4,7 +4,7 @@ import { collections as collectionsApi } from '@/lib/api'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { CollectionFilterContext, type CollectionFilterValue } from '@/contexts/collection-filter-context'
 
-const STORAGE_PREFIX = 'securo.activeCollection.'
+const STORAGE_PREFIX = 'fincopilot.activeCollection.'
 
 export function CollectionFilterProvider({ children }: { children: ReactNode }) {
   const { current } = useWorkspace()

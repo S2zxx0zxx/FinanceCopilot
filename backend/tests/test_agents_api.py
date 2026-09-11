@@ -100,10 +100,10 @@ async def test_agents_info_returns_configured_external_mcp_url(
     from app.agents import config
 
     config.get_agent_settings.cache_clear()
-    monkeypatch.setenv("AGENTS_EXTERNAL_MCP_URL", "  https://securo.example.com/mcp  ")
+    monkeypatch.setenv("AGENTS_EXTERNAL_MCP_URL", "  https://fincopilot.example.com/mcp  ")
     try:
         r = await client.get("/api/agents/info", headers=auth_headers)
-        assert r.json()["external_mcp_url"] == "https://securo.example.com/mcp"
+        assert r.json()["external_mcp_url"] == "https://fincopilot.example.com/mcp"
     finally:
         monkeypatch.delenv("AGENTS_EXTERNAL_MCP_URL", raising=False)
         config.get_agent_settings.cache_clear()
@@ -468,8 +468,8 @@ async def test_put_tools_persists_selection(
     r = await client.put(
         f"/api/agents/{a.id}/tools",
         json=[
-            {"server": "securo", "tool_name": "list_transactions", "enabled": True},
-            {"server": "securo", "tool_name": "propose_categorize", "enabled": False},
+            {"server": "fincopilot", "tool_name": "list_transactions", "enabled": True},
+            {"server": "fincopilot", "tool_name": "propose_categorize", "enabled": False},
         ],
         headers=auth_headers,
     )
@@ -480,4 +480,4 @@ async def test_put_tools_persists_selection(
     from app.agents.services import agent_service
 
     pairs = await agent_service.allowed_tool_pairs(session, a.id)
-    assert pairs == {("securo", "list_transactions")}
+    assert pairs == {("fincopilot", "list_transactions")}

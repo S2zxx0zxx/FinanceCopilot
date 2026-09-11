@@ -52,7 +52,7 @@ function clientConfigFor(client: ClientId, url: string, token: string): string {
     return JSON.stringify(
       {
         mcpServers: {
-          securo: {
+          fincopilot: {
             url,
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -68,7 +68,7 @@ function clientConfigFor(client: ClientId, url: string, token: string): string {
   return JSON.stringify(
     {
       type: 'mcp',
-      server_label: 'securo',
+      server_label: 'fincopilot',
       server_url: url,
       headers: { Authorization: `Bearer ${token}` },
       require_approval: 'never',
@@ -132,7 +132,7 @@ export function McpExternalPanel() {
           <p className="text-sm text-muted-foreground mt-1">
             {t(
               'agents.mcpExternal.subtitle',
-              "Plug an external agent (Claude Desktop, ChatGPT, n8n, a custom client) into Securo's built-in MCP server. The token below is scoped to your user and expires in {{days}} days.",
+              "Plug an external agent (Claude Desktop, ChatGPT, n8n, a custom client) into FinCopilot's built-in MCP server. The token below is scoped to your user and expires in {{days}} days.",
               { days: info.mcp_external_ttl_days },
             )}
           </p>
@@ -157,7 +157,7 @@ export function McpExternalPanel() {
             <div className="text-xs text-muted-foreground">
               {t(
                 'agents.mcpExternal.warning',
-                "Copy now — Securo does not store the token, so we can't show it again. Revoke by rotating AGENTS_MCP_JWT_SECRET.",
+                "Copy now — FinCopilot does not store the token, so we can't show it again. Revoke by rotating AGENTS_MCP_JWT_SECRET.",
               )}
             </div>
             {universalSnippets.map((s) => (

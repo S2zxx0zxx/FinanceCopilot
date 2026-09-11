@@ -13,7 +13,7 @@ import { existsSync } from 'fs'
 const ROOT = new URL('..', import.meta.url).pathname
 const FRONTEND_DIR = join(ROOT, 'frontend')
 const DIST_DIR = join(FRONTEND_DIR, 'dist')
-const CONTAINER = 'securo-frontend-1'
+const CONTAINER = 'fincopilot-frontend-1'
 
 function deploy() {
   try {

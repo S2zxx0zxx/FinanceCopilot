@@ -86,7 +86,7 @@ INVOICE_DIRECTIONS = ("receivable", "payable")
 
 #: Who authored the document. `imported` rows are reconstructed from an
 #: external system (Stripe, Asaas, a CSV): that system owns the document,
-#: and Securo owns the cash that settled it.
+#: and FinCopilot owns the cash that settled it.
 INVOICE_ORIGINS = ("local", "imported")
 
 #: How an allocation came to exist.

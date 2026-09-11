@@ -191,7 +191,7 @@ def _parse_workspace_role_map(raw: str) -> dict[str, str]:
     if invalid:
         raise HTTPException(
             status_code=500,
-            detail=f"OIDC_WORKSPACE_ROLE_MAP contains invalid Securo roles: {', '.join(invalid)}",
+            detail=f"OIDC_WORKSPACE_ROLE_MAP contains invalid FinCopilot roles: {', '.join(invalid)}",
         )
     return role_map
 

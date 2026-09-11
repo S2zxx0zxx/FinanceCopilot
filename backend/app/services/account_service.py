@@ -29,7 +29,7 @@ def get_account_name(account: Account) -> str:
 
 
 def _simplefin_to_internal_balance(provider: str, account_type: str, balance: Decimal) -> Decimal:
-    """Normalize a SimpleFIN balance to Securo's positive-for-debt convention.
+    """Normalize a SimpleFIN balance to FinCopilot's positive-for-debt convention.
 
     SimpleFIN reports a credit card's balance as negative debt and exposes no
     account type, so the provider stores it raw and labels every account

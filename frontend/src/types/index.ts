@@ -502,7 +502,7 @@ export interface RuleExportItem {
 }
 
 export interface RuleExportPayload {
-  format: 'securo-categorization-rules'
+  format: 'fincopilot-categorization-rules'
   version: number
   rules: RuleExportItem[]
 }

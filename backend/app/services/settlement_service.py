@@ -262,7 +262,7 @@ async def create_settlement(
     from_name = member_meta[data.from_member_id].name if data.from_member_id in member_meta else "—"
     to_meta = member_meta.get(data.to_member_id)
     to_name = to_meta.name if to_meta else "—"
-    # Resolve the receiver's Securo user id. linked_user_id wins; fall
+    # Resolve the receiver's FinCopilot user id. linked_user_id wins; fall
     # back to group.user_id when the receiver is the owner's
     # self-member (owners often don't bother linking themselves).
     receiver_user_id = None
@@ -292,7 +292,7 @@ async def create_settlement(
         )
         payload["transaction_id"] = tx.id
 
-    # Receiver-side mirror credit: when the receiver maps to a Securo
+    # Receiver-side mirror credit: when the receiver maps to a FinCopilot
     # user and has a checking/savings account, record the cash-in side
     # so their books reflect the actual money received.
     receiver_tx_id = None

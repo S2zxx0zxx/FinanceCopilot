@@ -2,7 +2,7 @@
 
 ## Why invoices were kept out until now
 
-Everything that projects in Securo does so **by being a transaction**: a
+Everything that projects in FinCopilot does so **by being a transaction**: a
 row counts as forecast when it is `pending`, or `posted` with a future
 date, and a recurring schedule enters by being materialised into rows.
 An invoice is a claim, not a movement, so it never qualified for free.

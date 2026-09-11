@@ -6,7 +6,7 @@ import type { InvoiceState } from '@/types'
  * Shared chrome for the invoicing screens.
  *
  * Everything here mirrors patterns already established elsewhere in
- * Securo (recurring, accounts, dashboard) rather than inventing a
+ * FinCopilot (recurring, accounts, dashboard) rather than inventing a
  * parallel vocabulary. A module that looks like its own product inside
  * the product is the thing to avoid.
  */

@@ -72,7 +72,7 @@ class GroupMember(Base):
         UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(100))
-    # Nullable so shadow members (non-Securo people) work from day one.
+    # Nullable so shadow members (non-FinCopilot people) work from day one.
     # SET NULL on delete preserves the shadow record + its history if
     # the linked account is removed.
     linked_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(

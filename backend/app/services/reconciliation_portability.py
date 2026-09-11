@@ -1,4 +1,4 @@
-"""Carrying a matching policy from one Securo to another.
+"""Carrying a matching policy from one FinCopilot to another.
 
 ## Why a file at all
 
@@ -56,7 +56,7 @@ from app.services import reconciliation_policy, reconciliation_rule_service as r
 #: What the file says it is. Checked on import, because a categorization
 #: export dropped into the matching importer would otherwise arrive as a
 #: file with no rules in it and look like it worked.
-FORMAT = "securo-reconciliation-rules"
+FORMAT = "fincopilot-reconciliation-rules"
 
 #: The `when` keys holding ids of things that live in a database, and the
 #: kind of thing each holds. Everything else in a rule is a number, a word
@@ -163,7 +163,7 @@ async def export_policy(
         "format": FORMAT,
         "version": 1,
         # Which shape the rules were written against, so a file from an
-        # older Securo can be recognised rather than half-read.
+        # older FinCopilot can be recognised rather than half-read.
         "policy_version": reconciliation_policy.POLICY_VERSION,
         "nodes": carried_nodes,
     }

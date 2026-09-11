@@ -1,6 +1,6 @@
 # RFC #235 — Investment ledger: ticker grouping, average price, holdings vs. transactions
 
-Status: in progress · Issue: [#235](https://github.com/securo-finance/securo/issues/235)
+Status: in progress · Issue: [#235](https://github.com/S2zxx0zxx/FinanceCopilot/issues/235)
 
 ## Problem
 

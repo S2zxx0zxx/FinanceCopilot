@@ -6,7 +6,7 @@ Create Date: 2026-04-17
 
 Per Brazilian banking convention (Nubank, Itaú, Bradesco, Santander, etc.),
 a transaction dated ON the statement close day belongs to the NEXT invoice,
-not the invoice closing that day. Securo's original formula bucketed these
+not the invoice closing that day. FinCopilot's original formula bucketed these
 transactions into the same-day close. This migration recomputes effective_date
 for every transaction on every credit card that has both statement_close_day
 and payment_due_day configured, using the corrected formula.

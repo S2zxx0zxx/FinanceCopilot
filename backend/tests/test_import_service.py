@@ -272,7 +272,7 @@ class TestParseCsvColumnMapping:
     """Tests for customizable CSV column mapping (issue #201)."""
 
     def test_column_mapping_unrecognized_headers(self):
-        """A CSV with headers Securo can't auto-detect parses with an explicit mapping."""
+        """A CSV with headers FinCopilot can't auto-detect parses with an explicit mapping."""
         csv_content = (
             "Posted On,Memo Line,Movement\n"
             "2026-01-10,COFFEE SHOP,-12.50\n"
@@ -1567,7 +1567,7 @@ class TestParseCsvTypeColumn:
 
     Before this fix, parse_csv always derived type from the amount sign.
     Now, when a 'type' column is present with 'credit' or 'debit', it is
-    used directly — enabling all-positive-amount CSVs (like Securo exports).
+    used directly — enabling all-positive-amount CSVs (like FinCopilot exports).
     """
 
     def test_explicit_type_column_overrides_amount_sign(self):

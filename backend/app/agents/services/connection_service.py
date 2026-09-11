@@ -164,12 +164,12 @@ def _routing_hint(url: str) -> str:
 
     if loopback:
         return (
-            f". Securo runs in a container, where localhost is the container itself. "
+            f". FinCopilot runs in a container, where localhost is the container itself. "
             f"Use {suggestion} when the model server runs on the host machine."
         )
     if private:
         return (
-            f". Securo runs in a container, which often can't reach the host's LAN address. "
+            f". FinCopilot runs in a container, which often can't reach the host's LAN address. "
             f"Use {suggestion} when the model server runs on the host machine."
         )
     return ""

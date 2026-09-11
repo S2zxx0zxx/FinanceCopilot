@@ -1,7 +1,7 @@
 """MCP tool wrappers — call them directly with seeded data and a fake
 CallContext (skipping HTTP/JWT, which is covered by test_agents_jwt.py).
 
-Tools that depend on services Securo already tests heavily (reports,
+Tools that depend on services FinCopilot already tests heavily (reports,
 dashboard) just check that the wrapper returns a serializable shape, not
 the full numeric correctness of those services.
 """
@@ -635,7 +635,7 @@ def test_can_apply_truth_table(test_user):
 async def test_propose_categorize_internal_apply_does_not_write(
     session: AsyncSession, test_user, test_transactions, test_categories
 ):
-    """Internal callers (Securo's own runtime) must never mutate, even if
+    """Internal callers (FinCopilot's own runtime) must never mutate, even if
     apply=True is somehow passed through."""
     from sqlalchemy import select
     from app.models.transaction import Transaction
