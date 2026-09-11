@@ -1,7 +1,9 @@
 export type EngineModuleKey =
   | "assets"
+  | "asset-groups"
   | "rules"
   | "categories"
+  | "category-groups"
   | "payees"
   | "collections"
   | "invoices"
@@ -49,6 +51,20 @@ export type EngineModuleConfig = {
   subtitleKeys: string[];
   crud?: EngineCrudConfig;
 };
+
+const groupFields = (
+  icon: string,
+  color: string,
+  includeHidden = false,
+): EngineFieldConfig[] => [
+  { key: "name", label: "Group name", required: true, placeholder: "Investments, Essentials…" },
+  { key: "icon", label: "Icon name", defaultValue: icon, placeholder: icon },
+  { key: "color", label: "Colour", defaultValue: color, placeholder: color },
+  { key: "position", label: "Position", type: "number", defaultValue: "0" },
+  ...(includeHidden
+    ? [{ key: "is_hidden", label: "Hide group", type: "checkbox" as const, defaultValue: false, editOnly: true }]
+    : []),
+];
 
 export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
   assets: {
@@ -103,6 +119,23 @@ export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
       ],
     },
   },
+  "asset-groups": {
+    key: "asset-groups",
+    title: "Asset groups",
+    eyebrow: "Portfolio organisation",
+    description: "Organise investments and other assets into wallets or portfolio groups without losing live valuation rollups.",
+    endpoint: "/asset-groups",
+    emptyTitle: "No asset groups",
+    emptyDescription: "Create a group to organise related investments, properties or other holdings.",
+    titleKeys: ["name"],
+    subtitleKeys: ["institution_name", "source", "asset_count"],
+    crud: {
+      create: true,
+      edit: true,
+      delete: true,
+      fields: groupFields("wallet", "#0EA5E9"),
+    },
+  },
   rules: {
     key: "rules",
     title: "Automation rules",
@@ -136,6 +169,23 @@ export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
         { key: "is_ignored", label: "Ignore in analytics", type: "checkbox", defaultValue: false },
         { key: "is_hidden", label: "Hide category", type: "checkbox", defaultValue: false, editOnly: true },
       ],
+    },
+  },
+  "category-groups": {
+    key: "category-groups",
+    title: "Category groups",
+    eyebrow: "Taxonomy structure",
+    description: "Group spending and income categories into clean reporting sections while preserving protected system groups.",
+    endpoint: "/category-groups",
+    emptyTitle: "No category groups",
+    emptyDescription: "Create a category group to structure reports, budgets and transaction classification.",
+    titleKeys: ["name"],
+    subtitleKeys: ["icon", "color", "is_system"],
+    crud: {
+      create: true,
+      edit: true,
+      delete: true,
+      fields: groupFields("folder", "#6B7280", true),
     },
   },
   payees: {
