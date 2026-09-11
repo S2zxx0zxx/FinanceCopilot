@@ -95,7 +95,7 @@ config:
 backend:
   replicaCount: 1
   image:
-    repository: ghcr.io/S2zxx0zxx/FinanceCopilot-backend
+    repository: ghcr.io/S2zxx0zxx/fincopilot-backend
     tag: latest
     pullPolicy: IfNotPresent
   service:
@@ -114,7 +114,7 @@ frontend:
   backendUrl: ""
   replicaCount: 1
   image:
-    repository: ghcr.io/S2zxx0zxx/FinanceCopilot-frontend
+    repository: ghcr.io/S2zxx0zxx/fincopilot-frontend
     tag: latest
     pullPolicy: IfNotPresent
   service:
