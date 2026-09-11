@@ -21,11 +21,6 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     )
 
     if TYPE_CHECKING:
-        # fastapi-users declares its inherited columns as plain types (e.g.
-        # `email: str`) under its own TYPE_CHECKING branch, so `ty` can't see
-        # them as SQLAlchemy `Mapped` attributes (`.ilike()`, `.in_()`, ...).
-        # Re-annotate them here so type checkers treat them as real mapped
-        # columns everywhere.
         id: Mapped[uuid.UUID]
         email: Mapped[str]
         hashed_password: Mapped[str]
@@ -43,6 +38,13 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         },
     )
 
+    # FinCopilot profile identity. These fields intentionally live on the
+    # engine user so Personal Hub is first-class data rather than a separate
+    # frontend-only profile store.
+    display_name: Mapped[Optional[str]] = mapped_column(String(160), nullable=True, default=None)
+    avatar_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="account", server_default="account")
+    preset_avatar_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default=None)
+
     totp_secret: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, default=None)
     is_2fa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     oidc_issuer: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
@@ -55,6 +57,5 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     @property
     def primary_currency(self) -> str:
-        """Return the user's configured primary currency."""
         from app.core.config import get_settings
         return (self.preferences or {}).get("currency_display", get_settings().default_currency)
