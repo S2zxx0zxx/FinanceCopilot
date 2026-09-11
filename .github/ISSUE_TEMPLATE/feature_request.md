@@ -6,7 +6,7 @@ labels: enhancement
 assignees: ""
 ---
 
-> Planning something large or a change to a core part of FinCopilot? Starting here is exactly right. Opening this issue first lets us align on the idea and timing before you build, which gives your contribution the clearest path to being merged. You're also welcome to talk it through on [Discord](https://discord.gg/rUqTKtQ9S4).
+> Planning something large or a change to a core part of FinCopilot? Starting here is exactly right. Opening this issue first lets maintainers align on the problem, user impact, migration risk and implementation scope before code is written.
 
 ## Problem
 
@@ -20,6 +20,10 @@ A clear description of what you want to happen.
 
 Any alternative solutions or features you've considered.
 
+## Product / Data Impact
+
+Does this affect accounts, transactions, workspaces, authentication, imports, external providers, database migrations, or user privacy?
+
 ## Additional Context
 
-Any other context, mockups, or screenshots about the feature request.
+Any other context, mockups, screenshots, or provider/API constraints.
