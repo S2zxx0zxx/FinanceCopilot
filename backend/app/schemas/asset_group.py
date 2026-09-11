@@ -1,0 +1,41 @@
+import uuid
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
+
+class AssetGroupBase(BaseModel):
+    name: str
+    icon: str = "wallet"
+    color: str = "#0EA5E9"
+    position: int = 0
+
+
+class AssetGroupCreate(AssetGroupBase):
+    pass
+
+
+class AssetGroupUpdate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    position: Optional[int] = None
+
+
+class AssetGroupRead(AssetGroupBase):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    source: str = "manual"
+    connection_id: Optional[uuid.UUID] = None
+    # The originating institution — preserved as context even if the user
+    # renames the wallet to something like "Renda Fixa Longo Prazo".
+    # Null for manual wallets, a bank/broker name for synced ones.
+    institution_name: Optional[str] = None
+    # Convenience rollup — filled by the service. Expressed in the group's
+    # asset currencies without conversion; the frontend already handles
+    # multi-currency totals.
+    asset_count: int = 0
+    current_value: float = 0.0
+    current_value_primary: float = 0.0
+
+    model_config = ConfigDict(from_attributes=True)

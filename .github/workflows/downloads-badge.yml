@@ -1,0 +1,57 @@
+name: Downloads Badge
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+jobs:
+  update-badge:
+    name: Update Downloads Badge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch GHCR download counts
+        id: downloads
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          count() {
+            curl -sfL "https://github.com/${REPOSITORY}/pkgs/container/$1" \
+              | grep -A1 'Total downloads' \
+              | grep -oE 'title="[0-9]+"' \
+              | grep -oE '[0-9]+' || true
+          }
+          backend=$(count fincopilot-backend)
+          frontend=$(count fincopilot-frontend)
+          if [ -z "$backend" ] || [ -z "$frontend" ]; then
+            echo "Packages are not published yet; no badge update required."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          min=$(( backend < frontend ? backend : frontend ))
+          pretty=$(awk -v n="$min" 'BEGIN {
+            if (n < 1000) { out = sprintf("%d", n) }
+            else {
+              k = n / 1000
+              out = (k < 10) ? sprintf("%.1f", k) : sprintf("%.0f", k)
+              sub(/\.0$/, "", out)
+              out = out "k"
+            }
+            printf "%s", out
+          }')
+          echo "Backend: $backend, Frontend: $frontend, Badge: $pretty"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "count=$pretty" >> "$GITHUB_OUTPUT"
+          echo "FinCopilot downloads: $pretty" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update configured gist badge
+        if: steps.downloads.outputs.available == 'true' && vars.DOWNLOADS_BADGE_GIST_ID != ''
+        uses: schneegans/dynamic-badges-action@v1.9.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.DOWNLOADS_BADGE_GIST_ID }}
+          filename: downloads.json
+          label: downloads
+          message: ${{ steps.downloads.outputs.count }}
+          color: blue

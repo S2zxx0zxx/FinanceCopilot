@@ -1,0 +1,178 @@
+name: fincopilot
+
+# podman-compose groups all services into a single pod by default, which
+# interferes with per-service port mapping and networking. Disabling it makes
+# podman-compose behave like Docker Compose. Docker ignores unknown top-level
+# x- keys.
+x-podman:
+  in_pod: false
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/fincopilot
+  SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production}
+  DEBUG: ${DEBUG:-true}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}
+  WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-FinCopilot}
+  WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-}
+  WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-}
+  PLUGGY_CLIENT_ID: ${PLUGGY_CLIENT_ID:-}
+  PLUGGY_CLIENT_SECRET: ${PLUGGY_CLIENT_SECRET:-}
+  PLUGGY_OAUTH_REDIRECT_URI: ${PLUGGY_OAUTH_REDIRECT_URI:-}
+  ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
+  ENABLE_BANKING_PRIVATE_KEY_FILE: ${ENABLE_BANKING_PRIVATE_KEY_FILE:-/app/secrets/enable_banking_private.pem}
+  ENABLE_BANKING_API_URL: ${ENABLE_BANKING_API_URL:-https://api.enablebanking.com}
+  ENABLE_BANKING_OAUTH_REDIRECT_URI: ${ENABLE_BANKING_OAUTH_REDIRECT_URI:-}
+  SIMPLEFIN_ENABLED: ${SIMPLEFIN_ENABLED:-false}
+  SIMPLEFIN_API_URL: ${SIMPLEFIN_API_URL:-https://beta-bridge.simplefin.org}
+  OIDC_ENABLED: ${OIDC_ENABLED:-false}
+  OIDC_PROVIDER_NAME: ${OIDC_PROVIDER_NAME:-OIDC}
+  OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL:-}
+  OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+  OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+  OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
+  OIDC_SCOPES: ${OIDC_SCOPES:-openid email profile}
+  OIDC_AUTO_REGISTER: ${OIDC_AUTO_REGISTER:-true}
+  OIDC_EXISTING_USER_LINK_MODE: ${OIDC_EXISTING_USER_LINK_MODE:-disabled}
+  OIDC_REQUIRE_VERIFIED_EMAIL: ${OIDC_REQUIRE_VERIFIED_EMAIL:-true}
+  OIDC_SYNC_ROLES: ${OIDC_SYNC_ROLES:-false}
+  OIDC_ROLES_CLAIM: ${OIDC_ROLES_CLAIM:-groups}
+  OIDC_ADMIN_ROLES: ${OIDC_ADMIN_ROLES:-}
+  OIDC_WORKSPACE_ROLE_MAP: ${OIDC_WORKSPACE_ROLE_MAP:-}
+  LOCAL_AUTH_ENABLED: ${LOCAL_AUTH_ENABLED:-true}
+  REDIS_URL: redis://redis:6379/0
+  OPENEXCHANGERATES_APP_ID: ${OPENEXCHANGERATES_APP_ID:-}
+  FX_SYNC_MODE: ${FX_SYNC_MODE:-on_demand}
+  TESOURO_DIRETO_ENABLED: ${TESOURO_DIRETO_ENABLED:-true}
+  STORAGE_LOCAL_PATH: /app/data/attachments
+  AGENTS_KNOWLEDGE_STORAGE_PATH: /app/data/agent_knowledge
+  # Agents/LLM feature — opt-in. Off by default so existing users pay
+  # zero cost. Run `docker compose --profile agents up` after enabling.
+  AGENTS_ENABLED: ${AGENTS_ENABLED:-false}
+  AGENTS_BUILTIN_MCP_URL: ${AGENTS_BUILTIN_MCP_URL:-http://mcp-server:8765/mcp}
+  # Public URL external agents use to reach the built-in MCP server, shown in
+  # the "External MCP access" panel. Blank → the UI derives it from the browser
+  # (host:8765). Set when the MCP server sits behind an ingress/reverse proxy.
+  AGENTS_EXTERNAL_MCP_URL: ${AGENTS_EXTERNAL_MCP_URL:-}
+  AGENTS_EXTRA_MCP_SERVERS: ${AGENTS_EXTRA_MCP_SERVERS:-}
+  AGENTS_MCP_JWT_SECRET: ${AGENTS_MCP_JWT_SECRET:-dev-mcp-secret-change-in-production}
+  # TTL for tokens minted from /agents/connections → "External MCP access".
+  # Used by Claude Desktop, n8n, custom clients plugging into FinCopilot.
+  AGENTS_MCP_EXTERNAL_TTL_DAYS: ${AGENTS_MCP_EXTERNAL_TTL_DAYS:-90}
+  # LLM provider config — only the provider you actually use needs setting.
+  AGENTS_DEFAULT_PROVIDER: ${AGENTS_DEFAULT_PROVIDER:-ollama}
+  AGENTS_DEFAULT_MODEL: ${AGENTS_DEFAULT_MODEL:-}
+  AGENTS_OLLAMA_BASE_URL: ${AGENTS_OLLAMA_BASE_URL:-http://ollama:11434}
+  AGENTS_OPENAI_API_KEY: ${AGENTS_OPENAI_API_KEY:-}
+  AGENTS_ANTHROPIC_API_KEY: ${AGENTS_ANTHROPIC_API_KEY:-}
+  AGENTS_OPENAI_COMPAT_BASE_URL: ${AGENTS_OPENAI_COMPAT_BASE_URL:-}
+  AGENTS_OPENAI_COMPAT_API_KEY: ${AGENTS_OPENAI_COMPAT_API_KEY:-}
+  # Knowledge-base embeddings. `native` (default) uses fastembed with a
+  # bundled multilingual model — zero external setup. Override with
+  # ollama/openai/openai_compatible for better quality.
+  AGENTS_EMBEDDING_PROVIDER: ${AGENTS_EMBEDDING_PROVIDER:-native}
+  AGENTS_EMBEDDING_MODEL: ${AGENTS_EMBEDDING_MODEL:-sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+
+x-backend-base: &backend-base
+  build: ./backend
+  environment: *backend-env
+  # Lets a connection point at a model server running on the host (LM Studio,
+  # Ollama, llama.cpp) as http://host.docker.internal:<port>. Docker Desktop
+  # resolves the name on its own; this makes it work on Linux too.
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  volumes:
+    - ./backend:/app
+    - ./secrets:/app/secrets:ro
+    - attachments:/app/data/attachments
+    - agent_knowledge:/app/data/agent_knowledge
+    - agent_embedding_models:/app/data/embedding_models
+  restart: unless-stopped
+
+services:
+  redis:
+    image: docker.io/library/redis:8-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  db:
+    # docker.io/pgvector/pgvector:pg16 is a drop-in replacement for postgres:16
+    # that ships the `vector` extension. Required for the agents
+    # knowledge base; harmless when AGENTS_ENABLED=false.
+    image: ${DB_IMAGE:-docker.io/pgvector/pgvector:pg16}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fincopilot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    <<: *backend-base
+    command:
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port
+      8000 --reload"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      BACKEND_URL: http://backend:8000
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+
+  celery-worker:
+    <<: *backend-base
+    # Limit to 2 workers to save RAM (default = number of CPUs).
+    command: celery -A app.worker worker --loglevel=info --concurrency=2
+
+  celery-beat:
+    <<: *backend-base
+    command: celery -A app.worker beat --loglevel=info
+
+  # Optional: FinCopilot built-in MCP server. Only starts under the `agents`
+  # profile (`docker compose --profile agents up`). Reuses the backend
+  # image, just runs a different uvicorn entry point. Modular by design —
+  # users not using the agents feature pay zero cost.
+  #
+  # The port is published on the host (127.0.0.1 by default) so external
+  # agents — Claude Desktop, n8n, custom clients — can reach it after
+  # minting a token from the UI. JWT auth is always required. Override
+  # AGENTS_MCP_EXTERNAL_HOST_PORT to e.g. "0.0.0.0:8765" to expose to LAN.
+  mcp-server:
+    <<: *backend-base
+    profiles: [agents]
+    command: uvicorn mcp_server.main:app --host 0.0.0.0 --port 8765
+    ports:
+      - "${AGENTS_MCP_EXTERNAL_HOST_PORT:-127.0.0.1:8765}:8765"
+
+volumes:
+  pgdata:
+  attachments:
+  agent_knowledge:
+  agent_embedding_models:

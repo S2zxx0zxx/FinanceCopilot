@@ -1,0 +1,46 @@
+name: label guard
+
+on:
+  issues:
+    types: [labeled, unlabeled]
+  pull_request_target:
+    types: [labeled, unlabeled]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  revert:
+    if: >-
+      startsWith(github.event.label.name, 'prio:') ||
+      startsWith(github.event.label.name, 'risk:') ||
+      startsWith(github.event.label.name, 'roadmap:')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const OWNERS = ['S2zxx0zxx'];
+            const actor = context.payload.sender.login;
+            if (actor === 'github-actions[bot]' || OWNERS.includes(actor)) return;
+
+            const target = context.payload.issue || context.payload.pull_request;
+            const label = context.payload.label.name;
+            const repo = context.repo;
+            const n = target.number;
+
+            if (context.payload.action === 'labeled') {
+              await github.rest.issues.removeLabel(
+                { ...repo, issue_number: n, name: label }).catch(() => {});
+            } else {
+              await github.rest.issues.addLabels(
+                { ...repo, issue_number: n, labels: [label] }).catch(() => {});
+            }
+
+            await github.rest.issues.createComment({
+              ...repo, issue_number: n,
+              body: `Reverted \`${label}\`. The **prio**, **risk** and **roadmap** ` +
+                    `axes are set during triage only, so that the priority shown here ` +
+                    `always matches the published criteria. See PRIORITIZATION.md.`
+            });

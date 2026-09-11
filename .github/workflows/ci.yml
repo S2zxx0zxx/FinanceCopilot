@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/securo-foundation-migration]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install -q uv==0.12.10
+          uv export --frozen --all-extras --no-emit-project -o /tmp/requirements-dev.txt
+          pip install --require-hashes -r /tmp/requirements-dev.txt
+          pip install --no-deps -e .
+      - name: Verify lockfile is in sync
+        run: uv lock --check
+      - name: Lint with Ruff
+        run: ruff check .
+      - name: Type check with ty
+        run: ty check .
+      - name: Run tests with coverage
+        run: pytest -n auto --dist loadfile --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=60 -ra -W error
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: backend/coverage.xml
+
+  migration-chain:
+    name: Migration Chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check the Alembic revision chain
+        run: python3 backend/scripts/check_migration_chain.py
+
+  frontend-checks:
+    name: FinCopilot Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZmluY29waWxvdC5sb2NhbCQ
+      BACKEND_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+      - name: Type check and production build
+        run: npm run build
+      - name: Verify standalone output
+        run: test -f .next/standalone/server.js
+
+  infrastructure:
+    name: Helm and Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: v4.2.4
+      - name: Lint Helm chart
+        run: helm lint charts/fincopilot
+      - name: Render Helm chart
+        run: helm template fincopilot-test charts/fincopilot >/tmp/fincopilot.yaml
+      - name: Validate development Compose
+        run: docker compose -f docker-compose.yml config --quiet
+      - name: Validate production Compose
+        run: docker compose -f docker-compose.prod.yml config --quiet
