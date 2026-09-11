@@ -1,40 +1,43 @@
 import { ApiError, getAuthToken } from "./api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+const WORKSPACE_KEY = "fincopilot.active-workspace";
+
+export function getActiveWorkspaceId(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(WORKSPACE_KEY);
+}
+
+export function setActiveWorkspaceId(id: string | null): void {
+  if (typeof window === "undefined") return;
+  if (id) window.localStorage.setItem(WORKSPACE_KEY, id);
+  else window.localStorage.removeItem(WORKSPACE_KEY);
+  window.dispatchEvent(new CustomEvent("fincopilot:workspace-change", { detail: id }));
+}
 
 async function authenticatedResponse(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const token = await getAuthToken();
   const headers = new Headers(options.headers);
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
-  if (options.body && !isFormData && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
+  if (options.body && !isFormData && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  const workspaceId = getActiveWorkspaceId();
+  if (workspaceId && !headers.has("X-Workspace-Id")) headers.set("X-Workspace-Id", workspaceId);
 
   const normalized = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  const response = await fetch(`${API_BASE}${normalized}`, {
-    ...options,
-    headers,
-    cache: "no-store",
-  });
+  const response = await fetch(`${API_BASE}${normalized}`, { ...options, headers, cache: "no-store" });
 
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
     try {
       const payload = await response.clone().json();
       const detail = payload?.detail;
-      message = typeof detail === "string"
-        ? detail
-        : detail?.message || payload?.message || payload?.error || message;
+      message = typeof detail === "string" ? detail : detail?.message || payload?.message || payload?.error || message;
     } catch {
-      try {
-        const text = await response.clone().text();
-        if (text.trim()) message = text.trim();
-      } catch {}
+      try { const text = await response.clone().text(); if (text.trim()) message = text.trim(); } catch {}
     }
     throw new ApiError(message, response.status);
   }
-
   return response;
 }
 
@@ -51,14 +54,12 @@ export async function engineBlob(endpoint: string, options: RequestInit = {}): P
 
 export const engineApi = {
   get: <T = unknown>(endpoint: string) => engineFetch<T>(endpoint),
-  post: <T = unknown>(endpoint: string, body?: unknown) =>
-    engineFetch<T>(endpoint, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) }),
-  put: <T = unknown>(endpoint: string, body?: unknown) =>
-    engineFetch<T>(endpoint, { method: "PUT", body: body === undefined ? undefined : JSON.stringify(body) }),
-  patch: <T = unknown>(endpoint: string, body?: unknown) =>
-    engineFetch<T>(endpoint, { method: "PATCH", body: body === undefined ? undefined : JSON.stringify(body) }),
+  post: <T = unknown>(endpoint: string, body?: unknown) => engineFetch<T>(endpoint, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) }),
+  put: <T = unknown>(endpoint: string, body?: unknown) => engineFetch<T>(endpoint, { method: "PUT", body: body === undefined ? undefined : JSON.stringify(body) }),
+  patch: <T = unknown>(endpoint: string, body?: unknown) => engineFetch<T>(endpoint, { method: "PATCH", body: body === undefined ? undefined : JSON.stringify(body) }),
   delete: <T = unknown>(endpoint: string) => engineFetch<T>(endpoint, { method: "DELETE" }),
-  form: <T = unknown>(endpoint: string, formData: FormData, method: "POST" | "PATCH" = "POST") =>
-    engineFetch<T>(endpoint, { method, body: formData }),
+  form: <T = unknown>(endpoint: string, formData: FormData, method: "POST" | "PATCH" = "POST") => engineFetch<T>(endpoint, { method, body: formData }),
   blob: (endpoint: string, options: RequestInit = {}) => engineBlob(endpoint, options),
+  getActiveWorkspaceId,
+  setActiveWorkspaceId,
 };
