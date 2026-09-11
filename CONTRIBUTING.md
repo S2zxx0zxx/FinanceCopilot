@@ -1,184 +1,100 @@
 # Contributing to FinCopilot
 
-Thanks for your interest in contributing to FinCopilot! This guide will help you get started.
+Thanks for helping improve FinCopilot. This repository contains the FinCopilot product experience, finance services, background workers and deployment tooling.
 
-## Getting Started
+## Getting started
 
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/your-username/fincopilot.git`
-3. Start the stack: `docker compose up --build`
-4. Open [http://localhost:3000](http://localhost:3000)
+1. Fork the repository.
+2. Clone your fork: `git clone https://github.com/your-username/FinanceCopilot.git`.
+3. Copy `.env.example` to `.env` and configure the services you intend to use.
+4. Start the stack with `docker compose up --build`, or run the frontend/backend separately.
+5. Open `http://localhost:3000`.
 
-## Where to Start
+For bugs and feature ideas, use the repository issue templates. Large changes should start with an issue so scope, migration impact and product behaviour are clear before implementation.
 
-New here? The smoothest first contribution is a small, self-contained one:
+## Architecture
 
-- Browse the [open issues](https://github.com/S2zxx0zxx/FinanceCopilot/issues), especially those labeled `good first issue` or `help wanted`, and pick something that already has a clear scope.
-- Small bug fixes, docs improvements, and translation updates are always welcome and don't need any prior discussion, just open the PR.
-- Comment on an issue to let others know you're picking it up, so two people don't work on the same thing.
+- `frontend/` — Next.js + React + TypeScript + Tailwind CSS
+- `backend/` — FastAPI + SQLAlchemy + Alembic + Celery
+- PostgreSQL + pgvector — primary database and agent knowledge vectors
+- Redis — background jobs and shared runtime state
+- `charts/fincopilot/` — Helm packaging
+- Docker Compose — local/self-hosted orchestration
+- `fincopilot-landing/` — protected FinCopilot landing application; do not casually modify it as part of finance-app work
 
-Starting from an existing issue means the work is already something we want, so your PR has a clear path to being merged.
+The application-facing API contract remains `/api/v1`. Backend domain routers are canonical under `/api`, with the compatibility middleware mapping the FinCopilot prefix to the same implementation.
 
-## Before Large or Core Changes
+## Development workflow
 
-For anything bigger, a new feature, a refactor, or a change to a core mechanism (accounts, transactions, budgets, the rules engine, workspaces, sync, and similar), we'd love to talk it through **before** you write the code. It helps us confirm the idea fits the project's direction and that it's the right moment to build it, and it saves you from investing time in a PR that might not land.
+1. Create a branch from `main`: `git checkout -b feature/your-feature`.
+2. Make focused changes.
+3. Add or update tests for behavioural changes.
+4. Run the checks below.
+5. Open a pull request with the problem, approach and verification steps.
 
-Good ways to align first:
-
-- Open a [feature request](.github/ISSUE_TEMPLATE/feature_request.md) describing what you'd like to build.
-- Comment on the related issue if one already exists.
-- Chat with us on [Discord](https://discord.gg/rUqTKtQ9S4).
-
-Once there's a shared understanding, go ahead and build. Large PRs that arrive without any prior discussion are harder to review and sometimes don't align with where the project is heading, so a quick conversation up front is the best way to make your contribution count.
-
-## Using AI
-
-Use it. We do. Parts of this codebase were written with AI. This isn't a policy against the tools.
-
-It's a policy about ownership. **We don't review the AI, we review you.** When a PR arrives, the questions are the same as they've always been: does this person understand what they're proposing, can they explain why it's built this way, and will they still be around if it breaks. Whatever produced the diff doesn't change any of that.
-
-So whatever you use, before you open the PR:
-
-- **You own the approach, not just the output.** You decided the strategy and delegated the typing. If the model picked the architecture and you went along with it, you don't know the change well enough to defend it in review.
-- **You're the quality gate.** The change holds to the standards of the code already here: naming, structure, tests, error handling. AI writes plausible code, and plausible isn't the bar.
-- **It fits where the product is going.** A change can work and still be wrong for FinCopilot. Whether it belongs here is your call before it's ours.
-- **You ran it.** Not "the tests should pass" — you ran them, you ran the app, you saw the change work.
-- **The scope is what the issue asked for.** AI is generous with refactors nobody requested. Strip them. A thirty-file diff for a one-line bug goes back.
-- **You're accountable after it merges.** If it breaks in three weeks, you're who we come to.
-
-We won't ask which tools you used and we won't try to detect them. We'll read the code and ask questions. Contributors who understand their own work pass easily, and that was true long before any of this.
-
-The same applies to issues. An issue produced by pointing a model at the repository and asking it to find problems is not a bug report. Tell us what you did, what happened, and what you expected.
-
-## Development Workflow
-
-1. Create a branch from `main`: `git checkout -b feature/your-feature`
-2. Make your changes
-3. Run backend tests: `cd backend && uv sync --all-extras && uv run pytest` (Python 3.11+)
-4. Run frontend checks: `cd frontend && npm run lint && npm test`
-5. Commit with a clear message (see below)
-6. Push your branch and open a Pull Request
-
-Optional but recommended, so you catch lint and type errors before CI does:
+### Backend
 
 ```bash
-prek install                                   # once, from the repo root
-# or, if you prefer the Python original:
-pip install pre-commit && pre-commit install
-```
-
-This runs `ruff check` and `ty check` on the backend whenever you commit a
-`backend/*.py` file. Both read their config from `backend/pyproject.toml`, so
-local and CI stay in sync.
-
-[prek](https://github.com/j178/prek) is a drop-in replacement for pre-commit:
-same `.pre-commit-config.yaml`, but a single binary with no Python bootstrap.
-
-### Frontend tests
-
-Vitest and Testing Library. Render through `renderWithProviders` from
-`@/test/utils`, which wires up TanStack Query, the router and i18n, and import
-with the `@/` alias rather than a relative path. Assert on what the user sees:
-the rendered text, the disabled button, the error that appears on a failed
-request.
-
-### Adding a frontend dependency
-
-`frontend/.npmrc` never runs a package's install scripts, and asks npm to skip
-releases younger than seven days so a compromised publish has time to be caught.
-The cooldown needs npm 11.10 or newer; the npm that ships with Node 22 is older
-and will ignore that line without saying so, so upgrade before you add anything:
-
-```bash
-npm install --global npm@latest
-cd frontend && npm install <package>     # commit package.json and package-lock.json
-```
-
-If the package you want was published in the last week, npm resolves the release
-before it. That is the point — wait, or say in the PR why you can't.
-Either works.
-
-## Commit Messages
-
-Use clear, descriptive commit messages:
-
-- `feat: add CSV export for transactions`
-- `fix: correct balance calculation on account closure`
-- `docs: update setup instructions`
-- `refactor: simplify rule engine matching`
-
-## Running Tests
-
-```bash
-# Backend tests (run from backend/, needs Python 3.11+; same as CI)
 cd backend
-uv sync --all-extras   # first time only — builds .venv from uv.lock, same versions as CI
-source .venv/bin/activate
-pytest
-
-# No uv? pip works too, from an export of the lock:
-#   pip install uv && uv export --frozen --all-extras --no-emit-project -o /tmp/req.txt
-#   pip install --require-hashes -r /tmp/req.txt && pip install --no-deps -e .
-
-# Backend tests with coverage
-pytest --cov=app --cov-report=term-missing
-
-# Backend lint + type check (same commands CI runs)
+pip install -q uv==0.12.10
+uv export --frozen --all-extras --no-emit-project -o /tmp/requirements-dev.txt
+pip install --require-hashes -r /tmp/requirements-dev.txt
+pip install --no-deps -e .
 ruff check .
 ty check .
-
-# After changing dependencies in pyproject.toml: regenerate the lock and
-# commit uv.lock along with it (CI enforces this)
-./scripts/lock.sh
-
-# After adding a migration: check the revision chain is still a single line
+pytest
 python3 scripts/check_migration_chain.py
-
-# Frontend lint
-cd frontend && npm run lint
-
-# Frontend build check
-cd frontend && npm run build
 ```
 
-### Adding a migration
+Database migrations are append-only history. New FinCopilot-specific migrations continue after the current Alembic head; do not rewrite an already-shipped migration.
 
-Number the file after the current head and chain it there, so
-`backend/alembic/versions/` sorts in apply order:
+### Frontend
 
-```python
-revision: str = "076"
-down_revision: Union[str, None] = "075"
+```bash
+cd frontend
+npm ci
+npm run lint
+npm run build
+npm run dev
 ```
 
-If another migration lands on `main` while your PR is open, your number is
-taken and you have to renumber. CI catches this: the Migration Chain job runs
-against your branch merged with `main`, so a clash fails there rather than on
-someone's `alembic upgrade head` after both are merged.
+The current frontend uses the Next.js App Router. Prefer existing FinCopilot design tokens/components and keep responsive, keyboard and screen-reader behaviour intact. Do not introduce a second client-side routing or state architecture for finance features that already fit the existing application shell.
 
-## Pull Request Guidelines
+### Containers and Helm
 
-- Keep PRs focused — one feature or fix per PR
-- Include a clear description of what changed and why
-- Make sure CI passes (tests + lint)
-- Add tests for new backend functionality
-- Update translations if adding user-facing strings (EN + PT-BR)
-
-## Project Structure
-
-```
-backend/     → FastAPI + SQLAlchemy + Celery
-frontend/    → React + TypeScript + Vite + Tailwind
-docs/        → Design and implementation docs
-scripts/     → Development utilities
+```bash
+docker compose config
+docker compose -f docker-compose.dev.yml config
+docker compose -f docker-compose.prod.yml config
+helm lint charts/fincopilot
+helm template fincopilot charts/fincopilot >/tmp/fincopilot.yaml
 ```
 
-## Reporting Issues
+## FinCopilot product rules
 
-- Use the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md) for bugs
-- Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md) for ideas
-- Check existing issues before opening a new one
+- Keep product-facing naming and UX consistently FinCopilot.
+- Preserve the canonical FinCopilot shell, Personal Hub and protected landing unless a change explicitly targets them.
+- Reuse backend domain services rather than duplicating finance logic in compatibility routes.
+- Keep Clerk compatibility working for the hosted frontend while preserving optional native auth/OIDC/passkey/TOTP capabilities for supported deployments.
+- Never commit real API keys, provider credentials, JWT secrets or private keys.
+- Bank/LLM provider work must degrade safely when credentials are not configured.
+
+## Pull request guidelines
+
+- Keep the scope focused and explain user-visible behaviour.
+- Include migration notes for schema changes.
+- Ensure backend lint/type/tests and frontend lint/build pass.
+- Mention any external credential or provider behaviour that could not be exercised locally.
+- Update documentation when setup, environment variables, routes or deployment behaviour changes.
+
+## AI-assisted contributions
+
+AI tools are welcome, but the contributor remains responsible for correctness, security, scope and maintainability. Review generated changes, understand the architecture they touch, and run the same validation expected of hand-written code.
+
+## Security
+
+Do not report security vulnerabilities in a public issue. Follow [SECURITY.md](SECURITY.md).
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [AGPL-3.0 License](LICENSE).
+By contributing, you agree that your contributions are distributed under the repository's [AGPL-3.0 License](LICENSE). Required open-source provenance is documented separately in `UPSTREAM.md`.
