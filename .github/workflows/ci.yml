@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Detect backend-relevant changes
+        id: backend-changes
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run_backend=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed_files="$(git diff --name-only HEAD^1 HEAD)"
+          printf '%s\n' "$changed_files"
+          if printf '%s\n' "$changed_files" | grep -Eq '^(backend/.*|\.github/workflows/ci\.yml)$'; then
+            echo "run_backend=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_backend=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip backend tests
+        if: steps.backend-changes.outputs.run_backend != 'true'
+        run: echo "No backend-relevant changes; skipping backend test suite."
+
+      - name: Set up Python
+        if: steps.backend-changes.outputs.run_backend == 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+
+      - name: Install dependencies
+        if: steps.backend-changes.outputs.run_backend == 'true'
+        run: |
+          pip install -q uv==0.12.10
+          uv export --frozen --all-extras --no-emit-project -o /tmp/requirements-dev.txt
+          pip install --require-hashes -r /tmp/requirements-dev.txt
+          pip install --no-deps -e .
+
+      - name: Verify lockfile is in sync
+        if: steps.backend-changes.outputs.run_backend == 'true'
+        run: uv lock --check
+
+      - name: Lint with Ruff
+        if: steps.backend-changes.outputs.run_backend == 'true'
+        run: ruff check .
+
+      - name: Type check with ty
+        if: steps.backend-changes.outputs.run_backend == 'true'
+        run: ty check .
+
+      - name: Run tests with coverage
+        if: steps.backend-changes.outputs.run_backend == 'true'
+        run: pytest -n auto --dist loadfile --cov=app --cov-report=xml --cov-report=term-missing --cov-fail-under=60 -ra -W error
+
+      - name: Upload coverage report
+        if: ${{ always() && steps.backend-changes.outputs.run_backend == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: backend/coverage.xml
+
+  migration-chain:
+    name: Migration Chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check the Alembic revision chain
+        run: python3 backend/scripts/check_migration_chain.py
+
+  frontend-checks:
+    name: Frontend Checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+      - name: Type check & Build
+        run: npm run build
+      - name: Run tests
+        run: npm test
+
+  helm-checks:
+    name: Helm Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - name: Detect helm-relevant changes
+        id: helm-changes
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run_helm=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed_files="$(git diff --name-only HEAD^1 HEAD)"
+          if echo "$changed_files" | grep -Eq '^(charts/fincopilot/.*|\.github/workflows/ci\.yml)$'; then
+            echo "run_helm=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_helm=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Skip helm checks
+        if: steps.helm-changes.outputs.run_helm != 'true'
+        run: echo "No Helm-relevant changes; skipping Helm lint."
+      - name: Set up Helm
+        if: steps.helm-changes.outputs.run_helm == 'true'
+        uses: azure/setup-helm@v5
+        with:
+          version: v4.2.4
+      - name: Lint Helm Chart
+        if: steps.helm-changes.outputs.run_helm == 'true'
+        run: helm lint charts/fincopilot
+      - name: Validate Helm Chart with Kubeconform
+        if: steps.helm-changes.outputs.run_helm == 'true'
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar -xz
+          sudo mv kubeconform /usr/local/bin/
+          helm template fincopilot-test charts/fincopilot | kubeconform -summary -strict
