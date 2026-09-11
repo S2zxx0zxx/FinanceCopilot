@@ -1,844 +1,105 @@
 "use client";
 
-import * as React from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowLeft, ArrowRight, Check, Shield, Lock, Eye, EyeOff,
-  ShieldCheck, Plane, CreditCard, Home as HomeIcon, PiggyBank,
-  Sparkles, FileSpreadsheet, FileText, Sheet, Landmark, PenLine,
-  Target, CheckCircle2,
-} from "lucide-react";
-import { formatPaise } from "@/lib/format";
-import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, ArrowRight, Check, FileInput, Landmark, PenLine, PiggyBank, ShieldCheck, Sparkles, Target } from "lucide-react";
+import { engineApi } from "@/lib/engine-api";
 import { api, ApiError } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
-const GOAL_TYPES = [
-  {
-    id: "emergency_fund",
-    name: "Emergency Fund",
-    description: "Build a safety net for unexpected events",
-    icon: ShieldCheck,
-    suggestedTargetPaise: 1500000,
-    suggestedMonths: 6,
-  },
-  {
-    id: "vacation",
-    name: "Vacation",
-    description: "Save for your next trip abroad or weekend escape",
-    icon: Plane,
-    suggestedTargetPaise: 4000000,
-    suggestedMonths: 6,
-  },
-  {
-    id: "debt_payoff",
-    name: "Debt Payoff",
-    description: "Clear credit cards and loans faster",
-    icon: CreditCard,
-    suggestedTargetPaise: 1000000,
-    suggestedMonths: 6,
-  },
-  {
-    id: "save_home",
-    name: "Save for Home",
-    description: "Save for a down payment on a home",
-    icon: HomeIcon,
-    suggestedTargetPaise: 20000000,
-    suggestedMonths: 36,
-  },
-  {
-    id: "retirement",
-    name: "Retirement",
-    description: "Build long-term wealth for your future",
-    icon: PiggyBank,
-    suggestedTargetPaise: 50000000,
-    suggestedMonths: 240,
-  },
-  {
-    id: "custom",
-    name: "Custom Goal",
-    description: "Set any personal financial target",
-    icon: Sparkles,
-    suggestedTargetPaise: 1000000,
-    suggestedMonths: 12,
-  },
-] as const;
+type GoalPreset = { id: string; name: string; description: string; target: number; months: number };
+type DataSource = { id: "bank" | "import" | "manual"; name: string; description: string; href: string; Icon: typeof Landmark };
 
-const IMPORT_METHODS = [
-  {
-    id: "csv",
-    name: "CSV Import",
-    description: "Upload a bank statement CSV file",
-    icon: FileSpreadsheet,
-  },
-  {
-    id: "pdf",
-    name: "PDF Statement",
-    description: "We'll parse your bank PDFs automatically",
-    icon: FileText,
-  },
-  {
-    id: "excel",
-    name: "Excel Import",
-    description: "Upload .xlsx or .xls spreadsheet",
-    icon: Sheet,
-  },
-  {
-    id: "bank",
-    name: "Bank Connection",
-    description: "Connect via secure bank API (recommended)",
-    icon: Landmark,
-    badge: "Recommended" as string | undefined,
-  },
-  {
-    id: "manual",
-    name: "Manual Entry",
-    description: "Add transactions by hand, one at a time",
-    icon: PenLine,
-  },
+const GOALS: GoalPreset[] = [
+  { id: "emergency", name: "Emergency fund", description: "Build a liquid safety buffer for unexpected costs.", target: 150000, months: 6 },
+  { id: "vacation", name: "Vacation", description: "Save for a trip without disturbing your monthly cash flow.", target: 200000, months: 8 },
+  { id: "debt", name: "Debt payoff", description: "Create a visible target while you reduce expensive debt.", target: 100000, months: 6 },
+  { id: "home", name: "Home fund", description: "Build a down-payment target over a longer horizon.", target: 2000000, months: 36 },
+  { id: "wealth", name: "Long-term wealth", description: "Track a long-range milestone alongside your investments.", target: 5000000, months: 120 },
 ];
+const SOURCES: DataSource[] = [
+  { id: "bank", name: "Connect a bank", description: "Use a configured open-finance provider and sync accounts automatically.", href: "/finance/connections", Icon: Landmark },
+  { id: "import", name: "Import finance files", description: "Import the engine-supported CSV, OFX, QIF or CAMT formats with preview and history.", href: "/finance/imports", Icon: FileInput },
+  { id: "manual", name: "Start manually", description: "Create accounts and transactions yourself; connect or import later whenever you want.", href: "/accounts", Icon: PenLine },
+];
+const STEPS = ["Welcome", "Privacy", "Goal", "Data"];
 
-const STEP_LABELS = ["Welcome", "Privacy", "Goal", "Connect"];
+function addMonths(months: number) {
+  const date = new Date();
+  date.setMonth(date.getMonth() + months);
+  return date.toISOString().slice(0, 10);
+}
 
 export default function OnboardingPage() {
   const { toast } = useToast();
-  const [step, setStep] = React.useState(0);
-  const [direction, setDirection] = React.useState(1);
+  const [step, setStep] = useState(0);
+  const [consented, setConsented] = useState(false);
+  const [goalId, setGoalId] = useState("emergency");
+  const preset = useMemo(() => GOALS.find((item) => item.id === goalId) ?? GOALS[0], [goalId]);
+  const [target, setTarget] = useState(String(GOALS[0].target));
+  const [months, setMonths] = useState(String(GOALS[0].months));
+  const [source, setSource] = useState<DataSource["id"]>("bank");
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [firstName, setFirstName] = useState("there");
 
-  // Step 2 state
-  const [consented, setConsented] = React.useState(false);
-
-  // Step 3 state
-  const [selectedGoal, setSelectedGoal] = React.useState<string | null>(null);
-  const [targetPaise, setTargetPaise] = React.useState<number>(1500000);
-  const [timelineMonths, setTimelineMonths] = React.useState<number>(6);
-
-  // Step 4 state
-  const [selectedImport, setSelectedImport] = React.useState<string | null>(null);
-  const [connecting, setConnecting] = React.useState(false);
-  const [connected, setConnected] = React.useState(false);
-
-  // User display name (fetched after onboarding completes for the success screen)
-  const [userFirstName, setUserFirstName] = React.useState<string>("there");
-
-  const goTo = (newStep: number) => {
-    setDirection(newStep > step ? 1 : -1);
-    setStep(newStep);
-  };
-  const next = () => goTo(Math.min(3, step + 1));
-  const back = () => goTo(Math.max(0, step - 1));
-
-  const selectGoal = (goalId: string) => {
-    const goal = GOAL_TYPES.find((g) => g.id === goalId);
-    if (goal) {
-      setSelectedGoal(goalId);
-      setTargetPaise(goal.suggestedTargetPaise);
-      setTimelineMonths(goal.suggestedMonths);
-    }
+  const chooseGoal = (id: string) => {
+    const item = GOALS.find((goal) => goal.id === id);
+    if (!item) return;
+    setGoalId(id); setTarget(String(item.target)); setMonths(String(item.months));
   };
 
-  const handleConnect = async () => {
-    if (!selectedImport) return;
-    setConnecting(true);
+  const canNext = step === 0 || (step === 1 && consented) || (step === 2 && Number(target) > 0 && Number(months) > 0) || step === 3;
+  const selectedSource = SOURCES.find((item) => item.id === source) ?? SOURCES[0];
+
+  const finish = async () => {
+    const targetAmount = Number(target); const timeline = Number(months);
+    if (!Number.isFinite(targetAmount) || targetAmount <= 0 || !Number.isFinite(timeline) || timeline <= 0) return;
+    setSaving(true);
     try {
-      // 1. Persist the chosen goal (if any) before completing onboarding.
-      if (selectedGoal) {
-        try {
-          await api.createGoal({
-            name: GOAL_TYPES.find((g) => g.id === selectedGoal)?.name || selectedGoal,
-            goal_type: selectedGoal,
-            target_amount_paise: targetPaise,
-            monthly_contribution_paise: Math.ceil(targetPaise / Math.max(1, timelineMonths)),
-            target_date: new Date(Date.now() + timelineMonths * 30 * 86400000).toISOString().slice(0, 10),
-          });
-        } catch (err) {
-          // Goal creation is non-fatal — we still complete onboarding.
-          const msg = err instanceof ApiError ? err.message : "Couldn't save your goal.";
-          toast({ title: "Goal not saved", description: msg, variant: "destructive" });
-        }
-      }
-      // 2. Tell the backend onboarding is complete (records consent + source).
       try {
-        await api.completeOnboarding({
-          consented,
-          goal_type: selectedGoal,
-          data_source: selectedImport,
+        await engineApi.post("/goals", {
+          name: preset.name,
+          target_amount: targetAmount,
+          current_amount: 0,
+          currency: "INR",
+          target_date: addMonths(timeline),
+          tracking_type: "manual",
+          icon: "target",
+          color: "#6366F1",
         });
-      } catch (err) {
-        // Non-fatal in preview mode — surface a toast but continue so the user
-        // still sees the success screen.
-        const msg = err instanceof ApiError ? err.message : undefined;
-        toast({
-          title: "Onboarding sync issue",
-          description: msg || "We saved your choices locally; we'll retry in the background.",
-        });
+      } catch (error) {
+        toast({ title: "Goal not saved", description: error instanceof Error ? error.message : "You can add it later from Dream milestones.", variant: "destructive" });
       }
-      setConnecting(false);
-      setConnected(true);
-      // Fetch the user's real name for the success screen.
       try {
-        const me: any = await api.getMe();
-        const name: string = me?.user?.display_name || me?.display_name || me?.data?.display_name || me?.user?.displayName || "";
-        const first = name.split(" ")[0];
-        if (first) setUserFirstName(first);
-      } catch {
-        // Keep the default "there" — non-fatal.
+        await api.completeOnboarding({ consented, goal_type: goalId, data_source: source });
+      } catch (error) {
+        const description = error instanceof ApiError ? error.message : "Your finance workspace is ready; onboarding status can be retried later.";
+        toast({ title: "Onboarding status sync issue", description });
       }
-    } catch (err: unknown) {
-      setConnecting(false);
-      const msg =
-        err instanceof ApiError
-          ? err.message
-          : "We couldn't complete onboarding. Please try again.";
-      toast({
-        title: "Onboarding failed",
-        description: msg,
-        variant: "destructive",
-      });
-    }
+      try {
+        const me = await api.getMe() as Record<string, unknown>;
+        const nested = (me.user && typeof me.user === "object" ? me.user : me) as Record<string, unknown>;
+        const display = String(nested.display_name || nested.displayName || "").trim();
+        if (display) setFirstName(display.split(" ")[0]);
+      } catch {}
+      setDone(true);
+    } finally { setSaving(false); }
   };
 
-  const canProceedStep1 = true;
-  const canProceedStep2 = consented;
-  const canProceedStep3 = selectedGoal !== null && targetPaise > 0 && timelineMonths > 0;
-  const canProceedStep4 = selectedImport !== null;
+  if (done) return <div className="min-h-[70vh] grid place-items-center"><section className="premium-card p-7 sm:p-10 max-w-2xl w-full text-center"><span className="mx-auto grid size-16 place-items-center rounded-3xl bg-emerald-500/10 text-emerald-500"><Check className="size-8" /></span><p className="text-xs uppercase tracking-[.18em] text-accent mt-6">Workspace ready</p><h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">You’re set, {firstName}.</h1><p className="text-sm text-(--text-secondary) mt-3 max-w-xl mx-auto">Your first goal uses the native finance engine. Continue with the data path you selected, or open the dashboard and explore FinCopilot first.</p><div className="flex flex-col sm:flex-row justify-center gap-3 mt-7"><Link href={selectedSource.href} className="min-h-11 px-5 rounded-xl bg-accent text-white grid place-items-center">{selectedSource.name}</Link><Link href="/" className="min-h-11 px-5 rounded-xl border border-(--border) grid place-items-center">Go to dashboard</Link></div></section></div>;
 
-  const canProceed = [canProceedStep1, canProceedStep2, canProceedStep3, canProceedStep4][step];
+  return <div className="max-w-3xl mx-auto pb-12">
+    <div className="flex items-center justify-between gap-4 mb-7"><div className="flex items-center gap-2">{STEPS.map((label, index)=><button key={label} onClick={()=>setStep(index)} aria-label={`Step ${index+1}: ${label}`} className="flex items-center gap-2"><span className={`size-2.5 rounded-full ${index<=step?"bg-accent":"bg-(--surface-active)"}`} /><span className={`hidden sm:inline text-[10px] uppercase tracking-wider ${index===step?"text-(--text-primary)":"text-(--text-tertiary)"}`}>{label}</span>{index<STEPS.length-1&&<span className="hidden sm:block w-5 h-px bg-(--border)"/>}</button>)}</div><Link href="/" className="text-xs text-(--text-secondary) hover:text-accent">Skip for now</Link></div>
 
-  const variants = {
-    enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 40 : -40 }),
-    center: { opacity: 1, x: 0 },
-    exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -40 : 40 }),
-  };
+    {step===0&&<section className="premium-card p-7 sm:p-10 text-center"><span className="mx-auto grid size-16 place-items-center rounded-3xl bg-accent text-white font-display text-2xl font-bold">F</span><p className="text-xs uppercase tracking-[.18em] text-accent mt-6">FinCopilot</p><h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">One finance workspace, not disconnected demos.</h1><p className="text-sm text-(--text-secondary) mt-4 max-w-xl mx-auto">Accounts, transactions, investments, budgets, goals, rules, reports, reconciliation, imports, invoices, bank sync and AI agents all work from the same underlying finance engine.</p><div className="grid sm:grid-cols-3 gap-3 mt-7">{[{Icon:Sparkles,title:"Connected insights",text:"Reports and agents read the same ledger."},{Icon:ShieldCheck,title:"Workspace aware",text:"Security and roles follow your active workspace."},{Icon:PiggyBank,title:"Plan forward",text:"Budgets, goals and recurring money stay linked."}].map(({Icon,title,text})=><div key={title} className="rounded-xl bg-(--surface-subtle) p-4 text-left"><Icon className="size-5 text-accent"/><p className="font-medium mt-3">{title}</p><p className="text-xs text-(--text-secondary) mt-1">{text}</p></div>)}</div></section>}
 
-  return (
-    <div className="min-h-[calc(100vh-3rem)] flex flex-col">
-      {/* ── Progress dots + skip ─────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="flex items-center justify-between mb-6"
-      >
-        <div className="flex items-center gap-2">
-          {STEP_LABELS.map((label, i) => {
-            const isActive = i === step;
-            const isDone = i < step;
-            return (
-              <button
-                key={label}
-                onClick={() => goTo(i)}
-                aria-label={`Step ${i + 1}: ${label}`}
-                className="flex items-center gap-2 group"
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full transition-all duration-300"
-                  style={{
-                    background: isActive
-                      ? "var(--accent)"
-                      : isDone
-                        ? "var(--accent)"
-                        : "var(--surface-active)",
-                    transform: isActive ? "scale(1.4)" : "scale(1)",
-                    boxShadow: isActive ? "0 0 0 4px var(--accent-glow)" : "none",
-                  }}
-                />
-                <span
-                  className={`hidden sm:inline text-[11px] font-mono uppercase tracking-[0.08em] transition-colors ${
-                    isActive ? "text-foreground" : "text-(--text-tertiary)"
-                  }`}
-                >
-                  {label}
-                </span>
-                {i < STEP_LABELS.length - 1 && (
-                  <span className="hidden sm:inline w-6 h-px bg-[var(--border)] mx-1" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        {step < 3 && (
-          <Link
-            href="/"
-            className="text-[12px] font-medium text-(--text-tertiary) hover:text-foreground transition-colors"
-          >
-            Skip for now
-          </Link>
-        )}
-      </motion.div>
+    {step===1&&<section className="premium-card p-7 sm:p-10"><span className="grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent"><ShieldCheck className="size-6" /></span><h1 className="font-display font-bold text-3xl mt-5">Your data, your control</h1><p className="text-sm text-(--text-secondary) mt-3">FinCopilot needs finance data to calculate balances, cash flow and insights. You choose whether that data comes from a bank connection, supported file import or manual entry.</p><div className="space-y-3 mt-6">{["You can disconnect providers and manage imported data from your workspace.","Advanced security controls live in Security center; workspace roles control shared access.","AI features should only receive finance context when the corresponding agent/provider is enabled."].map((text)=><div key={text} className="flex gap-3 rounded-xl bg-(--surface-subtle) p-4"><Check className="size-4 text-emerald-500 mt-0.5 shrink-0"/><p className="text-sm">{text}</p></div>)}</div><label className="flex gap-3 mt-6 rounded-xl border border-(--border) p-4"><input type="checkbox" checked={consented} onChange={(event)=>setConsented(event.target.checked)} className="mt-0.5"/><span><span className="font-medium text-sm">I understand and want to continue.</span><span className="block text-xs text-(--text-secondary) mt-1">You can review privacy choices later from Your space.</span></span></label></section>}
 
-      {/* ── Step content ─────────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-full max-w-xl">
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={step}
-              custom={direction}
-              variants={variants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {/* ── STEP 1: Welcome ───────────────────────── */}
-              {step === 0 && (
-                <div className="flex flex-col items-center text-center gap-6 py-8">
-                  <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-                    className="w-20 h-20 rounded-3xl bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shadow-[var(--shadow-glow)]"
-                  >
-                    <span className="font-display font-bold text-accent-foreground text-[36px]">F</span>
-                  </motion.div>
-                  <div className="flex flex-col gap-3 max-w-md">
-                    <motion.h1
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: 0.2 }}
-                      className="font-display font-bold text-[30px] sm:text-[34px] tracking-[-0.02em]"
-                    >
-                      Welcome to FinCopilot
-                    </motion.h1>
-                    <motion.p
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: 0.3 }}
-                      className="text-[15px] text-(--text-secondary) leading-[1.6]"
-                    >
-                      Your AI co-pilot for money. Track spending, plan goals,
-                      forecast cash flow, and chat with your finances — all in one
-                      calm, beautiful place.
-                    </motion.p>
-                  </div>
+    {step===2&&<section className="premium-card p-7 sm:p-10"><span className="grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent"><Target className="size-6" /></span><h1 className="font-display font-bold text-3xl mt-5">Create your first milestone</h1><p className="text-sm text-(--text-secondary) mt-2">This creates a real native goal, not a demo record.</p><div className="grid sm:grid-cols-2 gap-3 mt-6">{GOALS.map((item)=><button key={item.id} onClick={()=>chooseGoal(item.id)} className={`text-left rounded-xl border p-4 transition ${goalId===item.id?"border-accent bg-accent/5":"border-(--border) hover:bg-(--surface-subtle)"}`}><p className="font-medium">{item.name}</p><p className="text-xs text-(--text-secondary) mt-1">{item.description}</p></button>)}</div><div className="grid sm:grid-cols-2 gap-3 mt-5"><label className="text-sm">Target amount (INR)<input type="number" min="1" step="1" value={target} onChange={(event)=>setTarget(event.target.value)} className="block w-full min-h-11 mt-2 rounded-xl border border-(--border) bg-(--surface) px-3" /></label><label className="text-sm">Timeline (months)<input type="number" min="1" max="600" value={months} onChange={(event)=>setMonths(event.target.value)} className="block w-full min-h-11 mt-2 rounded-xl border border-(--border) bg-(--surface) px-3" /></label></div></section>}
 
-                  {/* Value props */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.4 }}
-                    className="grid grid-cols-3 gap-3 w-full max-w-md"
-                  >
-                    {[
-                      { icon: Sparkles, label: "AI Insights", color: "var(--accent)" },
-                      { icon: Shield, label: "Bank-grade", color: "var(--gold)" },
-                      { icon: PiggyBank, label: "Goal Planner", color: "var(--positive)" },
-                    ].map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <div
-                          key={item.label}
-                          className="premium-card p-3 flex flex-col items-center gap-2 text-center"
-                        >
-                          <div
-                            className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-                            style={{
-                              background: `color-mix(in oklab, ${item.color} 12%, transparent)`,
-                            }}
-                          >
-                            <Icon className="w-4 h-4" style={{ color: item.color }} />
-                          </div>
-                          <span className="text-[11px] font-medium">{item.label}</span>
-                        </div>
-                      );
-                    })}
-                  </motion.div>
-                </div>
-              )}
+    {step===3&&<section className="premium-card p-7 sm:p-10"><span className="grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent"><Landmark className="size-6" /></span><h1 className="font-display font-bold text-3xl mt-5">How do you want to add money data?</h1><p className="text-sm text-(--text-secondary) mt-2">Choose a real engine-supported path. You can use all three later.</p><div className="space-y-3 mt-6">{SOURCES.map(({id,name,description,Icon})=><button key={id} onClick={()=>setSource(id)} className={`w-full text-left rounded-xl border p-4 flex gap-4 ${source===id?"border-accent bg-accent/5":"border-(--border) hover:bg-(--surface-subtle)"}`}><span className="grid size-10 place-items-center rounded-xl bg-(--surface-subtle) shrink-0"><Icon className="size-5 text-accent"/></span><span><span className="font-medium">{name}</span><span className="block text-xs text-(--text-secondary) mt-1">{description}</span></span></button>)}</div></section>}
 
-              {/* ── STEP 2: Trust & Privacy ───────────────── */}
-              {step === 1 && (
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col items-center text-center gap-4">
-                    <div className="w-14 h-14 rounded-[18px] bg-[var(--accent-light)] flex items-center justify-center">
-                      <ShieldCheck className="w-7 h-7 text-accent" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <h1 className="font-display font-bold text-[26px] tracking-[-0.02em]">
-                        Your data, your control
-                      </h1>
-                      <p className="text-[14px] text-(--text-secondary) leading-[1.6] max-w-md">
-                        We believe trust is earned. Here's exactly how we handle
-                        your financial data.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Privacy promises */}
-                  <div className="grid gap-3">
-                    {[
-                      {
-                        icon: Lock,
-                        title: "End-to-end encryption",
-                        description:
-                          "Your bank credentials and transactions are encrypted with AES-256. Even our team can't see them.",
-                      },
-                      {
-                        icon: Eye,
-                        title: "We never sell your data",
-                        description:
-                          "No third-party data brokers, no ad networks. Your financial life is yours alone.",
-                      },
-                      {
-                        icon: EyeOff,
-                        title: "Delete anytime",
-                        description:
-                          "Export or permanently erase all your data in one tap. No questions asked.",
-                      },
-                    ].map((item, i) => {
-                      const Icon = item.icon;
-                      return (
-                        <motion.div
-                          key={item.title}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.4, delay: 0.1 + i * 0.08 }}
-                          className="premium-card p-4 flex items-start gap-3"
-                        >
-                          <div className="w-9 h-9 rounded-[10px] bg-[var(--surface-subtle)] flex items-center justify-center shrink-0">
-                            <Icon className="w-4 h-4 text-accent" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[14px] font-semibold">{item.title}</p>
-                            <p className="text-[13px] text-(--text-secondary) mt-0.5 leading-normal">
-                              {item.description}
-                            </p>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Consent checkbox */}
-                  <motion.label
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.4 }}
-                    className="premium-card p-4 flex items-start gap-3 cursor-pointer hover:border-accent transition-colors"
-                    style={{
-                      borderColor: consented ? "var(--accent)" : undefined,
-                      background: consented ? "var(--accent-light)" : undefined,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setConsented(!consented)}
-                      aria-pressed={consented}
-                      aria-label="I agree to the privacy policy"
-                      className="w-5 h-5 rounded-[6px] border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all"
-                      style={{
-                        background: consented ? "var(--accent)" : "transparent",
-                        borderColor: consented ? "var(--accent)" : "var(--border-strong)",
-                      }}
-                    >
-                      {consented && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-                    </button>
-                    <div className="flex-1">
-                      <p className="text-[13px] font-medium leading-normal">
-                        I agree to FinCopilot's{" "}
-                        <Link
-                          href="/you/privacy"
-                          className="text-accent hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Privacy Policy
-                        </Link>{" "}
-                        and consent to secure processing of my financial data.
-                      </p>
-                      <p className="text-[11px] text-(--text-tertiary) mt-1">
-                        You can withdraw consent at any time in Settings.
-                      </p>
-                    </div>
-                  </motion.label>
-                </div>
-              )}
-
-              {/* ── STEP 3: Goal Setup ─────────────────────── */}
-              {step === 2 && (
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col items-center text-center gap-3">
-                    <div className="w-14 h-14 rounded-[18px] bg-[var(--accent-light)] flex items-center justify-center">
-                      <Target className="w-7 h-7 text-accent" />
-                    </div>
-                    <div>
-                      <h1 className="font-display font-bold text-[26px] tracking-[-0.02em]">
-                        What are you saving for?
-                      </h1>
-                      <p className="text-[14px] text-(--text-secondary) mt-1 max-w-md">
-                        Pick a goal to start tracking. You can add more later.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Goal grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {GOAL_TYPES.map((goal, i) => {
-                      const Icon = goal.icon;
-                      const selected = selectedGoal === goal.id;
-                      return (
-                        <motion.button
-                          key={goal.id}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: i * 0.05 }}
-                          onClick={() => selectGoal(goal.id)}
-                          aria-pressed={selected}
-                          className="premium-card p-3.5 flex flex-col items-start gap-2 text-left hover:border-accent transition-all relative"
-                          style={{
-                            borderColor: selected ? "var(--accent)" : undefined,
-                            background: selected ? "var(--accent-light)" : undefined,
-                          }}
-                        >
-                          {selected && (
-                            <motion.div
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                              className="absolute top-2 right-2 w-5 h-5 rounded-full bg-accent flex items-center justify-center"
-                            >
-                              <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                            </motion.div>
-                          )}
-                          <div
-                            className="w-10 h-10 rounded-[10px] flex items-center justify-center"
-                            style={{
-                              background: selected
-                                ? "var(--accent)"
-                                : "var(--surface-subtle)",
-                            }}
-                          >
-                            <Icon
-                              className="w-4 h-4"
-                              style={{
-                                color: selected ? "white" : "var(--text-secondary)",
-                              }}
-                            />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-[13px] font-semibold">{goal.name}</span>
-                            <span className="text-[11px] text-(--text-tertiary) leading-[1.4] mt-0.5">
-                              {goal.description}
-                            </span>
-                          </div>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Target amount + timeline */}
-                  <AnimatePresence>
-                    {selectedGoal && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="premium-card p-4 flex flex-col gap-4">
-                          {/* Target amount */}
-                          <div>
-                            <label className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
-                              Target amount
-                            </label>
-                            <div className="flex items-baseline gap-1 mt-2 mb-2">
-                              <span className="text-[24px] font-display font-bold">₹</span>
-                              <input
-                                type="number"
-                                value={Math.round(targetPaise / 100)}
-                                onChange={(e) =>
-                                  setTargetPaise((Number(e.target.value) || 0) * 100)
-                                }
-                                className="flex-1 bg-transparent border-0 outline-none text-[24px] font-display font-bold tabular-nums"
-                                min={1}
-                                aria-label="Target amount in rupees"
-                              />
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {[50000, 100000, 500000, 1000000, 2000000].map((amt) => (
-                                <button
-                                  key={amt}
-                                  onClick={() => setTargetPaise(amt * 100)}
-                                  className="px-2.5 py-1 rounded-[8px] bg-[var(--surface-subtle)] text-[11px] font-medium text-(--text-secondary) hover:bg-[var(--accent-light)] hover:text-accent transition-colors"
-                                >
-                                  ₹{amt.toLocaleString("en-IN")}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Timeline */}
-                          <div>
-                            <label className="text-[11px] font-mono uppercase tracking-[0.1em] text-(--text-tertiary)">
-                              Timeline:{" "}
-                              <span className="text-foreground font-semibold">
-                                {timelineMonths} {timelineMonths === 1 ? "month" : "months"}
-                              </span>
-                            </label>
-                            <input
-                              type="range"
-                              min={1}
-                              max={120}
-                              step={1}
-                              value={timelineMonths}
-                              onChange={(e) => setTimelineMonths(Number(e.target.value))}
-                              className="w-full mt-3 accent-[var(--accent)] cursor-pointer"
-                              aria-label="Timeline in months"
-                            />
-                            <div className="flex justify-between mt-1 text-[10px] font-mono text-(--text-tertiary)">
-                              <span>1 mo</span>
-                              <span>5 yr</span>
-                              <span>10 yr</span>
-                            </div>
-                          </div>
-
-                          {/* Monthly commitment */}
-                          {timelineMonths > 0 && targetPaise > 0 && (
-                            <div className="bg-[var(--surface-subtle)] rounded-[12px] p-3 flex items-center justify-between">
-                              <div>
-                                <p className="text-[11px] text-(--text-tertiary)">
-                                  Monthly contribution needed
-                                </p>
-                                <p className="text-[18px] font-display font-bold tabular-nums mt-0.5">
-                                  {formatPaise(Math.ceil(targetPaise / timelineMonths))}{" "}
-                                  <span className="text-[12px] text-(--text-tertiary) font-normal">
-                                    /mo
-                                  </span>
-                                </p>
-                              </div>
-                              <PiggyBank className="w-7 h-7 text-accent" />
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
-
-              {/* ── STEP 4: Data Connection ────────────────── */}
-              {step === 3 && (
-                <div className="flex flex-col gap-6">
-                  {!connected ? (
-                    <>
-                      <div className="flex flex-col items-center text-center gap-3">
-                        <div className="w-14 h-14 rounded-[18px] bg-[var(--accent-light)] flex items-center justify-center">
-                          <Landmark className="w-7 h-7 text-accent" />
-                        </div>
-                        <div>
-                          <h1 className="font-display font-bold text-[26px] tracking-[-0.02em]">
-                            Connect your data
-                          </h1>
-                          <p className="text-[14px] text-(--text-secondary) mt-1 max-w-md">
-                            Choose how you'd like to import your transactions. We'll
-                            handle the rest.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3">
-                        {IMPORT_METHODS.map((method, i) => {
-                          const Icon = method.icon;
-                          const selected = selectedImport === method.id;
-                          return (
-                            <motion.button
-                              key={method.id}
-                              initial={{ opacity: 0, y: 8 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3, delay: i * 0.05 }}
-                              onClick={() => setSelectedImport(method.id)}
-                              aria-pressed={selected}
-                              disabled={connecting}
-                              className="premium-card p-3.5 flex items-center gap-3 text-left hover:border-accent transition-all relative disabled:opacity-50 disabled:cursor-not-allowed"
-                              style={{
-                                borderColor: selected ? "var(--accent)" : undefined,
-                                background: selected ? "var(--accent-light)" : undefined,
-                              }}
-                            >
-                              <div
-                                className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
-                                style={{
-                                  background: selected
-                                    ? "var(--accent)"
-                                    : "var(--surface-subtle)",
-                                }}
-                              >
-                                <Icon
-                                  className="w-4 h-4"
-                                  style={{
-                                    color: selected ? "white" : "var(--text-secondary)",
-                                  }}
-                                />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[14px] font-semibold">
-                                    {method.name}
-                                  </span>
-                                  {method.badge && (
-                                    <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[var(--gold-light)] text-[var(--gold)] font-semibold">
-                                      {method.badge}
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[12px] text-(--text-tertiary) mt-0.5 truncate">
-                                  {method.description}
-                                </p>
-                              </div>
-                              <div
-                                className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all"
-                                style={{
-                                  borderColor: selected ? "var(--accent)" : "var(--border-strong)",
-                                  background: selected ? "var(--accent)" : "transparent",
-                                }}
-                              >
-                                {selected && (
-                                  <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                                )}
-                              </div>
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  ) : (
-                    // Success state
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                      className="flex flex-col items-center text-center gap-5 py-8"
-                    >
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
-                        className="w-20 h-20 rounded-full bg-linear-to-br from-accent to-(--gold) flex items-center justify-center shadow-[var(--shadow-glow)]"
-                      >
-                        <CheckCircle2 className="w-10 h-10 text-accent-foreground" strokeWidth={2} />
-                      </motion.div>
-                      <div className="flex flex-col gap-2 max-w-md">
-                        <h1 className="font-display font-bold text-[28px] tracking-[-0.02em]">
-                          You're all set, {userFirstName}
-                        </h1>
-                        <p className="text-[14px] text-(--text-secondary) leading-[1.6]">
-                          {selectedImport === "bank"
-                            ? "Your bank is securely connected. We're syncing your transactions now — this usually takes 30 seconds."
-                            : selectedImport === "manual"
-                              ? "Your account is ready. Start adding transactions any time from the + menu."
-                              : "We're parsing your file now. You'll see your transactions appear within a minute."}
-                        </p>
-                      </div>
-
-                      {/* Recap */}
-                      <div className="premium-card p-4 w-full max-w-sm flex flex-col gap-3">
-                        {[
-                          { label: "Privacy consent", value: "Granted" },
-                          {
-                            label: "Primary goal",
-                            value:
-                              GOAL_TYPES.find((g) => g.id === selectedGoal)?.name ?? "—",
-                          },
-                          {
-                            label: "Target",
-                            value:
-                              selectedGoal
-                                ? `${formatPaise(targetPaise)} in ${timelineMonths} mo`
-                                : "—",
-                          },
-                          {
-                            label: "Data source",
-                            value:
-                              IMPORT_METHODS.find((m) => m.id === selectedImport)?.name ??
-                              "—",
-                          },
-                        ].map((item) => (
-                          <div
-                            key={item.label}
-                            className="flex items-center justify-between"
-                          >
-                            <span className="text-[12px] text-(--text-tertiary)">
-                              {item.label}
-                            </span>
-                            <span className="text-[12px] font-semibold">{item.value}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <Link
-                        href="/"
-                        className="inline-flex items-center gap-2 px-6 py-3 rounded-[12px] bg-accent text-accent-foreground text-[14px] font-semibold hover:bg-[var(--accent-hover)] transition-colors shadow-[var(--shadow-glow)]"
-                      >
-                        Go to Home
-                        <ArrowRight className="w-4 h-4" />
-                      </Link>
-                    </motion.div>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* ── Footer navigation ──────────────────────────── */}
-      {!(step === 3 && connected) && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex items-center justify-between gap-3 pt-4 border-t border-[var(--border)] mt-6"
-        >
-          <button
-            onClick={back}
-            disabled={step === 0}
-            aria-label="Back"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-[12px] text-[13px] font-medium text-(--text-secondary) hover:bg-(--surface-subtle) hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-
-          <span className="text-[11px] font-mono text-(--text-tertiary)">
-            {step + 1} / {STEP_LABELS.length}
-          </span>
-
-          {step < 3 ? (
-            <button
-              onClick={next}
-              disabled={!canProceed}
-              aria-label="Continue"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
-            >
-              {step === 0 ? "Get Started" : step === 1 ? "I Agree" : "Continue"}
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              onClick={handleConnect}
-              disabled={!canProceed || connecting}
-              aria-label="Connect"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-[12px] bg-accent text-accent-foreground text-[13px] font-semibold hover:bg-[var(--accent-hover)] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-glow)]"
-            >
-              {connecting ? (
-                <>
-                  <motion.span
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                  />
-                  Connecting…
-                </>
-              ) : (
-                <>
-                  Connect
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          )}
-        </motion.div>
-      )}
-    </div>
-  );
+    <div className="flex items-center justify-between gap-3 mt-6"><button disabled={step===0||saving} onClick={()=>setStep((value)=>Math.max(0,value-1))} className="min-h-11 px-4 rounded-xl border border-(--border) disabled:opacity-30 flex items-center gap-2"><ArrowLeft className="size-4"/>Back</button>{step<3?<button disabled={!canNext} onClick={()=>setStep((value)=>Math.min(3,value+1))} className="min-h-11 px-5 rounded-xl bg-accent text-white disabled:opacity-40 flex items-center gap-2">Continue<ArrowRight className="size-4"/></button>:<button disabled={saving||!canNext} onClick={()=>void finish()} className="min-h-11 px-5 rounded-xl bg-accent text-white disabled:opacity-40 flex items-center gap-2">{saving?"Setting up…":"Finish setup"}<Check className="size-4"/></button>}</div>
+  </div>;
 }
