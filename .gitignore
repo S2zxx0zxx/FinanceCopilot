@@ -18,3 +18,11 @@ docker-compose.override.yml
 # downloaded ONNX embedding models, transaction attachments). User data
 # — never commit.
 backend/data/
+
+# Node/Next.js/React ignores
+node_modules/
+.next/
+.archive/
+*.tsbuildinfo
+.env*.local
+frontend/frontend/
