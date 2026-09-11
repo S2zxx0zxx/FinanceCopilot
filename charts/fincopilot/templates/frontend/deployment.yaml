@@ -17,7 +17,6 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/common/configmap.yaml") . | sha256sum }}
-        checksum/nginx-config: {{ include (print $.Template.BasePath "/frontend/configmap-nginx.yaml") . | sha256sum }}
       labels:
         {{- include "fincopilot.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: frontend
@@ -33,29 +32,25 @@ spec:
           livenessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: http
             initialDelaySeconds: 15
             periodSeconds: 20
           readinessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           env:
+            - name: PORT
+              value: "8080"
+            - name: HOSTNAME
+              value: "0.0.0.0"
             - name: BACKEND_URL
               value: {{ default (printf "http://%s-backend.%s.svc.cluster.local:%v" (include "fincopilot.fullname" .) .Release.Namespace .Values.backend.service.port) .Values.frontend.backendUrl | quote }}
             - name: FRONTEND_URL
               value: {{ include "fincopilot.frontendUrl" . | quote }}
-          volumeMounts:
-            - name: nginx-template
-              mountPath: /etc/nginx/templates/default.conf.template
-              subPath: default.conf.template
           {{- if .Values.frontend.resources }}
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
           {{- end }}
-      volumes:
-        - name: nginx-template
-          configMap:
-            name: {{ include "fincopilot.fullname" . }}-frontend-nginx
