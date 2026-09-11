@@ -11,6 +11,8 @@ import uuid
 from datetime import date, timedelta
 from decimal import Decimal
 
+import sys
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -1028,6 +1030,7 @@ def test_an_oversized_raster_is_refused_before_it_is_decoded():
         invoice_logo_service.normalise(buf.getvalue(), "image/png")
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="SIGALRM is not available on Windows")
 def test_a_line_taller_than_a_page_still_finishes():
     """It used to hang, not fail. `split` returned nothing for a row
     taller than the space, the loop asked for a fresh page, failed again
