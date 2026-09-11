@@ -21,7 +21,7 @@ jobs:
           ref: feat/securo-foundation-migration
           fetch-depth: 0
 
-      - name: Rebrand imported foundation
+      - name: Finalize imported foundation branding
         shell: bash
         run: |
           set -euo pipefail
@@ -29,6 +29,7 @@ jobs:
           test "$(git rev-parse HEAD:fincopilot-landing)" = "$EXPECTED_LANDING_TREE"
 
           python3 scripts/fincopilot_rebrand.py
+          python3 scripts/fincopilot_runtime_brand_fix.py
 
           remaining="$(grep -RIlE 'Securo|SECURO|securo' . \
             --exclude-dir=.git \
@@ -51,11 +52,11 @@ jobs:
           git diff --cached --quiet -- fincopilot-landing
 
           if git diff --cached --quiet; then
-            echo "No rebrand changes to commit."
+            echo "No additional branding changes to commit."
             exit 0
           fi
 
           git config user.name "FinCopilot Migration Bot"
           git config user.email "actions@users.noreply.github.com"
-          git commit -m "refactor: rebrand imported foundation as FinCopilot"
+          git commit -m "fix: normalize FinCopilot runtime branding"
           git push origin HEAD:feat/securo-foundation-migration
