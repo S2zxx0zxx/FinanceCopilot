@@ -1,0 +1,99 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, without the leading v (e.g. 0.15.2)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    name: Bump versions and open PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Validate version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          VERSION="${INPUT_VERSION#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$INPUT_VERSION' is not a X.Y.Z version"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "::error::tag v$VERSION already exists"
+            exit 1
+          fi
+          BRANCH="chore/release-v$VERSION"
+          if git ls-remote --exit-code --heads origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+            echo "::error::branch $BRANCH already exists"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Bump version files
+        run: |
+          set -euo pipefail
+          sed -i -E "0,/^version = /s|^version = .*|version = \"$VERSION\"|" backend/pyproject.toml
+          npm --prefix frontend version "$VERSION" --no-git-tag-version --allow-same-version
+          sed -i -E "0,/^version:/s|^version:.*|version: $VERSION|" charts/fincopilot/Chart.yaml
+          sed -i -E "0,/^appVersion:/s|^appVersion:.*|appVersion: \"$VERSION\"|" charts/fincopilot/Chart.yaml
+
+      - name: Regenerate uv.lock
+        run: |
+          set -euo pipefail
+          pip install -q uv==0.12.10
+          cd backend
+          uv lock
+          uv lock --check
+
+      - name: Verify the bump landed
+        run: |
+          set -euo pipefail
+          grep -qx "version = \"$VERSION\"" backend/pyproject.toml
+          grep -A1 -x 'name = "fincopilot-backend"' backend/uv.lock | grep -qx "version = \"$VERSION\""
+          grep -qx "  \"version\": \"$VERSION\"," frontend/package.json
+          grep -qx "version: $VERSION" charts/fincopilot/Chart.yaml
+          grep -qx "appVersion: \"$VERSION\"" charts/fincopilot/Chart.yaml
+          if git diff --quiet; then
+            echo "::error::nothing changed. Is $VERSION already current?"
+            exit 1
+          fi
+          git --no-pager diff --stat
+
+      - name: Open the release PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          HAS_RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -am "chore: release v$VERSION"
+          git push -u origin "$BRANCH"
+          {
+            echo "Version bump for v$VERSION: \`backend/pyproject.toml\`, \`frontend/package.json\`, \`charts/fincopilot/Chart.yaml\`."
+            echo
+            echo "After merging, publish the \`v$VERSION\` GitHub release targeting \`main\` to build and push FinCopilot images."
+          } > /tmp/pr-body.md
+          PR_URL="$(gh pr create --base main --head "$BRANCH" --title "chore: release v$VERSION" --body-file /tmp/pr-body.md)"
+          echo "::notice::$PR_URL"
+          echo "Release PR for v$VERSION: $PR_URL" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$HAS_RELEASE_TOKEN" != "true" ]; then
+            echo "::warning::No RELEASE_TOKEN secret, so CI may need the PR to be closed/reopened to start required checks."
+          fi
