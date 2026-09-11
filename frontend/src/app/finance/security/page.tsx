@@ -58,7 +58,7 @@ export default function AdvancedSecurityPage() {
   const load = React.useCallback(async () => {
     setError(null);
     const results = await Promise.allSettled([
-      engineApi.get<Passkey[]>("/api/passkeys"),
+      engineApi.get<Passkey[]>("/api/auth/passkeys"),
       engineApi.get<OidcConfig>("/api/auth/oidc/config"),
     ]);
     if (results[0].status === "fulfilled") setPasskeys(Array.isArray(results[0].value) ? results[0].value : []);
@@ -70,10 +70,10 @@ export default function AdvancedSecurityPage() {
     if (!window.PublicKeyCredential || !navigator.credentials) { setError("This browser does not support passkeys."); return; }
     setBusy(true); setError(null); setMessage(null);
     try {
-      const challenge = await engineApi.post<any>("/api/passkeys/register/options", { name: passkeyName.trim() || "Passkey" });
+      const challenge = await engineApi.post<any>("/api/auth/passkeys/register/options", { name: passkeyName.trim() || "Passkey" });
       const created = await navigator.credentials.create({ publicKey: registrationOptions(challenge.options) }) as PublicKeyCredential | null;
       if (!created) throw new Error("Passkey creation was cancelled.");
-      await engineApi.post("/api/passkeys/register/verify", { challenge_id: challenge.challenge_id, name: passkeyName.trim() || "Passkey", credential: serializeRegistration(created) });
+      await engineApi.post("/api/auth/passkeys/register/verify", { challenge_id: challenge.challenge_id, name: passkeyName.trim() || "Passkey", credential: serializeRegistration(created) });
       setMessage("Passkey registered successfully."); await load();
     } catch (err) { setError(err instanceof Error ? err.message : "Passkey could not be registered."); }
     finally { setBusy(false); }
@@ -82,26 +82,26 @@ export default function AdvancedSecurityPage() {
   const deletePasskey = async (passkey: Passkey) => {
     if (!window.confirm(`Delete passkey “${passkey.name}”?`)) return;
     setBusy(true); setError(null);
-    try { await engineApi.delete(`/api/passkeys/${passkey.id}`); setMessage("Passkey removed."); await load(); }
+    try { await engineApi.delete(`/api/auth/passkeys/${passkey.id}`); setMessage("Passkey removed."); await load(); }
     catch (err) { setError(err instanceof Error ? err.message : "Passkey could not be removed."); }
     finally { setBusy(false); }
   };
 
   const startTotp = async () => {
     setBusy(true); setError(null); setMessage(null);
-    try { setTotpSetup(await engineApi.post<Setup>("/api/2fa/setup")); }
+    try { setTotpSetup(await engineApi.post<Setup>("/api/auth/2fa/setup")); }
     catch (err) { setError(err instanceof Error ? err.message : "Authenticator setup could not start."); }
     finally { setBusy(false); }
   };
   const enableTotp = async () => {
     setBusy(true); setError(null);
-    try { await engineApi.post("/api/2fa/enable", { code: totpCode.trim() }); setTotpSetup(null); setTotpCode(""); setMessage("Authenticator verification enabled for native FinCopilot sign-in."); }
+    try { await engineApi.post("/api/auth/2fa/enable", { code: totpCode.trim() }); setTotpSetup(null); setTotpCode(""); setMessage("Authenticator verification enabled for native FinCopilot sign-in."); }
     catch (err) { setError(err instanceof Error ? err.message : "That authenticator code could not be verified."); }
     finally { setBusy(false); }
   };
   const disableTotp = async () => {
     setBusy(true); setError(null);
-    try { await engineApi.post("/api/2fa/disable", { password: disablePassword, code: disableCode.trim() }); setDisablePassword(""); setDisableCode(""); setMessage("Native authenticator verification disabled."); }
+    try { await engineApi.post("/api/auth/2fa/disable", { password: disablePassword, code: disableCode.trim() }); setDisablePassword(""); setDisableCode(""); setMessage("Native authenticator verification disabled."); }
     catch (err) { setError(err instanceof Error ? err.message : "Authenticator verification could not be disabled."); }
     finally { setBusy(false); }
   };
