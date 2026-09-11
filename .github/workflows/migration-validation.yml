@@ -1,0 +1,152 @@
+name: Foundation Migration Validation
+
+on:
+  push:
+    branches:
+      - feat/securo-foundation-migration
+    paths:
+      - .github/workflows/migration-validation.yml
+
+jobs:
+  parity-and-guards:
+    name: Upstream Parity & Landing Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/securo-foundation-migration
+          fetch-depth: 0
+      - name: Verify complete pinned upstream file coverage
+        env:
+          UPSTREAM_COMMIT: 2869ff40cbf56da7d0d07aba602c52617a71f137
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:fincopilot-landing)" = "abc2a077f1fbb9ce82e1dbde86cc10c1c3e973fe"
+          git diff --exit-code origin/main...HEAD -- fincopilot-landing
+
+          git init /tmp/upstream
+          git -C /tmp/upstream remote add origin https://github.com/securo-finance/securo.git
+          git -C /tmp/upstream fetch --depth=1 origin "$UPSTREAM_COMMIT"
+          git -C /tmp/upstream checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/upstream rev-parse HEAD)" = "$UPSTREAM_COMMIT"
+          cmp LICENSE /tmp/upstream/LICENSE
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess, sys
+
+          upstream = Path('/tmp/upstream')
+          source = subprocess.check_output(
+              ['git','-C',str(upstream),'ls-tree','-r','--name-only','HEAD'], text=True
+          ).splitlines()
+
+          def mapped(path: str) -> str:
+              return path.replace('Securo','FinCopilot').replace('SECURO','FINCOPILOT').replace('securo','fincopilot')
+
+          missing=[]
+          for src in source:
+              dst=Path(mapped(src))
+              if not dst.exists():
+                  missing.append((src,str(dst)))
+          print(f'Pinned upstream files: {len(source)}')
+          print(f'Missing mapped files: {len(missing)}')
+          if missing:
+              for src,dst in missing[:100]:
+                  print(f'MISSING {src} -> {dst}')
+              sys.exit(1)
+          PY
+
+          remaining="$(grep -RIlE 'Securo|SECURO|securo' . \
+            --exclude-dir=.git \
+            --exclude-dir=fincopilot-landing \
+            --exclude='LICENSE' \
+            --exclude='UPSTREAM.md' \
+            --exclude='FINCOPILOT_MIGRATION.md' \
+            --exclude='fincopilot_rebrand.py' \
+            --exclude='migration-validation.yml' \
+            --exclude='securo-foundation-migration.yml' || true)"
+          if [ -n "$remaining" ]; then
+            echo "::error::Unexpected old product branding remains:"
+            echo "$remaining"
+            exit 1
+          fi
+
+  migration-chain:
+    name: Alembic Migration Chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/securo-foundation-migration
+      - run: python3 backend/scripts/check_migration_chain.py
+
+  backend:
+    name: Backend Lint Type Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/securo-foundation-migration
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+      - name: Install locked dependencies
+        run: |
+          pip install -q uv==0.12.10
+          uv export --frozen --all-extras --no-emit-project -o /tmp/requirements-dev.txt
+          pip install --require-hashes -r /tmp/requirements-dev.txt
+          pip install --no-deps -e .
+      - name: Lock consistency
+        run: uv lock --check
+      - name: Ruff
+        run: ruff check .
+      - name: Type check
+        run: ty check .
+      - name: Full test suite
+        run: pytest -n auto --dist loadfile --cov=app --cov-report=term-missing --cov-fail-under=60 -ra -W error
+
+  frontend:
+    name: Frontend Lint Build Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/securo-foundation-migration
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+      - name: Typecheck and build
+        run: npm run build
+      - name: Tests
+        run: npm test
+
+  infrastructure:
+    name: Helm & Compose Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/securo-foundation-migration
+      - uses: azure/setup-helm@v5
+        with:
+          version: v4.2.4
+      - name: Helm lint
+        run: helm lint charts/fincopilot
+      - name: Helm render
+        run: helm template fincopilot-test charts/fincopilot > /tmp/fincopilot-manifests.yaml
+      - name: Docker Compose development config
+        run: docker compose -f docker-compose.yml config --quiet
+      - name: Docker Compose production config
+        run: docker compose -f docker-compose.prod.yml config --quiet
