@@ -1,251 +1,92 @@
-/**
- * Number / date display formatting.
- *
- * The admin-configurable `number_format` setting decides how numbers and dates
- * read:
- *  - Numbers/currency resolve to a representative BCP-47 locale whose
- *    thousands/decimal separators match the setting (`resolveDisplayLocale`).
- *  - Dates keep the user's app language for month/day *words* but take their
- *    field *order* (day-first vs month-first) from the setting
- *    (`resolveDateLocale`). So an English UI on the European format shows
- *    "4 Jun 2026" / "04/06/2026" — never the German "4. Juni".
- */
+// Currency + date formatting helpers
+// All money is integer paise (₹1 = 100 paise). Indian number system (lakhs).
 
-export type NumberFormat = 'auto' | 'comma_dot' | 'dot_comma' | 'space_comma'
-
-/** Admin date-format setting. 'auto' derives the order from the number format. */
-export type DateFormat = 'auto' | 'dmy' | 'mdy' | 'ymd'
-
-export type DateOrder = 'mdy' | 'dmy' | 'ymd'
-
-/** Explicit format → representative locale (separators only matter here). */
-const FORMAT_LOCALE: Record<Exclude<NumberFormat, 'auto'>, string> = {
-  comma_dot: 'en-US', // 1,000.00
-  dot_comma: 'de-DE', // 1.000,00
-  space_comma: 'fr-FR', // 1 000,00
-}
-
-/**
- * Currency code → locale used when the format is "auto". Picks the separator
- * convention native to each currency (e.g. EUR → 1.000,00, USD → 1,000.00).
- */
-const CURRENCY_LOCALE: Record<string, string> = {
-  BRL: 'pt-BR',
-  USD: 'en-US',
-  EUR: 'de-DE',
-  GBP: 'en-GB',
-  JPY: 'ja-JP',
-  CAD: 'en-CA',
-  AUD: 'en-AU',
-  CHF: 'de-CH',
-  CNY: 'zh-CN',
-  ARS: 'es-AR',
-  MXN: 'es-MX',
-  CLP: 'es-CL',
-  COP: 'es-CO',
-  PEN: 'es-PE',
-  UYU: 'es-UY',
-  INR: 'en-IN',
-  SEK: 'sv-SE',
-  DKK: 'da-DK',
-  NOK: 'nb-NO',
-  PLN: 'pl-PL',
-  CZK: 'cs-CZ',
-  HUF: 'hu-HU',
-  RON: 'ro-RO',
-  CRC: 'es-CR',
-  IDR: 'id-ID',
-  DOP: 'es-DO',
-  RUB: 'ru-RU',
-  GTQ: 'es-GT',
-  PHP: 'en-PH',
-  UAH: 'uk-UA',
-  NZD: 'en-NZ',
-  VND: 'vi-VN',
-  SGD: 'en-SG',
-  AZN: 'az-AZ',
-  TRY: 'tr-TR',
-  PKR: 'en-PK',
-}
-
-/**
- * Resolve the locale used for number/date display.
- *
- * @param numberFormat  Admin setting ('auto' or an explicit format).
- * @param currency      The user's display currency — drives "auto".
- * @param fallback      Locale to use when nothing else matches (UI language).
- */
-export function resolveDisplayLocale(
-  numberFormat: NumberFormat | undefined,
-  currency: string | undefined,
-  fallback = 'en-US',
-): string {
-  if (numberFormat && numberFormat !== 'auto') {
-    return FORMAT_LOCALE[numberFormat]
+export function formatPaise(paise: number | null | undefined, opts?: { style?: "full" | "compact" | "signed" }): string {
+  if (paise == null || Number.isNaN(Number(paise))) return "—";
+  const rupees = Number(paise) / 100;
+  const sign = rupees < 0 ? "−" : opts?.style === "signed" && rupees > 0 ? "+" : "";
+  const abs = Math.abs(rupees);
+  if (opts?.style === "compact") {
+    if (abs >= 10000000) return `${sign}₹${(abs / 10000000).toFixed(2)} Cr`;
+    if (abs >= 100000) return `${sign}₹${(abs / 100000).toFixed(2)} L`;
+    if (abs >= 1000) return `${sign}₹${(abs / 1000).toFixed(1)}K`;
+    return `${sign}₹${abs.toFixed(0)}`;
   }
-  if (currency && CURRENCY_LOCALE[currency]) {
-    return CURRENCY_LOCALE[currency]
-  }
-  return fallback
+  return `${sign}₹${abs.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+}
+
+export function formatDate(iso: string | null | undefined, opts?: { style?: "short" | "long" | "relative" }): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (opts?.style === "relative") return timeAgo(iso);
+  if (opts?.style === "long") return d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+export function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+}
+
+export function formatPct(value: number | null | undefined, opts?: { decimals?: number }): string {
+  if (value == null) return "—";
+  const pct = typeof value === "number" && value < 1 ? value * 100 : value;
+  return `${pct.toFixed(opts?.decimals ?? 0)}%`;
+}
+
+export function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  if (h < 21) return "Good evening";
+  return "Good night";
+}
+
+export function categoryIcon(category: string): string {
+  const icons: Record<string, string> = {
+    "Rent": "🏠",
+    "Groceries": "🛒",
+    "Dining": "🍽️",
+    "Transport": "🚗",
+    "Shopping": "🛍️",
+    "Subscriptions": "📺",
+    "Entertainment": "🎬",
+    "Utilities": "💡",
+    "Investments": "📈",
+    "Salary": "💰",
+    "Health": "🏥",
+    "Education": "📚",
+    "Travel": "✈️",
+    "Insurance": "🛡️",
+    "Credit Card": "💳",
+    "Refunds": "↩️",
+  };
+  return icons[category] || "💸";
 }
 
 /**
- * Currencies that conventionally write dates month-first (MM/DD). Everything
- * else defaults to day-first, which covers the rest of our supported set.
+ * Maps a 0–100 score (security, financial health, etc.) to a human label.
+ * Uses the same thresholds as the security page so every surface is consistent.
  */
-const MONTH_FIRST_CURRENCIES = new Set(['USD'])
-
-/**
- * Resolve the date field order. An explicit `dateFormat` wins; otherwise
- * ('auto') it derives from the number format, then the currency.
- */
-export function resolveDateOrder(
-  dateFormat: DateFormat | undefined,
-  numberFormat: NumberFormat | undefined,
-  currency: string | undefined,
-): DateOrder {
-  if (dateFormat === 'dmy' || dateFormat === 'mdy' || dateFormat === 'ymd') return dateFormat
-  // auto → follow the number format's convention, then the currency.
-  if (numberFormat === 'comma_dot') return 'mdy'
-  if (numberFormat === 'dot_comma' || numberFormat === 'space_comma') return 'dmy'
-  return currency && MONTH_FIRST_CURRENCIES.has(currency) ? 'mdy' : 'dmy'
-}
-
-/** Representative English locale per order (numbers carry no language). */
-const ORDER_EN_LOCALE: Record<DateOrder, string> = {
-  dmy: 'en-GB', // 04/06/2026
-  mdy: 'en-US', // 6/4/2026
-  ymd: 'en-CA', // 2026-06-04
+export function getScoreLabel(score: number): string {
+  if (score >= 80) return "Strong";
+  if (score >= 50) return "Fair";
+  return "Needs attention";
 }
 
 /**
- * Resolve the locale used for *dates*. Keeps the app language (so month names
- * stay translated) but picks a regional variant whose date order matches the
- * chosen format. English exposes all three orders (en-US/en-GB/en-CA); pt-BR
- * and es are day-first natively. When a non-English UI is paired with a
- * non-native order we fall back to an English proxy so the order is still
- * honored (a rare combination).
- *
- * @param dateFormat    Admin date-format setting ('auto' or explicit order).
- * @param numberFormat  Number-format setting — feeds the 'auto' date order.
- * @param currency      Display currency — feeds 'auto' when number is 'auto'.
- * @param language      The resolved UI language ('en', 'pt-BR', 'es', …).
+ * Returns the CSS var for a score's color (positive / warning / negative).
  */
-export function resolveDateLocale(
-  dateFormat: DateFormat | undefined,
-  numberFormat: NumberFormat | undefined,
-  currency: string | undefined,
-  language: string,
-): string {
-  const order = resolveDateOrder(dateFormat, numberFormat, currency)
-  if (language.startsWith('en')) return ORDER_EN_LOCALE[order]
-  if (order === 'dmy') return language
-  return ORDER_EN_LOCALE[order]
-}
-
-/**
- * Build a currency formatter, falling back to a known-good locale *and*
- * currency. A malformed locale throws just like a malformed currency code
- * does, and `useDisplayLocale` can surface one (i18next reads `?lng=` from
- * the querystring), so the fallback has to replace both.
- */
-function currencyFormatter(currency: string, locale: string): Intl.NumberFormat {
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency || 'USD',
-    })
-  } catch {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-  }
-}
-
-/**
- * Format a numeric value as currency using Intl.NumberFormat.
- *
- * Fraction digits are left to Intl so each currency keeps its own precision:
- * pinning two would render JPY as "￥1,000.00" and CLP as "$1.000,00".
- */
-export function formatCurrency(
-  value: number | null | undefined,
-  currency = 'USD',
-  locale = 'en-US',
-): string {
-  if (value == null) return '—'
-  const formatter = currencyFormatter(currency, locale)
-  // Anything that rounds to zero at the currency's own precision would render
-  // with a stray minus ("-R$ 0,00"), which covers -0 as well as the sub-cent
-  // residue that summed balances and FX conversions leave behind.
-  const factor = 10 ** (formatter.resolvedOptions().maximumFractionDigits ?? 2)
-  return formatter.format(Math.round(value * factor) === 0 ? 0 : value)
-}
-
-/**
- * Separators the display locale writes numbers with, derived from Intl so
- * they always agree with what `formatCurrency` renders.
- */
-function localeSeparators(locale: string): { group: string; decimal: string } {
-  try {
-    const parts = new Intl.NumberFormat(locale).formatToParts(12345.6)
-    return {
-      group: parts.find((p) => p.type === 'group')?.value ?? ',',
-      decimal: parts.find((p) => p.type === 'decimal')?.value ?? '.',
-    }
-  } catch {
-    return { group: ',', decimal: '.' }
-  }
-}
-
-/**
- * Parse an amount typed by the user under the display locale's separator
- * convention: "1.234,56" on dot_comma, "1,234.56" on comma_dot, "1 234,56"
- * on space_comma. The same setting that decides how amounts are *shown*
- * (see `resolveDisplayLocale`) decides how typed input is read, so what the
- * user sees round-trips.
- *
- * Group separators are stripped, the locale's decimal separator becomes the
- * decimal point, and anything left that isn't a plain number is rejected.
- * Returns null for empty or unparseable input — never NaN, so callers can't
- * accidentally persist one.
- */
-export function parseAmountInput(value: string, locale = 'en-US'): number | null {
-  const { group, decimal } = localeSeparators(locale)
-  // Spaces only ever appear as grouping — drop them up front. JS \s covers
-  // the NBSP and narrow-NBSP that Intl emits for space_comma locales.
-  let text = value.trim().replace(/\s/g, '')
-  if (!text) return null
-  let sign = 1
-  if (text.startsWith('-')) {
-    sign = -1
-    text = text.slice(1)
-  }
-  const decimalIndex = text.lastIndexOf(decimal)
-  const integerPart = (decimalIndex >= 0 ? text.slice(0, decimalIndex) : text)
-    .split(group)
-    .join('')
-  const fractionPart = decimalIndex >= 0 ? text.slice(decimalIndex + 1) : ''
-  if (!/^\d*$/.test(integerPart) || !/^\d*$/.test(fractionPart)) return null
-  if (integerPart === '' && fractionPart === '') return null
-  const parsed = Number(`${integerPart || '0'}.${fractionPart || '0'}`)
-  return Number.isFinite(parsed) ? sign * parsed : null
-}
-
-/**
- * Render a number into an amount input using the display locale's decimal
- * separator. No grouping: a group separator inside an editable field would
- * read back as noise, and `parseAmountInput` never needs it.
- */
-export function formatAmountInput(
-  value: number,
-  locale = 'en-US',
-  maximumFractionDigits = 2,
-): string {
-  try {
-    return new Intl.NumberFormat(locale, {
-      useGrouping: false,
-      maximumFractionDigits,
-    }).format(value)
-  } catch {
-    return value.toFixed(2)
-  }
+export function getScoreColor(score: number): string {
+  if (score >= 80) return "var(--positive)";
+  if (score >= 50) return "var(--warning)";
+  return "var(--negative)";
 }
