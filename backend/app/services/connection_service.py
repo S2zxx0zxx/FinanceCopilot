@@ -1,0 +1,2242 @@
+import hashlib
+import logging
+import re
+import uuid
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
+from typing import Optional
+
+from sqlalchemy import delete, exists, func, or_, select, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.config import get_settings
+from app.models.asset import Asset
+from app.models.asset_group import AssetGroup
+from app.models.asset_value import AssetValue
+from app.models.bank_connection import BankConnection
+from app.models.account import Account
+from app.models.category import Category
+from app.models.institution import Institution
+from app.models.goal import Goal
+from app.models.collection import collection_asset_groups
+from app.models.credit_card_bill import CreditCardBill
+from app.models.payee import Payee, PayeeMapping
+from app.models.transaction import Transaction
+from app.models.user import User
+from app.providers import get_provider
+from app.providers.base import (
+    AccountData,
+    HoldingData,
+    ProviderNotConfiguredError,
+    ProviderRateLimited,
+    ProviderUserActionRequired,
+    SessionExpiredError,
+)
+from app.services import oauth_state
+from app.services import admin_service
+from app.services import reconciliation_service, recurring_match_service
+from app.services.text_similarity import token_overlap
+from app.services.account_service import (
+    _simplefin_to_internal_balance,
+    sync_opening_balance_for_connected_account,
+)
+from app.services.asset_group_service import (
+    _unique_default_name,
+    ensure_group_for_connection,
+)
+from app.services.credit_card_service import apply_effective_date
+from app.services.rule_engine import merge_notes
+from app.services.rule_service import apply_rules_to_transaction, preview_rules_for_transaction
+from app.services.transfer_detection_service import detect_transfer_pairs
+from app.services.fx_rate_service import stamp_primary_amount
+from app.services.payee_service import get_or_create_payee
+
+logger = logging.getLogger(__name__)
+
+settings = get_settings()
+
+_PROVIDER_SELL_DATE_METADATA_KEY = "_securo_provider_sell_date"
+
+
+def _clean_logo_url(value: object) -> Optional[str]:
+    """Normalize a provider-supplied logo to a non-empty string or None.
+
+    Guards the DB column against anything a provider hands back that isn't a
+    usable URL (None, empty string, a non-string, or one longer than the
+    column — truncating would store a broken URL, so it's dropped), so a
+    misbehaving integration can never write junk into a ``logo_url`` column
+    or abort a sync with a DataError.
+    """
+    if isinstance(value, str) and value.strip() and len(value) <= 500:
+        return value
+    return None
+
+
+def _clean_institution_name(value: object) -> Optional[str]:
+    """Same guard as _clean_logo_url, for the 255-char institution columns."""
+    return value[:255] if isinstance(value, str) and value.strip() else None
+
+
+def _wallet_external_id(connection_external_id: str, account_key: Optional[str]) -> str:
+    """The per-account wallet key, squeezed into the 255-char column.
+
+    Truncation alone could collide two accounts; over-long composites keep a
+    deterministic digest suffix instead.
+    """
+    if not account_key:
+        return connection_external_id
+    key = f"{connection_external_id}::{account_key}"
+    if len(key) <= 255:
+        return key
+    digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+    return f"{key[:214]}::{digest[:39]}"
+
+
+def _is_auto_wallet_name(name: str, institution_name: str) -> bool:
+    """True while a wallet still carries its creation-time auto-name — the
+    institution label, possibly with _unique_default_name's " N" suffix."""
+    if name == institution_name:
+        return True
+    return bool(re.fullmatch(re.escape(institution_name) + r" \d+", name))
+
+
+async def _resolve_institution(
+    session: AsyncSession,
+    connection_id: uuid.UUID,
+    cache: dict[str, Institution],
+    acc_data: AccountData,
+) -> Optional[Institution]:
+    """Get-or-create the Institution row an account's provider hint names.
+
+    Matched by the provider's stable org id when it sends one, so a bank
+    renamed on the provider side updates its row in place instead of minting
+    a new one (review on #654); name identity is the fallback for servers
+    that only send a name. Providers without per-account hints
+    (Pluggy/Enable — one institution per connection) return None, and
+    serialization falls back to the connection's own fields.
+    """
+    name = _clean_institution_name(acc_data.institution_name)
+    if not name:
+        return None
+    ext = _clean_institution_name(acc_data.institution_external_id)
+    key = f"id:{ext}" if ext else f"name:{name}"
+    if key in cache:
+        return cache[key]
+
+    inst: Optional[Institution] = None
+    if ext:
+        inst = (
+            await session.execute(
+                select(Institution).where(
+                    Institution.connection_id == connection_id,
+                    Institution.external_id == ext,
+                )
+            )
+        ).scalar_one_or_none()
+        if inst is None:
+            # Adopt a row created before the server sent org ids, so the
+            # accounts pointing at it don't get orphaned onto a new row.
+            inst = (
+                await session.execute(
+                    select(Institution).where(
+                        Institution.connection_id == connection_id,
+                        Institution.external_id.is_(None),
+                        Institution.name == name,
+                    )
+                )
+            ).scalar_one_or_none()
+            if inst is not None:
+                inst.external_id = ext
+    else:
+        # Name-only hint. Match any row with this name — id-keyed rows
+        # included, so a payload that intermittently drops org ids doesn't
+        # spawn duplicates. NULLS FIRST keeps the pick deterministic.
+        inst = (
+            await session.execute(
+                select(Institution)
+                .where(
+                    Institution.connection_id == connection_id,
+                    Institution.name == name,
+                )
+                .order_by(Institution.external_id.asc().nulls_first())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+    if inst is None:
+        inst = Institution(
+            connection_id=connection_id,
+            external_id=ext,
+            name=name,
+            logo_url=_clean_logo_url(acc_data.institution_logo_url),
+        )
+        try:
+            # Savepoint: a concurrent sync (scheduled + manual) can insert
+            # the same identity between our SELECT and this flush. The
+            # partial unique index rejects the loser — reuse the winner's
+            # row instead of failing the whole sync.
+            async with session.begin_nested():
+                session.add(inst)
+                await session.flush()
+        except IntegrityError:
+            inst = (
+                await session.execute(
+                    select(Institution)
+                    .where(
+                        Institution.connection_id == connection_id,
+                        Institution.external_id == ext
+                        if ext
+                        else Institution.name == name,
+                    )
+                    .limit(1)
+                )
+            ).scalar_one()
+    else:
+        if inst.name != name:
+            inst.name = name  # provider-side rename
+        # The logo is favicon-derived from the org's website, never user-set,
+        # so it follows the provider too — a rename that moves domains would
+        # otherwise keep the old bank's icon forever.
+        new_logo = _clean_logo_url(acc_data.institution_logo_url)
+        if new_logo is not None and inst.logo_url != new_logo:
+            inst.logo_url = new_logo
+    cache[key] = inst
+    return inst
+
+PLUGGY_CATEGORY_MAP = {
+    "Eating out": "Alimentação",
+    "Restaurants": "Alimentação",
+    "Food": "Alimentação",
+    "Groceries": "Mercado",
+    "Supermarkets": "Mercado",
+    "Pharmacy": "Saúde",
+    "Health": "Saúde",
+    "Taxi and ride-hailing": "Transporte",
+    "Transport": "Transporte",
+    "Gas": "Transporte",
+    "Travel": "Transporte",
+    "Housing": "Moradia",
+    "Rent": "Moradia",
+    "Utilities": "Moradia",
+    "Entertainment": "Lazer",
+    "Leisure": "Lazer",
+    "Education": "Educação",
+    "Subscriptions": "Assinaturas",
+    "Online services": "Assinaturas",
+    "Transfer": "Transferências",
+    "Transfers": "Transferências",
+    "Wire transfers": "Transferências",
+}
+
+
+def _sync_assets_enabled(settings: Optional[dict]) -> bool:
+    """Return whether provider investment holdings should sync for a connection.
+
+    Missing settings keep the legacy behavior (enabled). Users can opt out per
+    connection via Connection settings without disabling account/transaction sync.
+    """
+    return (settings or {}).get("sync_assets", True) is not False
+
+
+async def _sync_holdings(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    connection: BankConnection,
+    credentials: dict,
+) -> None:
+    """Fetch investment holdings from the provider and upsert them as Assets.
+
+    Each holding becomes one Asset (type="investment") keyed by
+    (workspace_id, source, external_id). Every sync appends an AssetValue row
+    dated today; if a row for today already exists (same day re-sync) it
+    is updated in place rather than creating a duplicate.
+
+    Holdings that disappear from the provider response (e.g. fully
+    redeemed fixed income) get archived rather than deleted so the user
+    keeps their value history.
+
+    Failures here are swallowed: not all Pluggy connectors expose
+    investment data, and we don't want a brokerage hiccup to break the
+    bank-account sync that just succeeded.
+    """
+    # Tolerate provider-side failures (e.g. Pluggy returning 500 for a
+    # specific connector, a bank that doesn't expose /investments).
+    # Storage errors below are intentionally not caught — they indicate
+    # a schema/invariant bug we want to surface, not a hiccup to swallow.
+    try:
+        provider = get_provider(connection.provider)
+        holdings = await provider.get_holdings(credentials)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Failed to fetch holdings for connection %s", connection.id
+        )
+        return
+
+    source = connection.provider
+    today = date.today()
+
+    # Find-or-create the wallet(s) that own this connection's holdings. A
+    # holding carrying its owning account (SimpleFIN — issue #345) gets one
+    # wallet per investment account, named after it; the rest share the
+    # connection-named wallet. Users can rename wallets freely without
+    # breaking future syncs (matching is by external_id).
+    groups_by_key: dict[Optional[str], AssetGroup] = {}
+    holding_ids = {h.external_id for h in holdings if h.external_id}
+    # Snapshots before any bucket runs, so payload order can't change them.
+    # Once per-account wallets exist under the current connection key, the
+    # plain-keyed wallet is the live connection-default, not a legacy row
+    # awaiting its first split — adopting it would hijack it. A keyed
+    # bucket applies the stricter test: any split wallet in scope (old
+    # prefixes included) means past the legacy era, so a genuinely new
+    # account must mint even right after a reconnect rotated the prefix —
+    # only the keyless bucket may still adopt the stale default then.
+    has_split_wallets = bool(
+        await session.scalar(
+            select(
+                exists().where(
+                    AssetGroup.user_id == user_id,
+                    AssetGroup.workspace_id == connection.workspace_id,
+                    AssetGroup.source == source,
+                    AssetGroup.external_id.startswith(
+                        f"{connection.external_id}::", autoescape=True
+                    ),
+                )
+            )
+        )
+    )
+    has_any_split_wallets = has_split_wallets or bool(
+        await session.scalar(
+            select(
+                exists().where(
+                    AssetGroup.user_id == user_id,
+                    AssetGroup.workspace_id == connection.workspace_id,
+                    AssetGroup.source == source,
+                    or_(
+                        AssetGroup.connection_id == connection.id,
+                        AssetGroup.connection_id.is_(None),
+                    ),
+                    AssetGroup.external_id.contains("::"),
+                )
+            )
+        )
+    )
+
+    async def _holds_synced_asset(group_id: uuid.UUID) -> bool:
+        """Does this wallet already hold an asset this payload re-syncs?"""
+        if not holding_ids:
+            return False
+        return bool(
+            await session.scalar(
+                select(
+                    exists().where(
+                        Asset.group_id == group_id,
+                        Asset.external_id.in_(holding_ids),
+                    )
+                )
+            )
+        )
+
+    async def _wallet_for(holding: HoldingData) -> AssetGroup:
+        key = holding.account_external_id
+        if key not in groups_by_key:
+            # The owning account's institution backs the wallet's
+            # "Synced from …" subtitle (issue #345).
+            institution_id = (
+                await session.scalar(
+                    select(Account.institution_id).where(
+                        Account.connection_id == connection.id,
+                        Account.external_id == key,
+                    )
+                )
+                if key
+                else None
+            )
+            wallet_key = _wallet_external_id(connection.external_id, key)
+            default_name = (
+                _clean_institution_name(holding.account_name)
+                or connection.institution_name
+            )
+            # The first claim on a wallet key adopts the wallet these
+            # holdings lived in before — the legacy connection-keyed one, or
+            # one left on a stale key by a reconnect (plain or per-account:
+            # a "…::{account}" suffix match is this very account's wallet
+            # under an older connection key) — instead of minting a new
+            # row, so an existing user's rename/icon/color/position
+            # survive. Only an untouched auto-name is refreshed. Guards, in
+            # order: never adopt when a wallet already owns the key
+            # (re-keying a twin next to it would trip the unique
+            # (user, source, external_id) index and fail every sync); never
+            # adopt a wallet another bucket of this run claimed; never
+            # reach into another workspace; a plain candidate only counts
+            # before the first split — afterwards it is the live
+            # connection-default wallet, not a legacy awaiting adoption; a
+            # stale-keyed candidate must be provably this bank's — still
+            # linked to this connection, or an orphan holding assets this
+            # payload re-syncs (a deleted sibling connection's orphan is
+            # neither); ambiguity means minting, not guessing.
+            existing = await session.scalar(
+                select(AssetGroup.id).where(
+                    AssetGroup.user_id == user_id,
+                    AssetGroup.source == source,
+                    AssetGroup.external_id == wallet_key,
+                )
+            )
+            legacy: Optional[AssetGroup] = None
+            if existing is None:
+                claimed = {g.id for g in groups_by_key.values()}
+                key_shape = ~AssetGroup.external_id.contains("::")
+                if key:
+                    key_shape = or_(
+                        key_shape,
+                        AssetGroup.external_id.endswith(
+                            f"::{key}", autoescape=True
+                        ),
+                    )
+                candidates = [
+                    g
+                    for g in (
+                        await session.execute(
+                            select(AssetGroup).where(
+                                AssetGroup.user_id == user_id,
+                                AssetGroup.workspace_id == connection.workspace_id,
+                                AssetGroup.source == source,
+                                or_(
+                                    AssetGroup.connection_id == connection.id,
+                                    AssetGroup.connection_id.is_(None),
+                                ),
+                                AssetGroup.external_id.isnot(None),
+                                # Wallets keyed under the live prefix belong
+                                # to their own accounts, never to this one.
+                                ~AssetGroup.external_id.startswith(
+                                    f"{connection.external_id}::",
+                                    autoescape=True,
+                                ),
+                                key_shape,
+                            )
+                        )
+                    ).scalars().all()
+                    if g.id not in claimed
+                ]
+                # A stale key parses as exactly "{old prefix}::{key}"; a
+                # leftover "::" in the remainder means the tail straddles
+                # another account's key (ids may themselves contain "::").
+                tail = f"::{key}" if key else None
+                suffixed = [
+                    g
+                    for g in candidates
+                    if tail
+                    and g.external_id
+                    and g.external_id.endswith(tail)
+                    and g.external_id[: -len(tail)]
+                    and "::" not in g.external_id[: -len(tail)]
+                ]
+                plain = [
+                    g
+                    for g in candidates
+                    if g.external_id and "::" not in g.external_id
+                ]
+                pool = suffixed or (
+                    []
+                    if (has_any_split_wallets if key else has_split_wallets)
+                    else plain
+                )
+                exact = [
+                    g for g in pool if g.external_id == connection.external_id
+                ]
+                if exact:
+                    legacy = exact[0]
+                else:
+                    ours = [g for g in pool if g.connection_id == connection.id]
+                    if not ours:
+                        ours = [
+                            g for g in pool if await _holds_synced_asset(g.id)
+                        ]
+                    if len(ours) == 1:
+                        legacy = ours[0]
+            if legacy is not None:
+                # A concurrent sync can win the key between the guard above
+                # and this flush; fall through to the mint path, which
+                # re-selects the winner's row.
+                try:
+                    async with session.begin_nested():
+                        legacy.external_id = wallet_key
+                        legacy.connection_id = connection.id
+                        if _is_auto_wallet_name(
+                            legacy.name, connection.institution_name
+                        ):
+                            legacy.name = await _unique_default_name(
+                                session,
+                                user_id,
+                                default_name[:95],
+                                exclude_group_id=legacy.id,
+                            )
+                        if institution_id is not None:
+                            legacy.institution_id = institution_id
+                        await session.flush()
+                except IntegrityError:
+                    await session.refresh(legacy)
+                else:
+                    groups_by_key[key] = legacy
+                    return legacy
+            groups_by_key[key] = await ensure_group_for_connection(
+                session,
+                user_id=user_id,
+                connection_id=connection.id,
+                source=source,
+                external_id=wallet_key,
+                default_name=default_name,
+                institution_id=institution_id,
+                workspace_id=connection.workspace_id,
+            )
+        return groups_by_key[key]
+
+    # Wallets this sync owns: this connection's, plus orphans a prior
+    # disconnect left behind (connection_id went NULL via SET NULL) — their
+    # re-adopted assets must still split into per-account wallets instead of
+    # staying stranded. An asset sitting in one may be re-attributed below;
+    # a user's custom wallet (source "manual") and other workspaces' wallets
+    # are never touched.
+    sync_owned_rows = await session.execute(
+        select(AssetGroup.id, AssetGroup.external_id).where(
+            AssetGroup.user_id == user_id,
+            AssetGroup.workspace_id == connection.workspace_id,
+            AssetGroup.source == source,
+            or_(
+                AssetGroup.connection_id == connection.id,
+                AssetGroup.connection_id.is_(None),
+            ),
+        )
+    )
+    sync_owned = sync_owned_rows.all()
+    sync_owned_group_ids = {row[0] for row in sync_owned}
+    # Per-account wallets, by their "…::…" keys. A holding that lost its
+    # account hint must not drain one of these into the default bucket — a
+    # single degraded payload would empty them and the reap would delete
+    # the user's customization with them.
+    split_group_ids = {row[0] for row in sync_owned if row[1] and "::" in row[1]}
+
+    existing_rows = await session.execute(
+        select(Asset).where(
+            Asset.workspace_id == connection.workspace_id,
+            Asset.source == source,
+        )
+    )
+    existing_assets = list(existing_rows.scalars().all())
+    existing_by_external: dict[str, Asset] = {
+        asset.external_id: asset for asset in existing_assets if asset.external_id
+    }
+    archive_candidates: dict[str, Asset] = {
+        asset.external_id: asset
+        for asset in existing_assets
+        if asset.external_id
+        and (asset.connection_id == connection.id or asset.connection_id is None)
+    }
+    seen: set[str] = set()
+
+    for holding in holdings:
+        seen.add(holding.external_id)
+        existing = existing_by_external.get(holding.external_id)
+
+        # Provider-reported closure (Pluggy TOTAL_WITHDRAWAL). Two cases:
+        #   - New + withdrawn: skip entirely. A dead zero-balance asset
+        #     with no history is noise; the user never saw this position
+        #     while it was active, no reason to surface it closed.
+        #   - Existing + withdrawn: mark sell_date (if not already set by
+        #     the user) so it drops out of current totals but historical
+        #     AssetValues remain visible in reports. No new AssetValue —
+        #     appending today's zero would bury the real closing value.
+        if holding.is_withdrawn:
+            if existing is None:
+                continue
+            provider_sell_date: Optional[str] = None
+            if existing.sell_date is None:
+                existing.sell_date = today
+                provider_sell_date = today.isoformat()
+            else:
+                # Preserve provenance across repeated withdrawn payloads, but
+                # deliberately drop it once the user changes the date.
+                previous_marker = (existing.external_metadata or {}).get(
+                    _PROVIDER_SELL_DATE_METADATA_KEY
+                )
+                if previous_marker == existing.sell_date.isoformat():
+                    provider_sell_date = previous_marker
+            # Keep descriptive fields fresh in case the provider still
+            # updates them post-closure, but don't touch valuation.
+            existing.name = holding.name
+            withdrawn_metadata = dict(holding.metadata or {})
+            if provider_sell_date is not None:
+                withdrawn_metadata[_PROVIDER_SELL_DATE_METADATA_KEY] = provider_sell_date
+            existing.external_metadata = withdrawn_metadata or None
+            existing.connection_id = connection.id
+            continue
+
+        # A provider-reported closure is reversible. The prior raw status is
+        # already persisted in external_metadata, so no separate schema field
+        # is needed to distinguish TOTAL_WITHDRAWAL -> ACTIVE from a manually
+        # entered sell date. Manual dates remain authoritative when there was
+        # no provider withdrawal transition.
+        previous_metadata = existing.external_metadata or {} if existing is not None else {}
+        previous_provider_status = str(previous_metadata.get("status") or "").upper()
+        provider_sell_date = previous_metadata.get(_PROVIDER_SELL_DATE_METADATA_KEY)
+        if (
+            existing is not None
+            and existing.sell_date is not None
+            and previous_provider_status == "TOTAL_WITHDRAWAL"
+            and provider_sell_date == existing.sell_date.isoformat()
+        ):
+            existing.sell_date = None
+
+        asset = await _upsert_asset_from_holding(
+            session, existing, holding, user_id, connection.id, source,
+            workspace_id=connection.workspace_id,
+        )
+        if asset.group_id is not None:
+            existing_group = await session.get(AssetGroup, asset.group_id)
+            if (
+                existing_group is not None
+                and existing_group.workspace_id == connection.workspace_id
+                and existing_group.source == source
+                and (
+                    existing_group.connection_id == connection.id
+                    or existing_group.connection_id is None
+                )
+            ):
+                existing_group.user_id = user_id
+                sync_owned_group_ids.add(existing_group.id)
+                if existing_group.external_id and "::" in existing_group.external_id:
+                    split_group_ids.add(existing_group.id)
+        # Attach to its institution's wallet. NOTE this deliberately moves
+        # holdings between sync-owned wallets, not just out of a null group
+        # like it used to: re-attribution corrects the sync's own earlier
+        # bucketing (one-wallet-per-connection → per-account). A wallet the
+        # user made themselves ("US Stocks", source "manual") is never
+        # touched.
+        group = await _wallet_for(holding)
+        hint_lost = (
+            holding.account_external_id is None
+            and asset.group_id in split_group_ids
+        )
+        if (
+            not hint_lost
+            and (asset.group_id is None or asset.group_id in sync_owned_group_ids)
+            and asset.group_id != group.id
+        ):
+            asset.group_id = group.id
+        # Seed a historical value at purchase_date so users get a real
+        # evolution curve from day one — not just today's snapshot.
+        # Idempotent: skips if any AssetValue already exists at that date.
+        if holding.purchase_date and holding.purchase_price is not None:
+            await _ensure_historical_seed(
+                session, asset, holding.purchase_date, holding.purchase_price
+            )
+        # Respect a user-set sell_date: if they've marked the asset as
+        # sold we stop recording new values even when the provider still
+        # reports the position. Historical values stay; current totals
+        # already exclude it via the sell_date filter in rollups.
+        if asset.sell_date is None:
+            await _upsert_asset_value_for_today(session, asset, holding.current_value, today)
+
+    for ext_id, asset in archive_candidates.items():
+        if ext_id not in seen and not asset.is_archived:
+            asset.is_archived = True
+
+    # Sync owns its wallets: drop any it emptied by re-attribution above
+    # (e.g. the single connection-named wallet that predates per-institution
+    # ones). Wallets still holding assets — or used this run — are kept, and
+    # so is anything a goal tracks or a collection contains: deleting those
+    # would SET NULL the goal's target and CASCADE the membership away,
+    # silently breaking things the user built on the wallet.
+    if holdings:
+        await session.flush()
+        used_ids = {g.id for g in groups_by_key.values()}
+        for gid in sync_owned_group_ids - used_ids:
+            has_assets = await session.scalar(
+                select(func.count()).select_from(Asset).where(Asset.group_id == gid)
+            )
+            if has_assets:
+                continue
+            referenced = await session.scalar(
+                select(
+                    exists().where(Goal.asset_group_id == gid)
+                    | exists()
+                    .select_from(collection_asset_groups)
+                    .where(collection_asset_groups.c.asset_group_id == gid)
+                )
+            )
+            if referenced:
+                continue
+            emptied = await session.get(AssetGroup, gid)
+            if emptied is not None:
+                await session.delete(emptied)
+
+
+async def _upsert_asset_from_holding(
+    session: AsyncSession,
+    asset: Optional[Asset],
+    holding: HoldingData,
+    user_id: uuid.UUID,
+    connection_id: uuid.UUID,
+    source: str,
+    workspace_id: uuid.UUID,
+) -> Asset:
+    """Create or update an Asset from a HoldingData payload.
+
+    Synced fields (name, currency, quantity, purchase_price, maturity,
+    metadata) are always overwritten — the UI disables editing these on
+    synced assets. Provider-reported withdrawal is handled by the caller
+    via `sell_date`, not here, so this function only ever sees ACTIVE
+    holdings and never flips `is_archived` on its own.
+    """
+    if asset is None:
+        asset = Asset(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            connection_id=connection_id,
+            source=source,
+            external_id=holding.external_id,
+            name=holding.name,
+            type="investment",
+            currency=holding.currency,
+            units=holding.quantity,
+            purchase_price=holding.purchase_price,
+            purchase_date=holding.purchase_date,
+            isin=holding.isin,
+            ticker=holding.ticker,
+            maturity_date=holding.maturity_date,
+            external_metadata=holding.metadata,
+            valuation_method="manual",
+        )
+        session.add(asset)
+        await session.flush()
+        return asset
+
+    # Fields Pluggy consistently returns — safe to overwrite each sync.
+    asset.name = holding.name
+    asset.currency = holding.currency
+    asset.user_id = user_id
+    # external_metadata is a snapshot blob: we want the latest every time.
+    asset.external_metadata = holding.metadata
+    previous_connection_id = asset.connection_id
+    asset.connection_id = connection_id
+    # Only auto-unarchive when the holding moved to a different connection
+    # (e.g. unlink + reconnect). This avoids overriding user-archived assets.
+    if asset.is_archived and previous_connection_id != connection_id:
+        asset.is_archived = False
+    # Re-adopted across workspaces (bank deleted in one, re-added in the
+    # other): the asset follows its connection; its old wallet stays behind
+    # in the old workspace, so placement is redone by the caller.
+    if asset.workspace_id != workspace_id:
+        asset.workspace_id = workspace_id
+        asset.group_id = None
+
+    # Sparse fields — merge, don't clobber. Pluggy sometimes returns
+    # these on first sync and null on later ones (e.g. amountOriginal
+    # present at creation, missing on daily rebalances). Keeping the
+    # first-seen value is better than wiping data we already have.
+    if holding.quantity is not None:
+        asset.units = holding.quantity
+    if holding.purchase_price is not None:
+        asset.purchase_price = holding.purchase_price
+    if holding.purchase_date:
+        asset.purchase_date = holding.purchase_date
+    if holding.isin:
+        asset.isin = holding.isin
+    if holding.ticker:
+        asset.ticker = holding.ticker
+    if holding.maturity_date:
+        asset.maturity_date = holding.maturity_date
+    return asset
+
+
+async def _ensure_historical_seed(
+    session: AsyncSession,
+    asset: Asset,
+    purchase_date: date,
+    purchase_price,
+) -> None:
+    """Insert a one-time AssetValue at purchase_date with purchase_price.
+
+    Called on every sync but a no-op once the seed exists. Skips if ANY
+    AssetValue already exists on that date (even a manual one) — we don't
+    want to stomp a value the user may have entered themselves.
+    """
+    existing = await session.execute(
+        select(AssetValue).where(
+            AssetValue.asset_id == asset.id,
+            AssetValue.date == purchase_date,
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        return
+    session.add(
+        AssetValue(
+            asset_id=asset.id,
+            amount=purchase_price,
+            date=purchase_date,
+            source="sync",
+        )
+    )
+
+
+async def _upsert_asset_value_for_today(
+    session: AsyncSession,
+    asset: Asset,
+    amount,
+    today: date,
+) -> None:
+    """One sync-sourced AssetValue per asset per day.
+
+    Re-syncing the same day updates the amount in place; a later day
+    creates a new row so we build a daily valuation history over time.
+    """
+    existing = await session.execute(
+        select(AssetValue).where(
+            AssetValue.asset_id == asset.id,
+            AssetValue.date == today,
+            AssetValue.source == "sync",
+        )
+    )
+    row = existing.scalar_one_or_none()
+    if row is not None:
+        row.amount = amount
+    else:
+        session.add(
+            AssetValue(
+                asset_id=asset.id,
+                amount=amount,
+                date=today,
+                source="sync",
+            )
+        )
+
+
+async def _match_pluggy_category(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    pluggy_category: Optional[str],
+    enabled: bool = True,
+) -> Optional[uuid.UUID]:
+    # `enabled` is the resolved value of the global `use_provider_categories`
+    # admin setting. Off = sync skips the provider->user category mapping
+    # entirely so transactions arrive uncategorized and Rules are the only
+    # source of truth. Default keeps the historical behavior.
+    if not enabled or not pluggy_category:
+        return None
+    # Try exact match first, then prefix before " - " (e.g. "Transfer - PIX" → "Transfer")
+    app_name = PLUGGY_CATEGORY_MAP.get(pluggy_category)
+    if not app_name and " - " in pluggy_category:
+        app_name = PLUGGY_CATEGORY_MAP.get(pluggy_category.split(" - ")[0])
+    if not app_name:
+        return None
+    # Scope to the connection's workspace: a user in multiple workspaces owns
+    # the same default category names in each, so a user_id-only lookup returns
+    # several rows. `.first()` is belt-and-suspenders — a category match must
+    # never crash the whole sync even if a workspace somehow has name dupes.
+    result = await session.execute(
+        select(Category.id)
+        .where(Category.workspace_id == workspace_id, Category.name == app_name)
+        .limit(1)
+    )
+    return result.scalars().first()
+
+
+async def get_connections(session: AsyncSession, workspace_id: uuid.UUID) -> list[BankConnection]:
+    result = await session.execute(
+        select(BankConnection)
+        .where(BankConnection.workspace_id == workspace_id)
+        .options(selectinload(BankConnection.accounts))
+        .order_by(BankConnection.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def get_connection(
+    session: AsyncSession, connection_id: uuid.UUID, workspace_id: uuid.UUID
+) -> Optional[BankConnection]:
+    result = await session.execute(
+        select(BankConnection)
+        .where(BankConnection.id == connection_id, BankConnection.workspace_id == workspace_id)
+        .options(selectinload(BankConnection.accounts))
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_oauth_url(
+    provider_name: str,
+    user_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    flow_params: Optional[dict] = None,
+    reconnect_connection_id: Optional[uuid.UUID] = None,
+) -> str:
+    provider = get_provider(provider_name)
+    state = await oauth_state.store_state(
+        {
+            "user_id": str(user_id),
+            "workspace_id": str(workspace_id),
+            "provider": provider_name,
+            "flow_params": flow_params or {},
+            "reconnect_connection_id": (
+                str(reconnect_connection_id) if reconnect_connection_id else None
+            ),
+        }
+    )
+    return await provider.get_oauth_url(provider.redirect_uri, state, flow_params)
+
+
+async def get_reauth_url(
+    session: AsyncSession,
+    connection_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> str:
+    connection = await get_connection(session, connection_id, workspace_id)
+    if not connection:
+        raise ValueError("Connection not found")
+    provider = get_provider(connection.provider)
+    state = await oauth_state.store_state(
+        {
+            "user_id": str(user_id),
+            "workspace_id": str(workspace_id),
+            "provider": connection.provider,
+            "flow_params": (connection.settings or {}).get("flow_params") or {},
+            "reconnect_connection_id": str(connection.id),
+        }
+    )
+    return await provider.reauth_url(
+        connection.credentials or {},
+        connection.settings or {},
+        provider.redirect_uri,
+        state,
+    )
+
+
+async def list_provider_institutions(
+    provider_name: str, country: Optional[str] = None
+) -> dict:
+    provider = get_provider(provider_name)
+    data = await provider.list_institutions(country)
+    return {
+        "countries": data.countries,
+        "institutions": [
+            {
+                "name": i.name,
+                "display_name": i.display_name,
+                "country": i.country,
+                "logo": i.logo,
+                "bic": i.bic,
+                "psu_types": i.psu_types,
+                "max_consent_days": i.max_consent_days,
+                "max_history_days": i.max_history_days,
+            }
+            for i in data.institutions
+        ],
+    }
+
+
+async def create_connect_token(
+    provider_name: str, user_id: uuid.UUID, item_id: str | None = None
+) -> dict:
+    provider = get_provider(provider_name)
+    token_data = await provider.create_connect_token(str(user_id), item_id=item_id)
+    return {"access_token": token_data.access_token}
+
+
+async def update_connection_settings(
+    session: AsyncSession,
+    connection_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    settings_update: dict,
+) -> Optional[BankConnection]:
+    connection = await get_connection(session, connection_id, workspace_id)
+    if not connection:
+        return None
+
+    if "display_name" in settings_update:
+        raw = settings_update.pop("display_name")
+        trimmed = raw.strip() if isinstance(raw, str) else raw
+        connection.display_name = trimmed or None
+
+    current = dict(connection.settings or {})
+    for key, value in settings_update.items():
+        if value is not None:
+            current[key] = value
+    connection.settings = current
+
+    await session.commit()
+    await session.refresh(connection)
+    return connection
+
+
+async def handle_oauth_callback(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    code: str,
+    provider_name: Optional[str] = None,
+    state: Optional[str] = None,
+    sync_assets: Optional[bool] = None,
+    reconnect_connection_id: Optional[uuid.UUID] = None,
+) -> BankConnection:
+    state_payload: dict = {}
+    if state:
+        consumed = await oauth_state.consume_state(state)
+        if not consumed:
+            raise ValueError("OAuth state is invalid or expired")
+        # The state is authoritative — caller-supplied provider_name is a hint.
+        if consumed.get("user_id") != str(user_id):
+            raise ValueError("OAuth state user does not match authenticated user")
+        if consumed.get("workspace_id") != str(workspace_id):
+            raise ValueError("OAuth state workspace does not match active workspace")
+        state_payload = consumed
+        provider_name = consumed.get("provider") or provider_name
+    reconnect_id = state_payload.get("reconnect_connection_id") or reconnect_connection_id
+    existing_reconnect: BankConnection | None = None
+    if reconnect_id:
+        existing_reconnect = await session.get(BankConnection, uuid.UUID(str(reconnect_id)))
+        if not existing_reconnect or existing_reconnect.workspace_id != workspace_id:
+            raise ValueError("Reconnect target connection not found")
+        # Token reconnects do not carry OAuth state, so the request body may be
+        # the only source of provider_name. Never allow a pasted token for one
+        # provider to overwrite another provider's stored credentials.
+        if provider_name and provider_name != existing_reconnect.provider:
+            raise ValueError("Reconnect provider does not match target connection")
+        provider_name = existing_reconnect.provider
+
+    if not provider_name:
+        raise ValueError("OAuth callback missing provider")
+
+    provider = get_provider(provider_name)
+    connection_data = await provider.handle_oauth_callback(code)
+
+    if existing_reconnect:
+        existing_reconnect.external_id = connection_data.external_id
+        existing_reconnect.institution_name = (
+            connection_data.institution_name or existing_reconnect.institution_name
+        )
+        existing_reconnect.logo_url = _clean_logo_url(connection_data.logo_url) or existing_reconnect.logo_url
+        existing_reconnect.credentials = connection_data.credentials
+        existing_reconnect.status = "active"
+        # Re-sync from current data on next sync cycle.
+        existing_reconnect.last_sync_at = None
+        await session.commit()
+        await session.refresh(existing_reconnect)
+        return existing_reconnect
+
+    flow_params = dict(state_payload.get("flow_params") or {})
+    flow_sync_assets = flow_params.pop("sync_assets", None)
+    initial_settings: dict[str, object] = {"flow_params": flow_params}
+    if sync_assets is None and isinstance(flow_sync_assets, bool):
+        sync_assets = flow_sync_assets
+    if sync_assets is not None:
+        initial_settings["sync_assets"] = sync_assets
+
+    connection = BankConnection(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        provider=provider_name,
+        external_id=connection_data.external_id,
+        institution_name=connection_data.institution_name,
+        logo_url=_clean_logo_url(connection_data.logo_url),
+        credentials=connection_data.credentials,
+        settings=initial_settings,
+        status="active",
+    )
+    session.add(connection)
+    await session.flush()
+
+    user = await session.get(User, user_id)
+    user_currency = user.primary_currency if user else get_settings().default_currency
+    new_tx_ids: list[uuid.UUID] = []
+
+    use_provider_cats = await admin_service.use_provider_categories(session)
+
+    institution_cache: dict[str, Institution] = {}
+    for acc_data in connection_data.accounts:
+        is_cc = acc_data.type == "credit_card"
+        institution = await _resolve_institution(
+            session, connection.id, institution_cache, acc_data
+        )
+        account = Account(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            connection_id=connection.id,
+            external_id=acc_data.external_id,
+            name=acc_data.name,
+            masked_number=acc_data.masked_number,
+            type=acc_data.type,
+            balance=acc_data.balance,
+            currency=acc_data.currency,
+            credit_limit=acc_data.credit_limit if is_cc else None,
+            statement_close_day=acc_data.statement_close_day if is_cc else None,
+            payment_due_day=acc_data.payment_due_day if is_cc else None,
+            minimum_payment=acc_data.minimum_payment if is_cc else None,
+            card_brand=acc_data.card_brand if is_cc else None,
+            card_level=acc_data.card_level if is_cc else None,
+            institution_id=institution.id if institution else None,
+        )
+        session.add(account)
+        await session.flush()
+
+        bills_by_external_id = await _sync_credit_card_bills(
+            session, user_id, account, provider, connection_data.credentials
+        )
+
+        # Fetch initial transactions (since=None fetches all available history)
+        transactions_data = await provider.get_transactions(
+            connection_data.credentials, acc_data.external_id, None
+        )
+        seen_external_ids: set[str] = set()
+        for txn_data in transactions_data:
+            # Providers should return each external transaction once, but an
+            # upstream pagination bug can repeat a page. This account was just
+            # created, so batch-local tracking avoids both duplicate inserts
+            # and an unnecessary SELECT for every imported transaction.
+            if txn_data.external_id in seen_external_ids:
+                continue
+            seen_external_ids.add(txn_data.external_id)
+
+            # Pending↔posted twin (and the credit-card installment variant).
+            # When the same logical operation comes back under a new external
+            # id with a different status, fingerprint match prevents the
+            # second copy from landing.
+            synced_dup = await _find_synced_duplicate(session, account.id, txn_data)
+            if synced_dup:
+                if synced_dup.original_description is None:
+                    synced_dup.original_description = txn_data.description
+                if synced_dup.status == "pending" and txn_data.status == "posted":
+                    synced_dup.status = "posted"
+                    synced_dup.external_id = txn_data.external_id
+                    synced_dup.raw_data = txn_data.raw_data
+                    if (
+                        txn_data.bill_external_id
+                        and synced_dup.effective_bill_date is None
+                    ):
+                        bill = bills_by_external_id.get(txn_data.bill_external_id)
+                        if bill is not None and synced_dup.bill_id != bill.id:
+                            synced_dup.bill_id = bill.id
+                            apply_effective_date(
+                                synced_dup, account, bill_due_date=bill.due_date
+                            )
+                continue
+
+            category_id = await _match_pluggy_category(
+                session, workspace_id, txn_data.pluggy_category, enabled=use_provider_cats
+            )
+            # Resolve payee entity from raw payee text
+            payee_id = None
+            if txn_data.payee:
+                payee_entity = await get_or_create_payee(
+                    session, user_id, txn_data.payee, workspace_id=workspace_id
+                )
+                payee_id = payee_entity.id
+
+            bill = (
+                bills_by_external_id.get(txn_data.bill_external_id)
+                if txn_data.bill_external_id
+                else None
+            )
+            transaction = Transaction(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                account_id=account.id,
+                external_id=txn_data.external_id,
+                description=txn_data.description,
+                original_description=txn_data.description,
+                amount=txn_data.amount,
+                currency=txn_data.currency or acc_data.currency or user_currency,
+                date=txn_data.date,
+                type=txn_data.type,
+                source="sync",
+                status=txn_data.status,
+                payee=txn_data.payee,
+                payee_id=payee_id,
+                raw_data=txn_data.raw_data,
+                category_id=None,
+                installment_number=txn_data.installment_number,
+                total_installments=txn_data.total_installments,
+                installment_total_amount=txn_data.installment_total_amount,
+                installment_purchase_date=txn_data.installment_purchase_date,
+                bill_id=bill.id if bill else None,
+            )
+            apply_effective_date(
+                transaction, account, bill_due_date=bill.due_date if bill else None
+            )
+            session.add(transaction)
+            await session.flush()
+            new_tx_ids.append(transaction.id)
+            await apply_rules_to_transaction(session, user_id, transaction)
+            if transaction.category_id is None:
+                transaction.category_id = category_id
+
+            # Prefer bank-provided conversion for international transactions
+            acct_currency = acc_data.currency or user_currency
+            if (
+                txn_data.amount_in_account_currency is not None
+                and txn_data.amount
+                and acct_currency == user_currency
+                and txn_data.currency != acct_currency
+            ):
+                transaction.amount_primary = txn_data.amount_in_account_currency
+                transaction.fx_rate_used = txn_data.amount_in_account_currency / txn_data.amount
+            else:
+                await stamp_primary_amount(session, user_id, transaction)
+
+        # After importing the initial batch, reconcile the opening balance so
+        # that SUM(all transactions) matches the provider-reported balance. Any
+        # history that falls outside the provider's lookback window gets
+        # absorbed into this synthetic transaction.
+        await sync_opening_balance_for_connected_account(session, account)
+
+    # Detect transfer pairs among newly synced transactions
+    await detect_transfer_pairs(session, workspace_id, candidate_ids=new_tx_ids)
+
+    # And settle what this money was promised against, once the rows exist.
+    if new_tx_ids:
+        landed = list(
+            (
+                await session.execute(
+                    select(Transaction).where(Transaction.id.in_(new_tx_ids))
+                )
+            )
+            .scalars()
+            .all()
+        )
+        await reconciliation_service.match_incoming(session, workspace_id, landed)
+
+    # Investment holdings live on /investments — separate endpoint from
+    # /accounts. Pulled after account setup when enabled so holdings are
+    # available on the Assets page immediately after the widget closes.
+    if _sync_assets_enabled(connection.settings):
+        await _sync_holdings(session, user_id, connection, connection_data.credentials)
+
+    connection.last_sync_at = datetime.now(timezone.utc)
+    await session.commit()
+    await session.refresh(connection)
+    return connection
+
+
+async def _fuzzy_match_manual(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    txn_data,
+) -> Optional[Transaction]:
+    """Try to find a manual transaction that matches the incoming synced one."""
+    date_lo = txn_data.date - timedelta(days=3)
+    date_hi = txn_data.date + timedelta(days=3)
+
+    result = await session.execute(
+        select(Transaction).where(
+            Transaction.account_id == account_id,
+            Transaction.external_id.is_(None),
+            Transaction.source == "manual",
+            Transaction.amount == txn_data.amount,
+            Transaction.type == txn_data.type,
+            Transaction.date >= date_lo,
+            Transaction.date <= date_hi,
+        )
+    )
+    candidates = result.scalars().all()
+    if not candidates:
+        return None
+
+    best_match = None
+    best_score = 0.0
+    for candidate in candidates:
+        score = token_overlap(
+            candidate.original_description or candidate.description,
+            txn_data.description,
+        )
+        if score > best_score:
+            best_score = score
+            best_match = candidate
+
+    if best_match and best_score >= 0.6:
+        return best_match
+    return None
+
+
+async def _find_synced_duplicate(
+    session: AsyncSession,
+    account_id: uuid.UUID,
+    txn_data,
+) -> Optional[Transaction]:
+    """Find an existing synced row that the incoming `txn_data` is a twin of.
+
+    The `(account_id, external_id)` lookup only catches the case where a
+    provider keeps the same id while a row's `status` flips pending→posted.
+    It misses two patterns where the same logical operation comes back with
+    two different external ids:
+
+    1. The provider re-emits the operation with a new id when its state
+       changes — e.g. a scheduled/pending row replaced by a posted row.
+       Same account/date/amount/type with statuses differing.
+    2. A credit-card installment that lands on the current bill but is also
+       still scheduled against the next bill. Two different external ids
+       and two different bills, but the same installment fingerprint
+       `(purchase_date, number, total, amount, type)`.
+
+    Returns the existing Transaction the caller should reuse; the caller
+    decides whether to upgrade its status (pending→posted + swap external_id)
+    or skip the incoming insert. Synthetic bill-charge rows
+    (`bill_charge:*`) are excluded — they have their own idempotency keys.
+    """
+    # Path 1: installment fingerprint. Highly specific, so we don't require a
+    # description match on top.
+    if (
+        txn_data.installment_purchase_date is not None
+        and txn_data.installment_number is not None
+        and txn_data.total_installments is not None
+    ):
+        result = await session.execute(
+            select(Transaction).where(
+                Transaction.account_id == account_id,
+                Transaction.source == "sync",
+                Transaction.installment_purchase_date == txn_data.installment_purchase_date,
+                Transaction.installment_number == txn_data.installment_number,
+                Transaction.total_installments == txn_data.total_installments,
+                Transaction.amount == txn_data.amount,
+                Transaction.type == txn_data.type,
+                Transaction.external_id != txn_data.external_id,
+            )
+        )
+        for candidate in result.scalars():
+            if candidate.external_id and candidate.external_id.startswith("bill_charge:"):
+                continue
+            return candidate
+
+    # Path 2: pending↔posted twin on the same account/date/amount/type. The
+    # status differential is the load-bearing signal — without it we'd risk
+    # collapsing two genuinely separate transactions that happen to share a
+    # day and amount. A light description-similarity check guards against
+    # the residual false positive of two different merchants charging the
+    # same amount the same day where one is pending and one is posted.
+    result = await session.execute(
+        select(Transaction).where(
+            Transaction.account_id == account_id,
+            Transaction.source == "sync",
+            Transaction.date == txn_data.date,
+            Transaction.amount == txn_data.amount,
+            Transaction.type == txn_data.type,
+            Transaction.status != txn_data.status,
+            Transaction.external_id != txn_data.external_id,
+        )
+    )
+    for candidate in result.scalars():
+        if candidate.external_id and candidate.external_id.startswith("bill_charge:"):
+            continue
+        if token_overlap(
+            candidate.original_description or candidate.description,
+            txn_data.description,
+        ) >= 0.7:
+            return candidate
+
+    return None
+
+
+async def _cleanup_phantom_duplicates(
+    session: AsyncSession,
+    connection_id: uuid.UUID,
+) -> int:
+    """Delete synced transactions that are phantom duplicates.
+
+    Some providers (or sandbox data) report the same payment twice with
+    different external ids on adjacent days. Transfer detection matches the
+    real one against the counterpart in another account; the phantom remains
+    orphaned.
+
+    We delete an unpaired synced tx when it has a *paired* sibling in the same
+    account with: same amount, same type, near-identical description, dated
+    within ±1 day. The pairing of the sibling is the safety signal that lets
+    us distinguish the duplicate from a legitimate same-day repeat (e.g. two
+    real Uber rides for the same fare).
+    """
+    accounts_result = await session.execute(
+        select(Account.id).where(Account.connection_id == connection_id)
+    )
+    account_ids = [row[0] for row in accounts_result.all()]
+    if not account_ids:
+        return 0
+
+    unmatched_result = await session.execute(
+        select(Transaction).where(
+            Transaction.account_id.in_(account_ids),
+            Transaction.source == "sync",
+            Transaction.transfer_pair_id.is_(None),
+        )
+    )
+    unmatched = list(unmatched_result.scalars().all())
+
+    deleted = 0
+    for tx in unmatched:
+        date_lo = tx.date - timedelta(days=1)
+        date_hi = tx.date + timedelta(days=1)
+        sibling_result = await session.execute(
+            select(Transaction).where(
+                Transaction.account_id == tx.account_id,
+                Transaction.source == "sync",
+                Transaction.amount == tx.amount,
+                Transaction.type == tx.type,
+                Transaction.date >= date_lo,
+                Transaction.date <= date_hi,
+                Transaction.transfer_pair_id.is_not(None),
+                Transaction.id != tx.id,
+            )
+        )
+        for sibling in sibling_result.scalars():
+            if token_overlap(
+                sibling.original_description or sibling.description,
+                tx.original_description or tx.description,
+            ) >= 0.9:
+                await session.delete(tx)
+                deleted += 1
+                break
+
+    return deleted
+
+
+# Finance-charge `additionalInfo` strings that Pluggy emits but which would
+# double-count if materialized as transactions:
+#   - "Saldo em atraso" — the prior bill's unpaid balance carried into this
+#     bill. It's an informational line, not part of bill.totalAmount.
+#   - "Juros de dívida encerrada" — an aggregate that equals the sum of the
+#     detailed late-charge items (IOF + LATE_PAYMENT_*) Pluggy ALSO lists
+#     separately on the same bill.
+# Matched case-insensitively after stripping whitespace. Issue #92.
+_FINANCE_CHARGE_SKIP_INFO = {
+    "saldo em atraso",
+    "juros de dívida encerrada",
+}
+
+
+def _compute_bill_close_date(due_date: date, close_day: Optional[int]) -> date:
+    """The cycle's close date — when the bank snapshots the bill and applies
+    finance charges. We don't get this from the provider directly; we derive
+    it as "the most recent statement_close_day on or before the bill's
+    due_date" (a few days before due, the typical close-to-due gap). When
+    the account has no close_day configured we fall back to due_date.
+
+    Why this date, not due_date: charges accrue at close, before the user
+    pays the bill. Stamping them at due_date makes them appear chronologically
+    after the payment in the tx list, which doesn't match real bank semantics.
+    """
+    import calendar  # local — not used elsewhere in this file
+    if not close_day:
+        return due_date
+    last = calendar.monthrange(due_date.year, due_date.month)[1]
+    same_month = date(due_date.year, due_date.month, min(close_day, last))
+    if same_month <= due_date:
+        return same_month
+    if due_date.month == 1:
+        py, pm = due_date.year - 1, 12
+    else:
+        py, pm = due_date.year, due_date.month - 1
+    plast = calendar.monthrange(py, pm)[1]
+    return date(py, pm, min(close_day, plast))
+
+
+def _describe_finance_charge(type_str: str, additional_info: Optional[str]) -> str:
+    """User-facing description for a synthetic finance-charge transaction.
+
+    Pluggy connectors emit human-readable Portuguese strings in
+    `additionalInfo`; we prefer those because the bank's own wording is what
+    the user expects to see. Fall back to a localized label keyed off the
+    enumerated `type` when the info field is absent.
+    """
+    if additional_info:
+        return additional_info.strip()
+    return {
+        "IOF": "IOF",
+        "LATE_PAYMENT_FEE": "Multa por atraso",
+        "LATE_PAYMENT_INTEREST": "Juros por atraso",
+        "LATE_PAYMENT_REMUNERATIVE_INTEREST": "Juros remuneratórios",
+    }.get(type_str, "Encargo")
+
+
+async def _sync_bill_finance_charges(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    account: Account,
+    bill: CreditCardBill,
+    raw_charges: list,
+) -> None:
+    """Materialize a bill's finance charges (IOF, juros, multa, etc.) as
+    synthetic transactions linked to the bill.
+
+    Without this, the cycle's tx sum can't reconcile to bill.total_amount —
+    the bank charges these but the provider doesn't always emit them as
+    standalone transactions.
+
+    Each synthetic tx has a stable external_id of the form
+    `bill_charge:{bill.external_id}:{charge.id}` so re-sync is idempotent and
+    self-healing: removed charges are detected and deleted; updated charges
+    overwrite in place. Charges matching the double-count patterns above
+    (carry-over balance, aggregate of detailed lines) are skipped.
+    """
+    # date = close (when the bank applied the charge); effective_date stays
+    # at bill.due_date so accrual-mode aggregations bucket the same as
+    # regular CC purchases for this bill.
+    charge_date = _compute_bill_close_date(bill.due_date, account.statement_close_day)
+
+    desired_external_ids: set[str] = set()
+    for raw in raw_charges:
+        if not isinstance(raw, dict):
+            continue
+        info = (raw.get("additionalInfo") or "").strip().lower()
+        if info in _FINANCE_CHARGE_SKIP_INFO:
+            continue
+        amount_raw = raw.get("amount")
+        try:
+            amount = Decimal(str(amount_raw))
+        except (ValueError, TypeError, InvalidOperation):
+            continue
+        if amount == 0:
+            continue
+        charge_id = raw.get("id")
+        if not charge_id:
+            continue
+        external_id = f"bill_charge:{bill.external_id}:{charge_id}"
+        desired_external_ids.add(external_id)
+
+        existing = (await session.execute(
+            select(Transaction).where(
+                Transaction.account_id == account.id,
+                Transaction.external_id == external_id,
+            )
+        )).scalar_one_or_none()
+
+        description = _describe_finance_charge(
+            str(raw.get("type") or ""), raw.get("additionalInfo")
+        )
+
+        if existing:
+            existing.amount = abs(amount)
+            existing.description = description
+            existing.date = charge_date
+            existing.effective_date = bill.due_date
+            existing.bill_id = bill.id
+            existing.raw_data = raw
+        else:
+            tx = Transaction(
+                user_id=user_id,
+                workspace_id=account.workspace_id,
+                account_id=account.id,
+                external_id=external_id,
+                description=description,
+                amount=abs(amount),
+                currency=bill.currency,
+                date=charge_date,
+                effective_date=bill.due_date,
+                type="debit",
+                source="sync",
+                status="posted",
+                raw_data=raw,
+                bill_id=bill.id,
+            )
+            session.add(tx)
+
+    # Drop synthetic charges Pluggy no longer reports for this bill (e.g.
+    # the bank reversed an erroneous fee on a re-sync). Real transactions
+    # don't share the bill_charge: prefix so they're untouched.
+    orphans = (await session.execute(
+        select(Transaction).where(
+            Transaction.account_id == account.id,
+            Transaction.bill_id == bill.id,
+            Transaction.external_id.like(f"bill_charge:{bill.external_id}:%"),
+        )
+    )).scalars().all()
+    for tx in orphans:
+        if tx.external_id not in desired_external_ids:
+            await session.delete(tx)
+
+
+async def _sync_credit_card_bills(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    account: Account,
+    provider,
+    credentials: dict,
+) -> dict[str, CreditCardBill]:
+    """Fetch and upsert bills for a credit-card account.
+
+    Returns a {external_id: bill} dict so the caller can resolve transaction
+    bill_id without N+1 queries. For non-CC accounts or providers that don't
+    expose bills, returns an empty dict — the read path then falls back to
+    locally-computed cycle math via apply_effective_date.
+
+    Failures are intentionally swallowed (logged at info): a non-regulado
+    Pluggy connection 4xx'es here, a temporary API hiccup shouldn't fail
+    the whole sync, and the cycle-math fallback already covers the gap.
+    """
+    if account.type != "credit_card":
+        return {}
+
+    try:
+        bills_data = await provider.get_bills(credentials, account.external_id)
+    except Exception as e:  # noqa: BLE001 — provider failures must not fail sync
+        logger.info(
+            "Skipping credit-card bills sync for account %s: %s", account.id, e
+        )
+        return {}
+
+    if not bills_data:
+        return {}
+
+    existing = (
+        await session.execute(
+            select(CreditCardBill).where(CreditCardBill.account_id == account.id)
+        )
+    ).scalars().all()
+    by_external_id: dict[str, CreditCardBill] = {b.external_id: b for b in existing}
+
+    for bd in bills_data:
+        bill = by_external_id.get(bd.external_id)
+        if bill is None:
+            bill = CreditCardBill(
+                user_id=user_id,
+                account_id=account.id,
+                external_id=bd.external_id,
+                due_date=bd.due_date,
+                total_amount=bd.total_amount,
+                currency=bd.currency,
+                minimum_payment=bd.minimum_payment,
+                raw_data=bd.raw_data,
+            )
+            session.add(bill)
+            by_external_id[bd.external_id] = bill
+        else:
+            bill.due_date = bd.due_date
+            bill.total_amount = bd.total_amount
+            bill.currency = bd.currency
+            bill.minimum_payment = bd.minimum_payment
+            bill.raw_data = bd.raw_data
+
+    await session.flush()
+
+    # Materialize finance charges (IOF, juros, multa, etc.) as transactions
+    # linked to each bill so the cycle sum reconciles to bill.total_amount.
+    for bd in bills_data:
+        bill = by_external_id.get(bd.external_id)
+        if bill is None:
+            continue
+        raw_charges = (bd.raw_data or {}).get("financeCharges")
+        if isinstance(raw_charges, list) and raw_charges:
+            await _sync_bill_finance_charges(
+                session, user_id, account, bill, raw_charges,
+            )
+
+    return by_external_id
+
+
+async def sync_connection(
+    session: AsyncSession,
+    connection_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    requesting_user_id: uuid.UUID,
+    trigger_provider_refresh: bool = False,
+) -> tuple[BankConnection, int]:
+    connection = await get_connection(session, connection_id, workspace_id)
+    if not connection:
+        raise ValueError("Connection not found")
+    if not connection.credentials:
+        raise ValueError("Credentials not found")
+
+    # Authorization is workspace-scoped and happens before this service is
+    # called. Data imported from a bank connection, however, must always be
+    # owned by the user who owns that connection — not by whichever workspace
+    # member clicked Sync. Mixing those identities creates duplicate holdings
+    # and wallets because provider external IDs are unique per user.
+    if requesting_user_id != connection.user_id:
+        logger.info(
+            "Connection %s sync requested by workspace member %s; importing as owner %s",
+            connection.id,
+            requesting_user_id,
+            connection.user_id,
+        )
+    user_id = connection.user_id
+
+    conn_settings = connection.settings or {}
+    payee_source = conn_settings.get("payee_source", "auto")
+    import_pending = conn_settings.get("import_pending", True)
+    use_provider_cats = await admin_service.use_provider_categories(session)
+
+    # Resolve the provider before the error-handling block: an unregistered
+    # provider is a server misconfiguration, and the catch-all below would
+    # wrongly stamp the (healthy) connection with status="error".
+    try:
+        provider = get_provider(connection.provider)
+    except ValueError as exc:
+        raise ProviderNotConfiguredError(
+            f"Provider '{connection.provider}' is not configured in this process. "
+            "If connecting from the web app works but background sync fails, the "
+            "worker service is likely not loading the environment (.env) that "
+            "enables this provider."
+        ) from exc
+
+    try:
+        # Refresh credentials if needed
+        credentials = await provider.refresh_credentials(connection.credentials)
+        connection.credentials = credentials
+
+        # Backfill the institution logo for connections linked before logo
+        # capture existed. Best-effort: a failure here must never break sync.
+        if not connection.logo_url:
+            try:
+                logo = _clean_logo_url(await provider.get_institution_logo(credentials))
+                if logo:
+                    connection.logo_url = logo
+            except Exception:
+                logger.warning(
+                    "Failed to backfill logo for connection %s", connection.id,
+                    exc_info=True,
+                )
+
+        # When the caller asks for fresh data (typically a user-initiated
+        # manual sync), ask the provider to pull from the bank before we
+        # read. Providers that don't expose an on-demand refresh return
+        # "skipped" via the default implementation and we proceed normally.
+        if trigger_provider_refresh:
+            outcome = await provider.trigger_refresh(credentials)
+            if outcome == "needs_user_action":
+                # Surfacing reconnect immediately is better than silently
+                # reading stale data the user knows is stale.
+                connection.status = "error"
+                await session.commit()
+                raise RuntimeError(
+                    "Provider needs the user to reconnect before fetching fresh data"
+                )
+            # "refreshed", "skipped", or "failed" all fall through to a read.
+            # On "failed" we read whatever cached copy the provider has —
+            # better than aborting the entire sync over a transient hiccup.
+
+        # Update accounts
+        user = await session.get(User, user_id)
+        user_currency = user.primary_currency if user else get_settings().default_currency
+        new_tx_ids: list[uuid.UUID] = []
+        merged_count = 0
+        accounts_data = await provider.get_accounts(credentials)
+        institution_cache: dict[str, Institution] = {}
+        for acc_data in accounts_data:
+            result = await session.execute(
+                select(Account).where(
+                    Account.connection_id == connection.id,
+                    Account.external_id == acc_data.external_id,
+                )
+            )
+            account = result.scalar_one_or_none()
+
+            if account is not None:
+                account.user_id = user_id
+                account.workspace_id = connection.workspace_id
+                await session.execute(
+                    update(Transaction)
+                    .where(
+                        Transaction.account_id == account.id,
+                        Transaction.source == "sync",
+                    )
+                    .values(user_id=user_id, workspace_id=connection.workspace_id)
+                )
+                await session.execute(
+                    update(CreditCardBill)
+                    .where(CreditCardBill.account_id == account.id)
+                    .values(user_id=user_id, workspace_id=connection.workspace_id)
+                )
+
+            institution = await _resolve_institution(
+                session, connection.id, institution_cache, acc_data
+            )
+
+            # Honor user intent: a closed connected account stays closed and is
+            # not touched by sync. The row is left alone (no balance/name
+            # rewrite, no new transactions) but the connection link is kept so
+            # the next sync still finds it here instead of creating a duplicate
+            # active account (issue #90). Its institution pointer still follows
+            # the provider, though — otherwise a renamed org's abandoned row
+            # would stay pinned forever and keep a single-bank link presenting
+            # as multi-institution.
+            if account and account.is_closed:
+                if institution is not None and account.institution_id != institution.id:
+                    account.institution_id = institution.id
+                continue
+
+            if account:
+                # Normalize the provider sign using the account's CURRENT type,
+                # which reflects any user override (sync never rewrites `type`).
+                # SimpleFIN reports card debt as negative under a "checking"
+                # label; once the user overrides the type to credit_card the
+                # downstream sites negate it, so store positive-for-debt to keep
+                # them provider-agnostic and avoid double-counting.
+                account.balance = _simplefin_to_internal_balance(
+                    connection.provider, account.type, acc_data.balance
+                )
+                account.name = acc_data.name
+                # Backfills existing accounts on their next sync. Only written
+                # when the provider actually returns an identifier, so a payload
+                # that intermittently omits it can't blank out a known mask.
+                if acc_data.masked_number is not None:
+                    account.masked_number = acc_data.masked_number
+                # Backfills existing accounts on next sync (issue #345).
+                if institution is not None:
+                    account.institution_id = institution.id
+                if acc_data.type == "credit_card":
+                    # Preserve existing CC metadata when the provider doesn't
+                    # expose it. Pluggy's creditData fields (limit, close/due
+                    # dates, minimum payment, brand/level) are intermittently
+                    # null even on connectors that have them elsewhere, and
+                    # users may have filled them in manually via the edit
+                    # dialog. Treat user input + previously-synced values as
+                    # the higher source of truth than a fresh None.
+                    if acc_data.credit_limit is not None:
+                        account.credit_limit = acc_data.credit_limit
+                    if acc_data.statement_close_day is not None:
+                        account.statement_close_day = acc_data.statement_close_day
+                    if acc_data.payment_due_day is not None:
+                        account.payment_due_day = acc_data.payment_due_day
+                    if acc_data.minimum_payment is not None:
+                        account.minimum_payment = acc_data.minimum_payment
+                    if acc_data.card_brand is not None:
+                        account.card_brand = acc_data.card_brand
+                    if acc_data.card_level is not None:
+                        account.card_level = acc_data.card_level
+            else:
+                is_cc = acc_data.type == "credit_card"
+                account = Account(
+                    user_id=user_id,
+                    connection_id=connection.id,
+                    external_id=acc_data.external_id,
+                    name=acc_data.name,
+                    masked_number=acc_data.masked_number,
+                    type=acc_data.type,
+                    balance=acc_data.balance,
+                    currency=acc_data.currency,
+                    credit_limit=acc_data.credit_limit if is_cc else None,
+                    statement_close_day=acc_data.statement_close_day if is_cc else None,
+                    payment_due_day=acc_data.payment_due_day if is_cc else None,
+                    minimum_payment=acc_data.minimum_payment if is_cc else None,
+                    card_brand=acc_data.card_brand if is_cc else None,
+                    card_level=acc_data.card_level if is_cc else None,
+                    institution_id=institution.id if institution else None,
+                )
+                session.add(account)
+                await session.flush()
+
+            # Fetch the bills feed before transactions so transaction → bill
+            # FK resolution happens in-memory (no N+1). Empty dict for non-CC
+            # accounts or providers without /bills.
+            bills_by_external_id = await _sync_credit_card_bills(
+                session, user_id, account, provider, credentials
+            )
+
+            # Fetch and sync transactions. The 14-day rewind is on Pluggy's
+            # `createdAt` (when their row was inserted), so it covers two
+            # cases: (1) PENDING transactions that POSTED since last sync,
+            # (2) any rows Pluggy ingested late but backdated. Dedup on
+            # external_id below handles overlap cheaply.
+            since = (
+                connection.last_sync_at.date() - timedelta(days=14)
+                if connection.last_sync_at
+                else None
+            )
+            transactions_data = await provider.get_transactions(
+                credentials, acc_data.external_id, since, payee_source=payee_source
+            )
+
+            if not import_pending:
+                transactions_data = [t for t in transactions_data if t.status != "pending"]
+
+            for txn_data in transactions_data:
+                existing = await session.execute(
+                    select(Transaction)
+                    .where(
+                        Transaction.account_id == account.id,
+                        Transaction.external_id == txn_data.external_id,
+                    )
+                    .order_by(Transaction.created_at)
+                )
+                # `.first()` rather than `.scalar_one_or_none()`: a prior sync
+                # race (two overlapping passes both select-then-insert the same
+                # external_id before either commits) can leave two rows sharing
+                # (account_id, external_id). scalar_one_or_none() would raise
+                # MultipleResultsFound and abort the whole connection's sync;
+                # we instead reconcile onto the oldest matching row and skip
+                # re-inserting, so a stray duplicate is harmless and never grows.
+                existing_tx = existing.scalars().first()
+                if existing_tx:
+                    # User-flagged rows are frozen: skip status/bill drift so
+                    # a re-sync can't revive a transaction the user hid.
+                    if existing_tx.is_ignored:
+                        continue
+                    if existing_tx.original_description is None:
+                        existing_tx.original_description = txn_data.description
+                    if existing_tx.status == "pending" and txn_data.status == "posted":
+                        existing_tx.status = "posted"
+                    # Self-heal bill linkage: a tx that pre-dates the bills
+                    # feature (or whose bill we hadn't ingested last time)
+                    # picks up bill_id + bank-truth effective_date on the
+                    # first sync after the bill becomes available. Same
+                    # branch covers re-bucketing if the bank moved a tx to
+                    # a different bill (e.g. a chargeback).
+                    #
+                    # User's manual override wins: if effective_bill_date is
+                    # set, we don't touch bill_id or effective_date — the
+                    # user has explicitly overridden the auto bucketing.
+                    if (
+                        txn_data.bill_external_id
+                        and existing_tx.effective_bill_date is None
+                    ):
+                        bill = bills_by_external_id.get(txn_data.bill_external_id)
+                        if bill is not None and existing_tx.bill_id != bill.id:
+                            existing_tx.bill_id = bill.id
+                            apply_effective_date(
+                                existing_tx, account, bill_due_date=bill.due_date
+                            )
+                    continue
+
+                # Pass 2: Fuzzy match against manual transactions
+                fuzzy_match = await _fuzzy_match_manual(session, account.id, txn_data)
+                if fuzzy_match:
+                    if fuzzy_match.is_ignored:
+                        continue
+                    fuzzy_match.external_id = txn_data.external_id
+                    fuzzy_match.source = "sync"
+                    fuzzy_match.raw_data = txn_data.raw_data
+                    if fuzzy_match.original_description is None:
+                        fuzzy_match.original_description = txn_data.description
+                    if not fuzzy_match.payee and txn_data.payee:
+                        fuzzy_match.payee = txn_data.payee
+                    merged_count += 1
+                    continue
+
+                # Pass 3: pending↔posted twin (and the credit-card
+                # installment variant). When the same logical operation
+                # comes back under a new external id with a different
+                # status, fingerprint match collapses it instead of letting
+                # both rows land.
+                synced_dup = await _find_synced_duplicate(
+                    session, account.id, txn_data
+                )
+                if synced_dup:
+                    if synced_dup.original_description is None:
+                        synced_dup.original_description = txn_data.description
+                    if synced_dup.status == "pending" and txn_data.status == "posted":
+                        # Posted truth wins: swap in the new id so subsequent
+                        # syncs match by external_id and update raw_data.
+                        synced_dup.status = "posted"
+                        synced_dup.external_id = txn_data.external_id
+                        synced_dup.raw_data = txn_data.raw_data
+                        if (
+                            txn_data.bill_external_id
+                            and synced_dup.effective_bill_date is None
+                        ):
+                            bill = bills_by_external_id.get(txn_data.bill_external_id)
+                            if bill is not None and synced_dup.bill_id != bill.id:
+                                synced_dup.bill_id = bill.id
+                                apply_effective_date(
+                                    synced_dup, account, bill_due_date=bill.due_date
+                                )
+                    continue
+
+                incoming_currency = (
+                    txn_data.currency or acc_data.currency or user_currency
+                )
+                category_id = await _match_pluggy_category(
+                    session,
+                    workspace_id,
+                    txn_data.pluggy_category,
+                    enabled=use_provider_cats,
+                )
+
+                sync_payee_id = None
+                if txn_data.payee:
+                    sync_payee_entity = await get_or_create_payee(
+                        session,
+                        user_id,
+                        txn_data.payee,
+                        workspace_id=workspace_id,
+                    )
+                    sync_payee_id = sync_payee_entity.id
+
+                bill = (
+                    bills_by_external_id.get(txn_data.bill_external_id)
+                    if txn_data.bill_external_id
+                    else None
+                )
+                transaction = Transaction(
+                    user_id=user_id,
+                    workspace_id=workspace_id,
+                    account_id=account.id,
+                    external_id=txn_data.external_id,
+                    description=txn_data.description,
+                    original_description=txn_data.description,
+                    amount=txn_data.amount,
+                    currency=incoming_currency,
+                    date=txn_data.date,
+                    type=txn_data.type,
+                    source="sync",
+                    status=txn_data.status,
+                    payee=txn_data.payee,
+                    payee_id=sync_payee_id,
+                    raw_data=txn_data.raw_data,
+                    category_id=None,
+                    installment_number=txn_data.installment_number,
+                    total_installments=txn_data.total_installments,
+                    installment_total_amount=txn_data.installment_total_amount,
+                    installment_purchase_date=txn_data.installment_purchase_date,
+                    bill_id=bill.id if bill else None,
+                )
+                apply_effective_date(
+                    transaction,
+                    account,
+                    bill_due_date=bill.due_date if bill else None,
+                )
+                preview = await preview_rules_for_transaction(
+                    session, user_id, transaction
+                )
+
+                # Normalize before recurring reconciliation. A generated
+                # placeholder is upgraded in place; otherwise the normalized
+                # candidate may fulfill an active definition, which advances so
+                # later generation cannot duplicate the occurrence.
+                placeholder = (
+                    await recurring_match_service.find_placeholder_for_incoming(
+                        session,
+                        account.id,
+                        txn_data.amount,
+                        incoming_currency,
+                        txn_data.type,
+                        txn_data.date,
+                        preview.description,
+                    )
+                )
+                if placeholder:
+                    if placeholder.is_ignored:
+                        continue
+                    placeholder.external_id = txn_data.external_id
+                    placeholder.source = "sync"
+                    placeholder.status = txn_data.status
+                    placeholder.raw_data = txn_data.raw_data
+                    # Same shape as the import path: fold in the `preview` the
+                    # rules already produced from the incoming charge instead of
+                    # re-running them against the placeholder, whose description
+                    # is the recurring definition's own wording. Existing values
+                    # win, the charge fills the empty ones, and only its
+                    # provenance is recorded outright.
+                    placeholder.original_description = txn_data.description
+                    if placeholder.category_id is None:
+                        placeholder.category_id = preview.category_id or category_id
+                    if txn_data.payee and not placeholder.payee:
+                        placeholder.payee = txn_data.payee
+                    if placeholder.payee_id is None:
+                        placeholder.payee_id = preview.payee_id
+                    placeholder.notes = merge_notes(
+                        placeholder.notes, preview.notes
+                    )
+                    if preview.is_ignored:
+                        placeholder.is_ignored = True
+                    merged_count += 1
+                    continue
+
+                recurring_link = (
+                    await recurring_match_service.find_bill_for_incoming(
+                        session,
+                        user_id,
+                        account.id,
+                        txn_data.amount,
+                        incoming_currency,
+                        txn_data.type,
+                        txn_data.date,
+                        preview.description,
+                    )
+                )
+                transaction.recurring_transaction_id = (
+                    recurring_link.id if recurring_link else None
+                )
+                session.add(transaction)
+                await session.flush()
+                if recurring_link is not None:
+                    recurring_match_service.advance_past(
+                        recurring_link, txn_data.date
+                    )
+                new_tx_ids.append(transaction.id)
+                await apply_rules_to_transaction(session, user_id, transaction)
+                if transaction.category_id is None:
+                    transaction.category_id = category_id
+
+                # Prefer bank-provided conversion for international transactions
+                acct_currency = acc_data.currency or user_currency
+                if (
+                    txn_data.amount_in_account_currency is not None
+                    and txn_data.amount
+                    and acct_currency == user_currency
+                    and txn_data.currency != acct_currency
+                ):
+                    transaction.amount_primary = txn_data.amount_in_account_currency
+                    transaction.fx_rate_used = txn_data.amount_in_account_currency / txn_data.amount
+                else:
+                    await stamp_primary_amount(session, user_id, transaction)
+
+            # Reconcile the opening balance after any new transactions land so
+            # SUM(all txs) keeps matching account.balance from the provider.
+            await sync_opening_balance_for_connected_account(session, account)
+
+        # Detect transfer pairs among newly synced transactions
+        if new_tx_ids:
+            await detect_transfer_pairs(session, workspace_id, candidate_ids=new_tx_ids)
+
+            # Then settle whatever this money was promised against. It runs
+            # after the rows are written, not inside the loop: the recurring
+            # match upgrades a placeholder in place, while an invoice link is
+            # a row pointing at a transaction that has to exist first. It is
+            # also a single batch, so the candidate invoices are loaded once
+            # per sync rather than once per transaction.
+            landed = list(
+                (
+                    await session.execute(
+                        select(Transaction).where(Transaction.id.in_(new_tx_ids))
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            await reconciliation_service.match_incoming(
+                session, workspace_id, landed
+            )
+
+        # Clean up phantom duplicates: providers occasionally double-report the
+        # same payment with different ids. Once transfer detection has paired
+        # the real one, the orphan twin gets removed here.
+        await _cleanup_phantom_duplicates(session, connection.id)
+
+        # Refresh investment holdings (brokerage, fixed income, funds,
+        # etc.) when enabled for this connection. Errors here are logged but
+        # don't fail the sync; a bank connector that doesn't expose
+        # /investments shouldn't block the transaction sync that just succeeded.
+        if _sync_assets_enabled(conn_settings):
+            await _sync_holdings(session, user_id, connection, credentials)
+
+        # Reap institution rows referenced by nothing. Id-carrying servers
+        # never orphan a row (renames update in place), but a name-only
+        # server that renames its bank mints a fresh row and repoints the
+        # accounts — the abandoned row would otherwise keep a single-bank
+        # link presenting as multi-institution forever. Requiring zero
+        # account AND zero wallet references means a wallet's "Synced from"
+        # label can never be taken away. Runs after the holdings sync so a
+        # wallet repointed away from the old row frees it this sync, not next.
+        orphaned_institutions = await session.execute(
+            select(Institution).where(
+                Institution.connection_id == connection.id,
+                ~exists().where(Account.institution_id == Institution.id),
+                ~exists().where(AssetGroup.institution_id == Institution.id),
+            )
+        )
+        for orphan in orphaned_institutions.scalars().all():
+            await session.delete(orphan)
+
+        connection.last_sync_at = datetime.now(timezone.utc)
+        connection.status = "active"
+        await session.commit()
+        await session.refresh(connection)
+        return connection, merged_count
+
+    except SessionExpiredError:
+        # Provider consent expired — distinct from a generic error so the UI
+        # can show a clearer "reauthorize" prompt.
+        await session.rollback()
+        async with session.begin():
+            conn = await session.get(BankConnection, connection_id)
+            if conn:
+                conn.status = "expired"
+        raise
+    except ProviderUserActionRequired:
+        # Stale/revoked provider credentials require a non-destructive
+        # reconnect path. Mark the connection unhealthy so the accounts page
+        # shows the reconnect banner, then let the API return a typed 409
+        # instead of a generic 500.
+        await session.rollback()
+        async with session.begin():
+            conn = await session.get(BankConnection, connection_id)
+            if conn:
+                conn.status = "error"
+        raise
+    except ProviderRateLimited:
+        # The bank/aggregator is throttling data requests (PSD2 caps unattended
+        # access, commonly ~4/day). The connection is healthy, so don't error
+        # it or 500 the request — skip this run, keep it active, and leave
+        # last_sync_at untouched so the next sync retries the same window.
+        await session.rollback()
+        async with session.begin():
+            conn = await session.get(BankConnection, connection_id)
+            if conn and conn.status != "expired":
+                conn.status = "active"
+        # The row can vanish if the connection was deleted mid-sync. Fall back
+        # to the one we already hold rather than raising: re-raising here would
+        # escape as a 500, which is exactly what this handler exists to avoid.
+        refreshed = await session.get(BankConnection, connection_id)
+        return refreshed or connection, 0
+    except Exception:
+        # Mark connection as errored so UI shows reconnect banner
+        await session.rollback()
+        async with session.begin():
+            conn = await session.get(BankConnection, connection_id)
+            if conn:
+                conn.status = "error"
+        raise
+
+
+async def delete_connection(
+    session: AsyncSession, connection_id: uuid.UUID, workspace_id: uuid.UUID
+) -> bool:
+    connection = await get_connection(session, connection_id, workspace_id)
+    if not connection:
+        return False
+
+    # Archive synced investment assets rather than deleting them: the user
+    # may still want to see their historical AssetValue trend, and if they
+    # re-connect the same provider later we can un-archive by matching
+    # (user_id, source, external_id). The FK's ON DELETE SET NULL will
+    # then clear connection_id when the row is removed below.
+    await session.execute(
+        update(Asset)
+        .where(Asset.connection_id == connection.id)
+        .values(is_archived=True)
+    )
+
+    # Track payees referenced by this connection's transactions so we can
+    # remove only newly-orphaned records after deleting the connection.
+    affected_payee_ids = (
+        await session.execute(
+            select(Transaction.payee_id)
+            .join(Account, Account.id == Transaction.account_id)
+            .where(
+                Account.connection_id == connection.id,
+                Transaction.payee_id.isnot(None),
+            )
+            .distinct()
+        )
+    ).scalars().all()
+
+    await session.delete(connection)
+    await session.flush()
+
+    if affected_payee_ids:
+        has_transactions = exists(
+            select(Transaction.id).where(Transaction.payee_id == Payee.id)
+        )
+        has_external_mappings = exists(
+            select(PayeeMapping.id).where(
+                PayeeMapping.target_id == Payee.id,
+                PayeeMapping.id != Payee.id,
+            )
+        )
+        await session.execute(
+            delete(Payee).where(
+                Payee.workspace_id == workspace_id,
+                Payee.id.in_(affected_payee_ids),
+                ~has_transactions,
+                ~has_external_mappings,
+            )
+        )
+
+    await session.commit()
+    return True

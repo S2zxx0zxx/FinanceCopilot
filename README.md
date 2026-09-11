@@ -1,227 +1,273 @@
-# FinCopilot
+<p align="center">
+  <img src="docs/logo.svg" width="200" alt="Securo logo" />
+</p>
+<h1 align="center">Securo</h1>
+<p align="center">
+  <a href="https://github.com/securo-finance/securo/actions/workflows/ci.yml"><img src="https://github.com/securo-finance/securo/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/tassionoronha/ae627b744aaa2ba89d850ea541c311be/raw/coverage.json" alt="Coverage" />
+  <a href="https://github.com/securo-finance/securo/pkgs/container/securo-frontend"><img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/tassionoronha/ae627b744aaa2ba89d850ea541c311be/raw/downloads.json" alt="Downloads" /></a>
+  <br />
+  <a href="https://artifacthub.io/packages/search?repo=securo"><img src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/securo" alt="Artifact Hub" /></a>
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
+  <a href="https://discord.gg/rUqTKtQ9S4"><img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white" alt="Join our Discord" /></a>
+  <br />
+  <a href="https://usesecuro.com/">Website</a> · <a href="https://demo.usesecuro.com/">Demo</a> · <a href="https://www.usesecuro.com/roadmap">Roadmap</a> · <a href="https://docs.usesecuro.com/">Docs</a> · <a href="https://discord.gg/rUqTKtQ9S4">Discord</a> · <a href="https://cal.com/tassio/15min">Talk to the maintainer</a>
+</p>
 
-> The AI co-pilot for your money — built for India (₹ INR, Setu Account Aggregator, RBI/DPDP-aligned).
+<h3 align="center">Finance apps want your data. This one doesn't.</h3>
 
-FinCopilot tracks your spending, builds smart budgets, forecasts cash flow, and answers your money questions — all in one beautiful place.
+<p align="center">
+We believe personal finance should actually be <em>personal</em>. No corporation should sit between you and your financial data. Securo is an open-source finance manager that runs on your own infrastructure, giving you full visibility into your accounts, spending, and habits, without surrendering a single byte to third parties. Take back control.
+</p>
 
----
+## Quick Start
 
-## 🏗️ Architecture
-
-FinCopilot is a **modular monorepo** with three independently-deployable Node.js apps,
-a background worker, and a Cloudflare-gateway fronted by Caddy.
-
-```
-                       ┌─────────────────────────────────────────┐
-                       │              Caddy gateway               │
-                       │  (Caddyfile — TLS termination + routing) │
-                       └────────────┬───────────────┬────────────┘
-                                    │               │
-                  /api/v1/* + /app/*│               │ /*
-                  (backend)         │               │ (landing)
-                                    ▼               ▼
-       ┌──────────────────────────────┐   ┌──────────────────────────┐
-       │  backend/  (Node + Express)  │   │ fincopilot-landing/      │
-       │  Port :3001                  │   │   (Next.js 16 marketing) │
-       │  • REST API + SPA catch-all  │   │   Port :3002             │
-       │  • Clerk token verification  │   │   • Clerk middleware     │
-       └─────────┬──────────┬─────────┘   │   • CSP + JSON-LD       │
-                 │          │             └──────────────────────────┘
-                 │          │
-        PostgreSQL │   R2 / CF Queues
-        (pg, paise)│   (raw statements,
-                    │    async jobs)
-                    ▼
-       ┌──────────────────────────────┐
-       │  frontend/  (Next.js 16 SPA)  │
-       │  • Authenticated dashboard    │
-       │  • ClerkProvider + AuthGate  │
-       │  • TanStack Query + Zustand  │
-       └──────────────────────────────┘
-
-       ┌──────────────────────────────┐
-       │  backend/worker.js (Node)    │  ◀── polls DB for async jobs
-       │  • ingestion worker          │       (ingestion / normalization /
-       │  • normalization worker      │        reconciliation)
-       │  • reconciliation worker     │
-       └──────────────────────────────┘
-```
-
-### Tech stack
-
-| Layer | Choice | Why |
-|---|---|---|
-| **Frontend** | Next.js 16 (App Router) + React 19 + TypeScript 5 | Server Components, RSC streaming, modern edge-ready runtime |
-| **Styling** | Tailwind CSS v4 (`@theme` in `globals.css`) + shadcn/ui (New York) | CSS-first config — `tailwind.config.ts` is a deprecated stub |
-| **Auth** | Clerk (`@clerk/nextjs` + `@clerk/backend`) | Drop-in MFA, session cookies, webhooks; replaces earlier Firebase design |
-| **Database** | PostgreSQL via `pg` | Money stored as **integer paise** (no floats) — see `docs/adrs/ADR-003` |
-| **Object storage** | Cloudflare R2 (`@aws-sdk/client-s3`) | Raw uploaded statements (PDF/CSV/XLSX) |
-| **Job queue** | Cloudflare Queues | Async ingestion / normalization / reconciliation |
-| **AI gateway** | OmniRouter (multi-model) + Gemini direct (ZAI adapter) | Provider abstraction — see `docs/adrs/ADR-004` |
-| **Account Aggregator** | Setu AA (RBI-regulated framework) | Read-only, revocable consent |
-| **Caching** | Local in-memory only (no Redis/MySQL middleware) | Per monorepo policy |
-| **Realtime** | (Reserved) Socket.IO mini-services | See `mini-services/` if added |
-
----
-
-## 📁 Repository layout
-
-```
-fincopilot-landing/   Next.js 16 marketing site (port :3002)
-├─ src/app/             App Router root, JSON-LD, sitemap
-├─ src/components/      Landing sections (hero, pricing, security, testimonials, …)
-├─ src/components/charts/  Recharts visualisations (₹ INR formatted)
-└─ src/middleware.ts    Clerk + CSP middleware
-
-frontend/             Next.js 16 authenticated SPA (Clerk-protected)
-├─ src/app/             All authenticated routes (/money, /forecast, /ai, /you, …)
-├─ src/components/      shadcn/ui + domain components
-└─ src/components/providers.tsx  ClerkProvider + AuthGate
-
-backend/              Node.js + Express API (port :3001)
-├─ server.js            Express boot — Helmet, CORS, Clerk adapter, route mounting
-├─ worker.js            Background worker master process
-├─ api/                 Controllers, routes, middlewares (auth, security, error)
-├─ adapters/            Auth (Clerk), storage (R2), queue (CF Queues), AI (OmniRouter/ZAI)
-├─ domains/             Domain modules (ingestion, normalization, reconciliation,
-│                       forecast, planning, financial-state, consent, identity, AI)
-├─ db/                  pg client, repositories, migrations, seed
-└─ docs/                Backend phase reports + ADRs
-
-docs/                  Cross-cutting docs + Architecture Decision Records
-Dockerfile            Multi-stage build — backend + landing in one image
-dev.js                Concurrent launcher: backend + frontend + landing
-Caddyfile             (root — production routing reference; see fincopilot-landing/Caddyfile for the live config)
-wrangler.toml         ⚠️  NON-FUNCTIONAL reference stub (Express cannot run on Workers)
-tailwind.config.ts    Deprecated empty stub (Tailwind v4 uses CSS @theme)
-```
-
----
-
-## 🚀 Quick start
-
-### Prerequisites
-- Node.js 20+ (LTS)
-- PostgreSQL 14+
-- A Clerk application (publishable + secret keys)
-- (Optional) Cloudflare account for R2 + Queues
-
-### 1. Install dependencies
-```bash
-# Backend (root package.json)
-npm install
-
-# Frontend SPA
-cd frontend && npm install
-
-# Landing
-cd fincopilot-landing && npm install
-```
-
-### 2. Configure environment
-```bash
-cp .env.example .env
-# Fill in CLERK_SECRET_KEY, DATABASE_URL, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, etc.
-```
-See `.env.example` for the full list. The backend validates required vars at boot
-(`backend/config/env.js`) and **fails closed in production** if `CLERK_SECRET_KEY`
-or `DATABASE_URL` are missing.
-
-### 3. Run database migrations
-```bash
-npm run migrate
-# or: node --env-file=.env backend/db/run-migrations.js
-```
-
-### 4. Run all three apps concurrently (dev)
-```bash
-npm run dev:all
-# → backend on :3001, frontend on next available, landing on :3002
-```
-
-Or run each separately:
-```bash
-npm run dev                 # backend (Node --watch)
-cd frontend && npm run dev  # SPA
-cd fincopilot-landing && npm run dev  # landing on :3002
-```
-
-### 5. Run the background worker
-```bash
-node backend/worker.js
-```
-
----
-
-## 🌐 Production deployment
-
-The included `Dockerfile` is multi-stage:
-1. **Builder stage** — installs backend + frontend + landing deps, builds both Next.js apps (standalone output).
-2. **Production stage** — installs only backend production deps, copies built artifacts, runs **both** `backend/server.js` (:3001) and `landing-standalone/server.js` (:3002) under a tiny `sh` supervisor. If either dies, the container exits non-zero so the orchestrator restarts it.
+**Linux & macOS** (uses Docker or Podman; installs Docker if neither is present):
 
 ```bash
-docker build -t fincopilot .
-docker run -p 3001:3001 -p 3002:3002 --env-file .env fincopilot
+curl -fsSL https://usesecuro.com/install.sh | bash
 ```
 
-The Caddy gateway (see `fincopilot-landing/Caddyfile`) routes:
-- `/api/v1/*` and `/app/*` → `localhost:3001` (backend)
-- `/api/session`, `/api/cta`, `/api/health` → `localhost:3002` (landing bridge routes)
-- `/*` → `localhost:3002` (landing)
+**Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), then:
 
-> ⚠️ **TLS**: The shipped Caddyfile listens on `:81` (plaintext HTTP) for **sandbox
-> preview only**. In production, **replace `:81` with your domain** (`fincopilot.ai { … }`)
-> so Caddy auto-provisions Let's Encrypt certs. NEVER ship `:81` to prod — session
-> cookies would be sent in cleartext.
+```bash
+git clone https://github.com/securo-finance/securo.git && cd securo
+docker compose up --build
+```
 
-> ⚠️ **Cloudflare Workers**: `wrangler.toml` is kept as a **non-functional reference
-> stub**. Express + `pg` + `xlsx` cannot run on the Workers runtime (no
-> `node:http`, `node:fs`, or raw TCP). Run the backend on a Node host instead.
+Open [http://localhost:3000](http://localhost:3000) and create an account. That's it.
 
----
+<p align="center">
+  <img src="docs/screenshot.png" width="800" alt="Securo dashboard" />
+</p>
 
-## 🔒 Security posture
+## Features
 
-- **Clerk** for auth (session cookies, MFA, webhooks). Dev-only `x-dev-bypass`
-  header is gated behind `NODE_ENV !== 'production'`.
-- **CSP** + per-request nonce set by `fincopilot-landing/src/middleware.ts`.
-- **Helmet** hardening on the backend Express server.
-- **Strict CORS** — `PATCH` and `OPTIONS` included; `CORS_ORIGIN` env var (no
-  wildcard default in production).
-- **Read-only by design** via the Setu AA framework — FinCopilot can see your
-  data, never move your money.
-- **256-bit AES** encryption in transit and at rest.
-- **Money is integer paise** — no floating-point rounding errors.
+- Multi-account management with running balances
+- Transaction management with search, filters, and CSV export
+- File import (OFX, QIF, CAMT, CSV)
+- Auto-categorization rules engine
+- Recurring transactions and budgets
+- Goals and savings targets with progress tracking
+- Asset management with valuation tracking and growth rules
+- Reports: Net Worth and Income vs Expenses with category sparklines
+- Bank sync via providers (Pluggy for Brazilian banks, Enable Banking for ~2500 European PSD2 banks, SimpleFIN for US and international banks, extensible)
+- Multi-currency support with automatic FX conversion
+- Multi-user support with admin panel and registration controls
+- Two-factor authentication (TOTP) with brute-force protection
+- OIDC login support for Authentik, Pocket ID, and other standard providers
+- AI Agents (optional): self-hosted LLM chat with tool-use over your data, plus a per-agent RAG knowledge base
 
-See `docs/PHASE_12_SECURITY_HARDENING.md` and `docs/adrs/` for the full threat
-model and decisions.
+## Bank Sync (Optional)
 
----
+Add credentials for any of the supported providers to `.env`, then restart with `docker compose up`. Configure one or both — each provider auto-registers when its credentials are present.
 
-## 🇮🇳 India-first
+### Pluggy — Brazilian banks
 
-- Currency everywhere is **₹ INR**, formatted via `toLocaleString('en-IN')`
-  (Indian lakh/crore number system).
-- Net-worth / forecast tick formatters use Indian `L` (lakh), not Western `k`.
-- Account connections via the **Setu Account Aggregator** (RBI-regulated).
-- DPDP Act 2023 compliance — see `docs/PHASE_13_*` and `docs/adrs/ADR-006-data-retention-deletion.md`.
+Sign up at [pluggy.ai](https://pluggy.ai) and add:
 
----
+```
+PLUGGY_CLIENT_ID=your-client-id
+PLUGGY_CLIENT_SECRET=your-client-secret
+```
 
-## 📚 Key documentation
+### Enable Banking — European banks (PSD2)
 
-- **Architecture Decision Records** — `docs/adrs/` (canonical ledger model, money
-  precision, AI gateway abstraction, reconciliation invariants, etc.)
-- **Phase reports** — `docs/PHASE_*.md` and `backend/docs/PHASE_*.md`
-- **Environment matrix** — `docs/ENVIRONMENT_VARIABLE_MATRIX.md`
-- **Audit reports** — `frontend/public/FINCOPILOT-FULL-AUDIT.md` and `FINCOPILOT-FINAL-AUDIT.md`
-- **Honest pre-launch status** — `fincopilot-landing/src/lib/landing-data.ts`
-  (illustrative testimonials, ₹0 tracked, 0★ — be among the first)
+Sign up at [enablebanking.com](https://enablebanking.com), create a Production application, and download its PEM private key. Save the PEM to `./secrets/` (gitignored), then add:
 
----
+```
+ENABLE_BANKING_APP_ID=your-application-id
+ENABLE_BANKING_PRIVATE_KEY_FILE=/app/secrets/your-key.pem
+ENABLE_BANKING_OAUTH_REDIRECT_URI=https://your-host/oauth/callback
+```
 
-## 📝 License
+The redirect URI must match exactly one of the Allowed Redirect URLs in your EB application. Production EB requires HTTPS — for local development, expose your frontend via a tunnel (ngrok, cloudflared) or use the EB sandbox.
 
-Proprietary — © FinCopilot, Inc. All rights reserved.
+> **Free tier — restricted mode.** Enable Banking's free plan requires you to pre-link the accounts you want to import inside the EB portal *before* connecting from Securo. If you skip that step, the connection returns no accounts and Securo will surface a banner with a link to the portal.
 
-> **Not a bank. Not financial advice.**
+### SimpleFIN — US and international banks
+
+[SimpleFIN](https://www.simplefin.org/) is a read-only open protocol. No API key needed — each connection brings its own credentials via a single-use Setup Token from the [SimpleFIN Bridge](https://bridge.simplefin.org/). Just enable the feature:
+
+```
+SIMPLEFIN_ENABLED=true
+SIMPLEFIN_API_URL=https://beta-bridge.simplefin.org   # sandbox; use bridge.simplefin.org for real banks
+```
+
+Then in Securo: **Accounts → Connect Bank → SimpleFIN**, and paste the token. The [developer page](https://beta-bridge.simplefin.org/info/developers) gives out free demo tokens if you want to try it without a real bank.
+
+## OIDC Login (Optional)
+
+Securo can delegate login to any standard OIDC provider, including Authentik and Pocket ID. Create a confidential/web application in your provider and register this redirect URI:
+
+```
+https://your-securo-host/api/auth/oidc/callback
+```
+
+Then add the provider settings to `.env` and restart:
+
+```
+OIDC_ENABLED=true
+OIDC_PROVIDER_NAME=Pocket ID
+OIDC_DISCOVERY_URL=https://id.example.com/.well-known/openid-configuration
+OIDC_CLIENT_ID=securo
+OIDC_CLIENT_SECRET=your-client-secret
+# Optional; defaults to ${FRONTEND_URL}/api/auth/oidc/callback
+OIDC_REDIRECT_URI=https://your-securo-host/api/auth/oidc/callback
+```
+
+To require SSO-only access after OIDC is configured, set `LOCAL_AUTH_ENABLED=false`. Securo will start in this mode only when `OIDC_ENABLED=true`, `OIDC_CLIENT_ID`, and `OIDC_DISCOVERY_URL` are all configured; otherwise startup fails with a validation error instead of leaving the instance with no usable login method. The login page shows an explicit configuration error if the server reports that neither local auth nor OIDC is available. If only the optional OIDC-config request fails, the client keeps local controls available with a warning; the backend remains authoritative and still rejects them in OIDC-only mode.
+
+With local auth disabled, Securo rejects password and passkey login, public registration, first-admin password setup, admin or workspace-invite creation of password-backed users, forgot/reset-password requests, password updates, new passkey registration or verification, and new TOTP setup or enablement. Local credential controls are hidden from login, account, setup, registration, and admin user-management screens. Existing users, password hashes, active sessions, passkeys, and TOTP configuration are not deleted; existing passkeys and TOTP can still be removed as cleanup paths. OIDC user provisioning and existing-account linking remain controlled separately by `OIDC_AUTO_REGISTER` and `OIDC_EXISTING_USER_LINK_MODE`.
+
+On a fresh OIDC-only instance, the first account must be provisioned through OIDC. Keep `OIDC_AUTO_REGISTER=true`, enable `OIDC_SYNC_ROLES=true`, and include one of the values from `OIDC_ADMIN_ROLES` in that identity's configured roles claim so the first login becomes a Securo administrator. Do not disable OIDC auto-registration before at least one matching account exists.
+
+New OIDC users are auto-provisioned by default (`OIDC_AUTO_REGISTER=true`) using verified email addresses. Set `OIDC_AUTO_REGISTER=false` to allow only existing Securo users whose email matches the provider claim.
+
+### Linking existing accounts
+
+An account that already exists in Securo (created with a password) is never linked to an OIDC identity automatically, so the first SSO login of an existing user is rejected by default. `OIDC_EXISTING_USER_LINK_MODE` controls that:
+
+```
+OIDC_EXISTING_USER_LINK_MODE=disabled
+```
+
+| Value | Behavior |
+|-------|----------|
+| `disabled` (default) | Never link. Existing accounts must keep using password login. |
+| `verified_email` | Link the existing account when the provider sends `email_verified=true` for the same email. |
+| `email` | Link on a matching email alone, even without `email_verified`. |
+
+Use `verified_email` to move existing users to SSO without recreating their accounts and data. Only pick `email` if you trust your provider to own every address it asserts, since anyone able to set an email there could claim the matching Securo account. An OIDC identity already linked to another account is always rejected, in every mode.
+
+### Optional OIDC role sync
+
+Securo can also synchronize provider roles/groups into its built-in permissions when `OIDC_SYNC_ROLES=true`. The default claim is `groups`, which works well with Authentik group mappings and Pocket ID role/group assignments.
+
+```
+OIDC_SYNC_ROLES=true
+OIDC_ROLES_CLAIM=groups
+OIDC_ADMIN_ROLES=securo-admins
+OIDC_WORKSPACE_ROLE_MAP={"securo-owners":"owner","securo-editors":"editor","securo-viewers":"viewer"}
+```
+
+`OIDC_ADMIN_ROLES` grants or revokes Securo admin (`is_superuser`) on each OIDC login. `OIDC_WORKSPACE_ROLE_MAP` maps provider roles/groups to the user's Personal workspace role (`owner`, `editor`, or `viewer`); if multiple mapped roles are present, Securo applies the highest permission. Leave `OIDC_SYNC_ROLES=false` to keep all Securo roles managed locally.
+
+## Passkeys (Optional)
+
+Sign in with Touch ID, Face ID, Windows Hello, or a security key. Passkeys are on by default and need no configuration: they follow whatever address you open Securo on.
+
+Two rules come from the WebAuthn standard itself, and no setting can work around them:
+
+- **An IP address is never valid.** `http://192.168.1.10:3000` cannot register passkeys.
+- **Plain HTTP is never valid, except on `localhost`.**
+
+So use passkeys on `http://localhost:3000`, or put Securo on a domain behind an HTTPS reverse proxy. When serving from a domain, point `FRONTEND_URL` at it (this also covers CORS and OAuth callbacks):
+
+```
+FRONTEND_URL=https://securo.example.com
+```
+
+To pin passkeys to one domain, set `WEBAUTHN_RP_ID` (use the parent domain if you reach Securo on several subdomains). Otherwise Securo follows the browser, and requests from an unusable address get an explanation in the UI instead of a silent failure.
+
+## Exchange Rates (Optional)
+
+For automatic currency conversion, add a free [Open Exchange Rates](https://openexchangerates.org/) key to `.env`:
+
+```
+OPENEXCHANGERATES_APP_ID=your-app-id
+```
+
+Rates are fetched on-demand when foreign-currency transactions are created. Without a key, cross-currency amounts default to a 1:1 fallback rate with a visual warning.
+
+## AI Agents (Optional)
+
+Self-hosted AI assistants over your Securo data — multi-provider (OpenAI, Anthropic, Ollama, OpenAI-compatible), tool-use via MCP, per-agent RAG knowledge base, ⌘J global chat panel.
+
+Add to `.env`:
+
+```
+AGENTS_ENABLED=true
+COMPOSE_PROFILES=agents
+```
+
+Then `docker compose up -d`. Settings → AI Agents to add a provider connection. Off by default; zero cost when off.
+
+### Without Docker
+
+`COMPOSE_PROFILES=agents` only tells Docker Compose to start the extra `mcp-server` container, so on a bare-metal or LXC install set `AGENTS_ENABLED=true` alone. The built-in MCP server is a plain uvicorn app in the same virtualenv; run it next to the API and point the backend at it:
+
+```bash
+# alongside the API/worker/beat processes
+uvicorn mcp_server.main:app --host 127.0.0.1 --port 8765
+```
+
+```
+AGENTS_ENABLED=true
+AGENTS_BUILTIN_MCP_URL=http://127.0.0.1:8765/mcp
+```
+
+Without that server the agents still chat, but they have no tools and cannot read your data. The backend log says which MCP server it failed to reach.
+
+## Tech Stack
+
+| Layer | Stack |
+|-------|-------|
+| Backend | FastAPI, SQLAlchemy, Alembic, Celery |
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Database | PostgreSQL |
+| Queue | Redis + Celery |
+
+## AI-Assisted Development
+
+Parts of this codebase were built with help of AI. All code is human-reviewed and no data leaves your environment.
+
+Contributing with AI is welcome. We review the author, not the tool: whatever wrote the diff, you own its quality, its fit with where Securo is going, and everything that happens after it merges. See [Using AI](CONTRIBUTING.md#using-ai).
+
+## Development
+
+```bash
+# Run backend tests (from backend/, needs Python 3.11+; same as CI)
+cd backend
+pip install -e ".[dev]"   # first time only — installs pytest and dev deps
+pytest
+
+# Rebuild after dependency changes
+docker compose up --build
+```
+
+If you've [mise](https://mise.jdx.dev/) installed, you can install backend/frontend directly with it:
+
+```
+# Install the Python version specified in .python-version,
+# and create a project virtual environment using that Python.
+# Install all tools and dependencies (include Python with dedicated venv)
+mise //...:install
+
+# Install only backend tools/deps
+mise backend:install
+
+# Run backend tests
+mise backend:test
+
+# Install frontend dependencies
+mise frontend:install
+
+# Run frontend linting
+mise frontend:lint
+
+# Run frontend build
+mise frontend:build
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+Not sure where to start, or want to talk something through first? [Book 15 minutes](https://cal.com/tassio/15min) — no agenda needed. Something broken, an idea, or just what you think of Securo, all welcome.
+
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+This means you can freely use, modify, and distribute this software, but any modifications — including when used as a network service (SaaS) — must also be released under the AGPL-3.0.

@@ -1,48 +1,20 @@
-# Dependencies
-node_modules/
-
-# Build outputs
-dist/
-.next/
-out/
-
-# Env files
+.venv
 .env
-.env.local
-.env.*.local
-
-# Docs Archive
-.archive/
-
-# OS
+secrets/
+.worktrees/
 .DS_Store
-Thumbs.db
+.playwright-mcp/
+.claude
+.mcp.json
+CLAUDE.md
+docs/plans/
+tmp/
+docker-compose.override.yml
 
-# Logs
-/coverage/
-**/coverage/lcov.info
-**/coverage/lcov-report/
-**/public/*.zip
-*.log
+# Ignore local configuration files
+.vscode/
 
-# Turbopack / Next.js cache
-.next/dev/cache/
-
-# TypeScript incremental build info
-*.tsbuildinfo
-
-# Backup files (P2 cleanup — never commit stale .bak artifacts)
-*.bak
-
-# Cloudflare Wrangler local state (workers dev sessions, cache, logs)
-# NOTE: wrangler.toml at the repo root is INTENTIONALLY committed as a
-#       non-functional reference stub — see its in-file comments.
-.wrangler/
-
-# Agent / IDE skill libraries — large, vendored, not part of the product
-# source. Each engineer's environment may keep its own copy locally.
-.agents/skills/
-
-# Reference snapshots from preview environments (HTML dumps, screenshots).
-# Useful for local diffing but bloats the repo if committed.
-PREVIEW_REFERENCE/
+# Runtime artifacts written by the agents feature (uploaded KB files,
+# downloaded ONNX embedding models, transaction attachments). User data
+# — never commit.
+backend/data/

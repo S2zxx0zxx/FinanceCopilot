@@ -1,0 +1,2571 @@
+import uuid
+from datetime import date
+from decimal import Decimal
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.account import Account
+from app.models.fx_rate import FxRate
+from app.models.user import User
+from app.services.import_service import (
+    _preprocess_ofx,
+    detect_csv_columns,
+    parse_csv,
+    parse_ofx,
+    parse_qif,
+    parse_camt,
+    import_transactions,
+)
+
+
+class TestParseCsv:
+    """Tests for the parse_csv function."""
+
+    def test_parse_csv(self):
+        """Parse a valid CSV with localized columns (data, descricao, valor)."""
+        csv_content = (
+            "data,descricao,valor\n"
+            "10/02/2026,UBER TRIP,-25.50\n"
+            "12/02/2026,IFOOD RESTAURANTE,-45.00\n"
+            "05/02/2026,SALARIO FEV,8000.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 3
+
+        # First transaction: UBER TRIP (debit because negative)
+        assert transactions[0].description == "UBER TRIP"
+        assert transactions[0].amount == Decimal("25.50")
+        assert transactions[0].date == date(2026, 2, 10)
+        assert transactions[0].type == "debit"
+
+        # Second transaction: IFOOD (debit)
+        assert transactions[1].description == "IFOOD RESTAURANTE"
+        assert transactions[1].amount == Decimal("45.00")
+        assert transactions[1].date == date(2026, 2, 12)
+        assert transactions[1].type == "debit"
+
+        # Third transaction: SALARIO (credit because positive)
+        assert transactions[2].description == "SALARIO FEV"
+        assert transactions[2].amount == Decimal("8000.00")
+        assert transactions[2].date == date(2026, 2, 5)
+        assert transactions[2].type == "credit"
+
+    def test_parse_csv_english(self):
+        """Parse a CSV with English column headers (date, description, amount)."""
+        csv_content = (
+            "date,description,amount\n"
+            "2026-02-10,GROCERY STORE,-120.50\n"
+            "2026-02-15,SALARY PAYMENT,5000.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+
+        assert transactions[0].description == "GROCERY STORE"
+        assert transactions[0].amount == Decimal("120.50")
+        assert transactions[0].date == date(2026, 2, 10)
+        assert transactions[0].type == "debit"
+
+        assert transactions[1].description == "SALARY PAYMENT"
+        assert transactions[1].amount == Decimal("5000.00")
+        assert transactions[1].date == date(2026, 2, 15)
+        assert transactions[1].type == "credit"
+
+    def test_parse_csv_invalid_columns(self):
+        """CSV with unrecognized column names should raise ValueError with found and expected columns."""
+        csv_content = (
+            "col_a,col_b,col_c\n"
+            "foo,bar,baz\n"
+        )
+        with pytest.raises(ValueError, match="Found: col_a, col_b, col_c") as exc_info:
+            parse_csv(csv_content.encode("utf-8"))
+        # Should also tell the user what columns are expected
+        assert "date" in str(exc_info.value)
+        assert "description" in str(exc_info.value)
+
+    def test_parse_csv_brl_amounts(self):
+        """CSV with R$ prefix and comma-as-decimal amounts should be parsed correctly.
+
+        When amounts use comma as decimal separator, CSV values must be quoted
+        to avoid conflict with the comma column delimiter.
+        """
+        csv_content = (
+            'data,descricao,valor\n'
+            '10/02/2026,MERCADO LIVRE,"R$ -150,99"\n'
+            '11/02/2026,PIX RECEBIDO,"R$ 200,00"\n'
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+
+        # R$ -150,99 -> strip R$ -> -150,99 -> comma becomes dot -> -150.99 -> abs = 150.99
+        assert transactions[0].description == "MERCADO LIVRE"
+        assert transactions[0].amount == Decimal("150.99")
+        assert transactions[0].type == "debit"
+
+        # R$ 200,00 -> 200.00
+        assert transactions[1].description == "PIX RECEBIDO"
+        assert transactions[1].amount == Decimal("200.00")
+        assert transactions[1].type == "credit"
+
+    def test_parse_csv_with_bom(self):
+        """CSV encoded with UTF-8 BOM should be parsed correctly."""
+        # Encode with utf-8-sig which prepends BOM bytes; parse_csv decodes with utf-8-sig
+        csv_content = "date,description,amount\n2026-01-15,TEST TRANSACTION,-50.00\n"
+        transactions, _ = parse_csv(csv_content.encode("utf-8-sig"))
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "TEST TRANSACTION"
+        assert transactions[0].amount == Decimal("50.00")
+
+    def test_parse_csv_skips_invalid_dates(self):
+        """Rows with unparseable dates should be silently skipped."""
+        csv_content = (
+            "date,description,amount\n"
+            "not-a-date,BAD ROW,-10.00\n"
+            "2026-02-20,GOOD ROW,-30.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "GOOD ROW"
+
+    def test_parse_csv_skips_invalid_amounts(self):
+        """Rows with unparseable amounts should be silently skipped."""
+        csv_content = (
+            "date,description,amount\n"
+            "2026-02-20,BAD AMOUNT,abc\n"
+            "2026-02-21,GOOD AMOUNT,-75.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "GOOD AMOUNT"
+
+    def test_parse_csv_dd_mm_yyyy_format(self):
+        """DD/MM/YYYY date format should be correctly parsed."""
+        csv_content = "data,descricao,valor\n25/12/2025,NATAL,-500.00\n"
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2025, 12, 25)
+
+    def test_parse_csv_semicolon_delimiter(self):
+        """CSV using semicolons as delimiter should be parsed correctly."""
+        csv_content = (
+            "date;description;amount\n"
+            "15/01/2026;Grocery Store;-120.50\n"
+            "20/01/2026;Salary Payment;5000.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+        assert transactions[0].description == "Grocery Store"
+        assert transactions[0].amount == Decimal("120.50")
+        assert transactions[0].type == "debit"
+        assert transactions[1].description == "Salary Payment"
+        assert transactions[1].amount == Decimal("5000.00")
+        assert transactions[1].type == "credit"
+
+    def test_parse_csv_tab_delimiter(self):
+        """CSV using tabs as delimiter should be parsed correctly."""
+        csv_content = (
+            "date\tdescription\tamount\n"
+            "2026-01-15\tGrocery Store\t-120.50\n"
+            "2026-01-20\tSalary Payment\t5000.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+        assert transactions[0].description == "Grocery Store"
+        assert transactions[0].amount == Decimal("120.50")
+        assert transactions[0].type == "debit"
+        assert transactions[1].description == "Salary Payment"
+        assert transactions[1].amount == Decimal("5000.00")
+        assert transactions[1].type == "credit"
+
+    def test_parse_csv_empty_file(self):
+        """A CSV with only headers and no data rows should return empty list."""
+        csv_content = "date,description,amount\n"
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+        assert len(transactions) == 0
+
+    def test_parse_csv_explicit_date_format(self):
+        """CSV with explicit date format should use only that format."""
+        csv_content = (
+            "date,description,amount\n"
+            "03/04/2026,PAYMENT,-100.00\n"
+        )
+        # With MM/DD/YYYY format, 03/04 = March 4
+        transactions, _ = parse_csv(csv_content.encode("utf-8"), date_format="MM/DD/YYYY")
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 3, 4)
+
+        # With DD/MM/YYYY format, 03/04 = April 3
+        transactions, _ = parse_csv(csv_content.encode("utf-8"), date_format="DD/MM/YYYY")
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 4, 3)
+
+    def test_parse_csv_flip_amount(self):
+        """Flip amount should negate amounts, swapping credit/debit."""
+        csv_content = (
+            "date,description,amount\n"
+            "2026-01-10,EXPENSE,100.00\n"
+            "2026-01-11,INCOME,-500.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"), flip_amount=True)
+        assert len(transactions) == 2
+        # 100.00 flipped to -100.00 => debit
+        assert transactions[0].type == "debit"
+        assert transactions[0].amount == Decimal("100.00")
+        # -500.00 flipped to 500.00 => credit
+        assert transactions[1].type == "credit"
+        assert transactions[1].amount == Decimal("500.00")
+
+    def test_parse_csv_split_columns(self):
+        """CSV with inflow/outflow split columns."""
+        csv_content = (
+            "date,description,inflow,outflow\n"
+            "2026-01-10,SALARY,5000.00,\n"
+            "2026-01-11,RENT,,1200.00\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            inflow_column="inflow",
+            outflow_column="outflow",
+        )
+        assert len(transactions) == 2
+        assert transactions[0].type == "credit"
+        assert transactions[0].amount == Decimal("5000.00")
+        assert transactions[1].type == "debit"
+        assert transactions[1].amount == Decimal("1200.00")
+
+    def test_parse_csv_brazilian_amount(self):
+        """CSV using comma as the decimal separator in the amount field."""
+        csv_content = (
+            "date,description,amount\n"
+            '2026-01-10,SALARY,"5,000.00"\n' 
+            "2026-01-11,RENT,1200.00\n"
+        )
+
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+        assert len(transactions) == 2
+        assert transactions[0].amount == Decimal("5000.00")
+        assert transactions[1].amount == Decimal("1200.00")
+
+    def test_parse_csv_autodetects_payee_and_notes(self):
+        """CSV with common headers for payee and notes should auto-detect them. external_id is strictly explicit."""
+        csv_content = (
+            "date,description,amount,merchant,transaction_id,notes\n"
+            "2026-05-01,AMAZON,-25.00,Amazon.com,txn_123,Gift for John\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+        assert len(transactions) == 1
+        assert transactions[0].payee_raw == "Amazon.com"
+        assert transactions[0].external_id is None
+        assert transactions[0].notes == "Gift for John"
+
+class TestParseCsvColumnMapping:
+    """Tests for customizable CSV column mapping (issue #201)."""
+
+    def test_column_mapping_unrecognized_headers(self):
+        """A CSV with headers Securo can't auto-detect parses with an explicit mapping."""
+        csv_content = (
+            "Posted On,Memo Line,Movement\n"
+            "2026-01-10,COFFEE SHOP,-12.50\n"
+            "2026-01-11,PAYCHECK,3000.00\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={
+                "date": "Posted On",
+                "description": "Memo Line",
+                "amount": "Movement",
+            },
+        )
+        assert len(transactions) == 2
+        assert transactions[0].description == "COFFEE SHOP"
+        assert transactions[0].amount == Decimal("12.50")
+        assert transactions[0].type == "debit"
+        assert transactions[1].description == "PAYCHECK"
+        assert transactions[1].type == "credit"
+
+    def test_column_mapping_without_mapping_raises(self):
+        """The same unrecognized CSV fails without a mapping — proving the mapping is what fixes it."""
+        csv_content = "Posted On,Memo Line,Movement\n2026-01-10,COFFEE SHOP,-12.50\n"
+        with pytest.raises(ValueError):
+            parse_csv(csv_content.encode("utf-8"))
+
+    def test_column_mapping_overrides_autodetection(self):
+        """An explicit mapping wins over a column that would otherwise auto-detect."""
+        # Both `description` and `details` exist; mapping forces `details`.
+        csv_content = (
+            "date,description,details,amount\n"
+            "2026-01-10,WRONG,RIGHT,-10.00\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={"description": "details"},
+        )
+        assert len(transactions) == 1
+        assert transactions[0].description == "RIGHT"
+
+    def test_column_mapping_partial_falls_back_to_autodetect(self):
+        """Unmapped fields still auto-detect; only mapped fields are overridden."""
+        csv_content = (
+            "txn_date,description,amount\n"
+            "2026-01-10,GROCERIES,-55.00\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={"date": "txn_date"},
+        )
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 1, 10)
+        assert transactions[0].description == "GROCERIES"
+        assert transactions[0].amount == Decimal("55.00")
+
+    def test_column_mapping_missing_column_raises(self):
+        """Mapping a field to a column that doesn't exist raises a helpful error."""
+        csv_content = "date,description,amount\n2026-01-10,X,-1.00\n"
+        with pytest.raises(ValueError, match="nonexistent"):
+            parse_csv(
+                csv_content.encode("utf-8"),
+                column_mapping={"amount": "nonexistent"},
+            )
+
+    def test_column_mapping_case_insensitive(self):
+        """Mapping values are matched case-insensitively against CSV headers."""
+        csv_content = "Date,Description,Amount\n2026-01-10,X,-1.00\n"
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={"date": "DATE", "description": "Description", "amount": "amount"},
+        )
+        assert len(transactions) == 1
+        assert transactions[0].amount == Decimal("1.00")
+
+    def test_column_mapping_split_inflow_outflow(self):
+        """Inflow/outflow split columns can be supplied via column_mapping."""
+        csv_content = (
+            "Posted On,Memo,Credits,Debits\n"
+            "2026-01-10,SALARY,5000.00,\n"
+            "2026-01-11,RENT,,1200.00\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={
+                "date": "Posted On",
+                "description": "Memo",
+                "inflow": "Credits",
+                "outflow": "Debits",
+            },
+        )
+        assert len(transactions) == 2
+        assert transactions[0].type == "credit"
+        assert transactions[0].amount == Decimal("5000.00")
+        assert transactions[1].type == "debit"
+        assert transactions[1].amount == Decimal("1200.00")
+
+    def test_column_mapping_currency_and_fx_rate(self):
+        """Currency and fx_rate columns can be mapped from non-standard headers."""
+        csv_content = (
+            "date,description,amount,ccy,exch\n"
+            "2026-01-10,HOTEL,-100.00,EUR,1.08\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={"currency": "ccy", "fx_rate": "exch"},
+        )
+        assert len(transactions) == 1
+        assert transactions[0].currency == "EUR"
+        assert transactions[0].fx_rate == Decimal("1.08")
+
+    def test_column_mapping_ignores_empty_values(self):
+        """Empty mapping values are ignored and fall back to auto-detection."""
+        csv_content = "date,description,amount\n2026-01-10,X,-1.00\n"
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={"date": "", "description": "  "},
+        )
+        assert len(transactions) == 1
+        assert transactions[0].description == "X"
+
+    def test_column_mapping_type_column_drives_credit_debit(self):
+        """A mapped type column overrides the amount sign for credit/debit."""
+        # All amounts are positive — only the Direction column distinguishes them.
+        csv_content = (
+            "Booking Date,Counterparty,Net,Direction\n"
+            "2026-04-01,Whole Foods,55.00,debit\n"
+            "2026-04-02,Employer Inc,4200.00,credit\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={
+                "date": "Booking Date",
+                "description": "Counterparty",
+                "amount": "Net",
+                "type": "Direction",
+            },
+        )
+        assert len(transactions) == 2
+        assert transactions[0].type == "debit"
+        assert transactions[0].amount == Decimal("55.00")
+        assert transactions[1].type == "credit"
+        assert transactions[1].amount == Decimal("4200.00")
+
+    def test_column_mapping_with_explicit_date_format(self):
+        """Column mapping composes with an explicit date_format."""
+        csv_content = (
+            "Posting Date,Details,Amount\n"
+            "22/03/2026,Gym Membership,-60.00\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            date_format="DD/MM/YYYY",
+            column_mapping={
+                "date": "Posting Date",
+                "description": "Details",
+                "amount": "Amount",
+            },
+        )
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 3, 22)
+        assert transactions[0].description == "Gym Membership"
+
+    def test_column_mapping_semicolon_delimiter(self):
+        """Column mapping works on semicolon-delimited CSVs with comma decimals."""
+        csv_content = (
+            "Fecha;Concepto;Importe\n"
+            "2026-07-02;Nomina;3.500,00\n"
+            "2026-07-03;Hotel;-200,00\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={
+                "date": "Fecha",
+                "description": "Concepto",
+                "amount": "Importe",
+            },
+        )
+        assert len(transactions) == 2
+        assert transactions[0].amount == Decimal("3500.00")
+        assert transactions[0].type == "credit"
+        assert transactions[1].amount == Decimal("200.00")
+        assert transactions[1].type == "debit"
+
+    def test_column_mapping_payee_external_id_notes(self):
+        """Explicitly mapping payee, external_id, and notes should extract them correctly."""
+        csv_content = (
+            "Txn Date,Memo,Value,Counterparty,ExtRef,Comment\n"
+            "2026-08-01,Purchase,-15.00,Target,ref999,Groceries\n"
+        )
+        transactions, _ = parse_csv(
+            csv_content.encode("utf-8"),
+            column_mapping={
+                "date": "Txn Date",
+                "description": "Memo",
+                "amount": "Value",
+                "payee": "Counterparty",
+                "external_id": "ExtRef",
+                "notes": "Comment",
+            },
+        )
+        assert len(transactions) == 1
+        assert transactions[0].payee_raw == "Target"
+        assert transactions[0].external_id == "ref999"
+        assert transactions[0].notes == "Groceries"
+
+
+class TestDetectCsvColumns:
+    """Tests for detect_csv_columns — used to drive the import-UI mapping dropdowns."""
+
+    def test_detect_basic(self):
+        csv_content = b"Posted On,Memo Line,Movement\n2026-01-10,COFFEE,-12.50\n"
+        assert detect_csv_columns(csv_content) == ["Posted On", "Memo Line", "Movement"]
+
+    def test_detect_semicolon_delimiter(self):
+        csv_content = b"date;description;amount\n2026-01-10;COFFEE;-12.50\n"
+        assert detect_csv_columns(csv_content) == ["date", "description", "amount"]
+
+    def test_detect_strips_whitespace_and_bom(self):
+        csv_content = " date , description , amount \n2026-01-10,X,-1.00\n".encode("utf-8-sig")
+        assert detect_csv_columns(csv_content) == ["date", "description", "amount"]
+
+    def test_detect_empty_file(self):
+        assert detect_csv_columns(b"") == []
+
+
+class TestParseQif:
+    """Tests for the parse_qif function."""
+
+    def test_parse_qif_basic(self):
+        """Parse a basic QIF file with multiple transactions."""
+        qif_content = (
+            "!Type:Bank\n"
+            "D01/15/2026\n"
+            "T-250.00\n"
+            "PElectric Company\n"
+            "MMonthly bill\n"
+            "^\n"
+            "D01/20/2026\n"
+            "T1500.00\n"
+            "PEmployer Inc\n"
+            "MSalary\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+
+        assert transactions[0].description == "Electric Company"
+        assert transactions[0].amount == Decimal("250.00")
+        assert transactions[0].date == date(2026, 1, 15)
+        assert transactions[0].type == "debit"
+
+        assert transactions[1].description == "Employer Inc"
+        assert transactions[1].amount == Decimal("1500.00")
+        assert transactions[1].date == date(2026, 1, 20)
+        assert transactions[1].type == "credit"
+
+    def test_parse_qif_explicit_day_first_format(self):
+        """An explicit DD/MM/YYYY choice must win over the US-first default."""
+        qif_content = (
+            "D07/03/2026\n"
+            "T-100.00\n"
+            "PLandlord\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"), date_format="DD/MM/YYYY")
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 3, 7)
+
+    def test_parse_qif_explicit_month_first_format(self):
+        qif_content = (
+            "D07/03/2026\n"
+            "T-100.00\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"), date_format="MM/DD/YYYY")
+        assert transactions[0].date == date(2026, 7, 3)
+
+    def test_parse_qif_infers_day_first_from_whole_file(self):
+        """One unambiguous date (day > 12) pins the whole file to DD/MM, so
+        ambiguous dates in the same file stop being parsed as MM/DD."""
+        qif_content = (
+            "D25/03/2026\n"
+            "T-10.00\n"
+            "^\n"
+            "D07/03/2026\n"
+            "T-20.00\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert transactions[0].date == date(2026, 3, 25)
+        assert transactions[1].date == date(2026, 3, 7)
+
+    def test_parse_qif_ambiguous_file_keeps_us_default(self):
+        """A fully ambiguous file keeps the historical MM/DD-first order."""
+        qif_content = (
+            "D07/03/2026\n"
+            "T-20.00\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert transactions[0].date == date(2026, 7, 3)
+
+    def test_parse_qif_explicit_format_two_digit_year(self):
+        qif_content = (
+            "D07/03/26\n"
+            "T-100.00\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"), date_format="DD/MM/YYYY")
+        assert transactions[0].date == date(2026, 3, 7)
+
+    def test_parse_qif_memo_as_description(self):
+        """When no payee, memo should be used as description."""
+        qif_content = (
+            "D02/10/2026\n"
+            "T-50.00\n"
+            "MGrocery purchase\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert len(transactions) == 1
+        assert transactions[0].description == "Grocery purchase"
+
+    def test_parse_qif_unknown_description(self):
+        """When no payee or memo, description should be 'Unknown'."""
+        qif_content = (
+            "D03/01/2026\n"
+            "T-10.00\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert len(transactions) == 1
+        assert transactions[0].description == "Unknown"
+
+    def test_parse_qif_iso_date(self):
+        """QIF with YYYY-MM-DD date format."""
+        qif_content = (
+            "D2026-03-15\n"
+            "T-100.00\n"
+            "PTest\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 3, 15)
+
+    def test_parse_qif_skips_invalid_blocks(self):
+        """Blocks without date or amount should be skipped."""
+        qif_content = (
+            "!Type:Bank\n"
+            "^\n"
+            "POrphan payee\n"
+            "^\n"
+            "D01/01/2026\n"
+            "T-50.00\n"
+            "PValid\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert len(transactions) == 1
+        assert transactions[0].description == "Valid"
+
+    def test_parse_qif_windows_1252_encoding(self):
+        """QIF with accented characters encoded in Windows-1252 (Microsoft Money)."""
+        qif_text = (
+            "D01/10/2026\n"
+            "T-300.00\n"
+            "PPagamento cartão\n"
+            "MCompra em São Paulo\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_text.encode("cp1252"))
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "Pagamento cartão"
+        assert transactions[0].amount == Decimal("300.00")
+        assert transactions[0].type == "debit"
+
+    def test_parse_qif_comma_in_amount(self):
+        """QIF amounts with comma thousands separator."""
+        qif_content = (
+            "D01/01/2026\n"
+            "T-1,250.00\n"
+            "PBig Purchase\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert len(transactions) == 1
+        assert transactions[0].amount == Decimal("1250.00")
+
+    def test_parse_qif_latin1_encoding(self):
+        """QIF files from legacy software (e.g. Microsoft Money) using Latin-1 encoding."""
+        qif_content = (
+            "!Type:Bank\n"
+            "D01/15/2026\n"
+            "T-75.00\n"
+            "PCaf\u00e9 Fran\u00e7ais\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("latin-1"))
+        assert len(transactions) == 1
+        assert transactions[0].description == "Caf\u00e9 Fran\u00e7ais"
+        assert transactions[0].amount == Decimal("75.00")
+        assert transactions[0].type == "debit"
+
+    def test_parse_qif_two_digit_year(self):
+        """QIF with 2-digit year date formats (common in Microsoft Money)."""
+        qif_content = (
+            "D01/15/26\n"
+            "T-50.00\n"
+            "PTest\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 1, 15)
+
+    def test_parse_qif_apostrophe_two_digit_year(self):
+        """QIF with apostrophe separator and 2-digit year (Microsoft Money format)."""
+        qif_content = (
+            "D01/15'26\n"
+            "T-100.00\n"
+            "PTest\n"
+            "^\n"
+        )
+        transactions = parse_qif(qif_content.encode("utf-8"))
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 1, 15)
+
+
+class TestParseCamt:
+    """Tests for the parse_camt function (ISO 20022 XML)."""
+
+    def _make_camt_xml(self, entries_xml: str) -> bytes:
+        """Helper to wrap entries in a valid CAMT.053 XML structure."""
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">'
+            '<BkToCstmrStmt><Stmt>'
+            f'{entries_xml}'
+            '</Stmt></BkToCstmrStmt>'
+            '</Document>'
+        ).encode('utf-8')
+
+    def test_parse_camt_basic(self):
+        """Parse a basic CAMT file with credit and debit entries."""
+        entries = (
+            '<Ntry>'
+            '<Amt Ccy="BRL">1500.00</Amt>'
+            '<CdtDbtInd>CRDT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-01-15</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Salary Payment</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+            '<Ntry>'
+            '<Amt Ccy="BRL">250.00</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-01-16</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Electric Bill</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+        )
+        transactions = parse_camt(self._make_camt_xml(entries))
+
+        assert len(transactions) == 2
+
+        assert transactions[0].description == "Salary Payment"
+        assert transactions[0].amount == Decimal("1500.00")
+        assert transactions[0].type == "credit"
+        assert transactions[0].date == date(2026, 1, 15)
+
+        assert transactions[1].description == "Electric Bill"
+        assert transactions[1].amount == Decimal("250.00")
+        assert transactions[1].type == "debit"
+        assert transactions[1].date == date(2026, 1, 16)
+
+    def test_parse_camt_valdt_fallback(self):
+        """When BookgDt is missing, ValDt should be used."""
+        entries = (
+            '<Ntry>'
+            '<Amt Ccy="BRL">100.00</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<ValDt><Dt>2026-02-20</Dt></ValDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Test</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+        )
+        transactions = parse_camt(self._make_camt_xml(entries))
+        assert len(transactions) == 1
+        assert transactions[0].date == date(2026, 2, 20)
+
+    def test_parse_camt_description_fallbacks(self):
+        """Description should fall back through various paths."""
+        # Creditor name fallback
+        entries = (
+            '<Ntry>'
+            '<Amt Ccy="BRL">50.00</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-01-01</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RltdPties><Cdtr><Nm>Store ABC</Nm></Cdtr></RltdPties></TxDtls></NtryDtls>'
+            '</Ntry>'
+        )
+        transactions = parse_camt(self._make_camt_xml(entries))
+        assert len(transactions) == 1
+        assert transactions[0].description == "Store ABC"
+
+    def test_parse_camt_unknown_description(self):
+        """When no description paths exist, should default to 'Unknown'."""
+        entries = (
+            '<Ntry>'
+            '<Amt Ccy="BRL">75.00</Amt>'
+            '<CdtDbtInd>CRDT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-01-01</Dt></BookgDt>'
+            '</Ntry>'
+        )
+        transactions = parse_camt(self._make_camt_xml(entries))
+        assert len(transactions) == 1
+        assert transactions[0].description == "Unknown"
+
+    def test_parse_camt_skips_entries_without_date(self):
+        """Entries without any date should be skipped."""
+        entries = (
+            '<Ntry>'
+            '<Amt Ccy="BRL">100.00</Amt>'
+            '<CdtDbtInd>CRDT</CdtDbtInd>'
+            '</Ntry>'
+            '<Ntry>'
+            '<Amt Ccy="BRL">200.00</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-03-01</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Valid</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+        )
+        transactions = parse_camt(self._make_camt_xml(entries))
+        assert len(transactions) == 1
+        assert transactions[0].description == "Valid"
+
+    def test_parse_camt_no_namespace(self):
+        """CAMT XML without namespace should still be parsed."""
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Document>'
+            '<BkToCstmrStmt><Stmt>'
+            '<Ntry>'
+            '<Amt Ccy="BRL">300.00</Amt>'
+            '<CdtDbtInd>CRDT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-01-10</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>No NS</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+            '</Stmt></BkToCstmrStmt>'
+            '</Document>'
+        ).encode('utf-8')
+        transactions = parse_camt(xml)
+        assert len(transactions) == 1
+        assert transactions[0].description == "No NS"
+        assert transactions[0].amount == Decimal("300.00")
+
+    def test_parse_camt052_bktocstmracctrpt(self):
+        """CAMT.052 (intraday report) uses BkToCstmrAcctRpt/Rpt instead of
+        BkToCstmrStmt/Stmt. Several European banks — including German
+        Volksbanken/Raiffeisenbanken — only offer CAMT.052 exports, not .053.
+        """
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.08">'
+            '<BkToCstmrAcctRpt><Rpt>'
+            '<Ntry>'
+            '<Amt Ccy="EUR">42.50</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-07-14</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Supermarket</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+            '</Rpt></BkToCstmrAcctRpt>'
+            '</Document>'
+        ).encode('utf-8')
+        transactions = parse_camt(xml)
+        assert len(transactions) == 1
+        assert transactions[0].description == "Supermarket"
+        assert transactions[0].amount == Decimal("42.50")
+        assert transactions[0].type == "debit"
+        assert transactions[0].date == date(2026, 7, 14)
+
+    def test_parse_camt052_skips_pending_entries(self):
+        """CAMT.052 intraday reports can include PDNG (pending) entries for
+        transactions that haven't settled yet. These must be skipped, since
+        the same transaction reappears as BOOK once it settles - importing
+        both would create a duplicate.
+        """
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.052.001.08">'
+            '<BkToCstmrAcctRpt><Rpt>'
+            '<Ntry>'
+            '<Amt Ccy="EUR">42.50</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<Sts>PDNG</Sts>'
+            '<BookgDt><Dt>2026-07-14</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Supermarket (pending)</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+            '<Ntry>'
+            '<Amt Ccy="EUR">42.50</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<Sts><Cd>BOOK</Cd></Sts>'
+            '<BookgDt><Dt>2026-07-15</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Supermarket (booked)</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+            '</Rpt></BkToCstmrAcctRpt>'
+            '</Document>'
+        ).encode('utf-8')
+        transactions = parse_camt(xml)
+        assert len(transactions) == 1
+        assert transactions[0].description == "Supermarket (booked)"
+
+    def test_parse_camt_keeps_pretty_printed_booked_entries(self):
+        """A wrapped <Sts><Cd>BOOK</Cd></Sts> in pretty-printed (indented) XML
+        must still be recognized as BOOK. The <Sts> element's own text is the
+        whitespace before <Cd>, so the status lookup has to prefer Sts/Cd -
+        otherwise the whitespace masks the code and booked entries get skipped.
+        """
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">\n'
+            '  <BkToCstmrStmt>\n'
+            '    <Stmt>\n'
+            '      <Ntry>\n'
+            '        <Amt Ccy="EUR">42.50</Amt>\n'
+            '        <CdtDbtInd>DBIT</CdtDbtInd>\n'
+            '        <Sts>\n'
+            '          <Cd>BOOK</Cd>\n'
+            '        </Sts>\n'
+            '        <BookgDt><Dt>2026-07-15</Dt></BookgDt>\n'
+            '        <NtryDtls><TxDtls><RmtInf><Ustrd>Booked</Ustrd></RmtInf></TxDtls></NtryDtls>\n'
+            '      </Ntry>\n'
+            '    </Stmt>\n'
+            '  </BkToCstmrStmt>\n'
+            '</Document>\n'
+        ).encode('utf-8')
+        transactions = parse_camt(xml)
+        assert len(transactions) == 1
+        assert transactions[0].description == "Booked"
+        assert transactions[0].amount == Decimal("42.50")
+
+
+class TestParseOfx:
+    """Tests for the parse_ofx function."""
+
+    def _make_ofx(self, transactions_sgml: str) -> bytes:
+        """Helper to wrap transaction SGML in a valid OFX structure."""
+        return (
+            "OFXHEADER:100\n"
+            "DATA:OFXSGML\n"
+            "VERSION:102\n"
+            "SECURITY:NONE\n"
+            "ENCODING:USASCII\n"
+            "CHARSET:1252\n"
+            "COMPRESSION:NONE\n"
+            "OLDFILEUID:NONE\n"
+            "NEWFILEUID:NONE\n"
+            "\n"
+            "<OFX>\n"
+            "<SIGNONMSGSRSV1>\n"
+            "<SONRS>\n"
+            "<STATUS><CODE>0<SEVERITY>INFO</STATUS>\n"
+            "<DTSERVER>20260101\n"
+            "<LANGUAGE>POR\n"
+            "</SONRS>\n"
+            "</SIGNONMSGSRSV1>\n"
+            "<BANKMSGSRSV1>\n"
+            "<STMTTRNRS>\n"
+            "<TRNUID>1001\n"
+            "<STATUS><CODE>0<SEVERITY>INFO</STATUS>\n"
+            "<STMTRS>\n"
+            "<CURDEF>BRL\n"
+            "<BANKACCTFROM>\n"
+            "<BANKID>0001\n"
+            "<ACCTID>12345\n"
+            "<ACCTTYPE>CHECKING\n"
+            "</BANKACCTFROM>\n"
+            "<BANKTRANLIST>\n"
+            "<DTSTART>20260101\n"
+            "<DTEND>20260131\n"
+            f"{transactions_sgml}\n"
+            "</BANKTRANLIST>\n"
+            "</STMTRS>\n"
+            "</STMTTRNRS>\n"
+            "</BANKMSGSRSV1>\n"
+            "</OFX>\n"
+        ).encode("ascii")
+
+    def test_parse_ofx_extracts_fitid(self):
+        """FITID from OFX transactions populates external_id."""
+        ofx = self._make_ofx(
+            "<STMTTRN>\n"
+            "<TRNTYPE>DEBIT\n"
+            "<DTPOSTED>20260115\n"
+            "<TRNAMT>-985.50\n"
+            "<FITID>TXN001ABC\n"
+            "<MEMO>PIX ENVIADO - FULANO\n"
+            "</STMTTRN>\n"
+        )
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 1
+        assert transactions[0].external_id == "TXN001ABC"
+        assert transactions[0].amount == Decimal("985.50")
+        assert transactions[0].type == "debit"
+
+    def test_parse_ofx_keeps_duplicate_looking_transactions(self):
+        """Transactions with same fields but different FITIDs are both kept."""
+        ofx = self._make_ofx(
+            "<STMTTRN>\n"
+            "<TRNTYPE>DEBIT\n"
+            "<DTPOSTED>20260115\n"
+            "<TRNAMT>-985.50\n"
+            "<FITID>FITID_001\n"
+            "<MEMO>PIX ENVIADO - FULANO\n"
+            "</STMTTRN>\n"
+            "<STMTTRN>\n"
+            "<TRNTYPE>DEBIT\n"
+            "<DTPOSTED>20260115\n"
+            "<TRNAMT>-985.50\n"
+            "<FITID>FITID_002\n"
+            "<MEMO>PIX ENVIADO - FULANO\n"
+            "</STMTTRN>\n"
+        )
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 2
+        assert transactions[0].external_id == "FITID_001"
+        assert transactions[1].external_id == "FITID_002"
+        assert transactions[0].amount == transactions[1].amount
+        assert transactions[0].description == transactions[1].description
+
+    def test_parse_ofx_skips_balance_summary_rows_with_empty_fitid(self):
+        """Banco do Brasil emits Saldo Anterior/Saldo do dia as STMTTRN with empty
+        FITID. These should be silently skipped instead of aborting the import."""
+        ofx = self._make_ofx(
+            "<STMTTRN>\n"
+            "<TRNTYPE>OTHER\n"
+            "<DTPOSTED>20260101\n"
+            "<TRNAMT>0.00\n"
+            "<FITID>\n"
+            "<MEMO>Saldo Anterior\n"
+            "</STMTTRN>\n"
+            "<STMTTRN>\n"
+            "<TRNTYPE>DEBIT\n"
+            "<DTPOSTED>20260115\n"
+            "<TRNAMT>-985.50\n"
+            "<FITID>TXN001ABC\n"
+            "<MEMO>PIX ENVIADO - FULANO\n"
+            "</STMTTRN>\n"
+            "<STMTTRN>\n"
+            "<TRNTYPE>OTHER\n"
+            "<DTPOSTED>20260131\n"
+            "<TRNAMT>0.00\n"
+            "<FITID>\n"
+            "<MEMO>Saldo do dia\n"
+            "</STMTTRN>\n"
+        )
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 1
+        assert transactions[0].external_id == "TXN001ABC"
+        assert transactions[0].description == "PIX ENVIADO - FULANO"
+
+    def test_parse_ofx_keeps_real_transactions_with_empty_fitid(self):
+        """A real transaction missing a FITID should still be imported (without
+        an external_id), not abort the whole file."""
+        ofx = self._make_ofx(
+            "<STMTTRN>\n"
+            "<TRNTYPE>DEBIT\n"
+            "<DTPOSTED>20260115\n"
+            "<TRNAMT>-100.00\n"
+            "<FITID>\n"
+            "<MEMO>UBER TRIP\n"
+            "</STMTTRN>\n"
+        )
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 1
+        assert transactions[0].external_id is None
+        assert transactions[0].description == "UBER TRIP"
+        assert transactions[0].amount == Decimal("100.00")
+
+    def _make_ofx_xml(
+        self, memo: str, xml_encoding: str, *, prolog: bool = True, ofx_pi: bool = True
+    ) -> bytes:
+        """Helper to build an OFX 2.x document: XML prolog, no SGML header
+        block (e.g. Erste Bank's "MS Money Sunset Deluxe" export).
+
+        The XML declaration is optional in XML 1.0 and the <?OFX ?> instruction
+        can be dropped too, so `prolog` and `ofx_pi` cover the headerless
+        variants that reach ofxparse with nothing before the first tag.
+        """
+        text = (
+            (f'<?xml version="1.0" encoding="{xml_encoding}" ?>' if prolog else "")
+            + ('<?OFX OFXHEADER="200" VERSION="202" SECURITY="NONE" '
+               'OLDFILEUID="NONE" NEWFILEUID="NONE"?>' if ofx_pi else "")
+            + "<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>EUR</CURDEF>"
+            "<BANKACCTFROM><BANKID>1</BANKID><ACCTID>1</ACCTID>"
+            "<ACCTTYPE>CHECKING</ACCTTYPE></BANKACCTFROM>"
+            "<BANKTRANLIST><DTSTART>20260101</DTSTART><DTEND>20260131</DTEND>"
+            "<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260115</DTPOSTED>"
+            "<TRNAMT>-10.00</TRNAMT><FITID>1</FITID>"
+            f"<MEMO>{memo}</MEMO></STMTTRN>"
+            "</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>"
+        )
+        return text.encode(xml_encoding.lower().replace("iso-8859-1", "latin-1"))
+
+    def test_parse_ofx_xml_format_without_sgml_header(self):
+        """OFX 2.x/XML files (no SGML header block) with UTF-8 non-ASCII
+        characters should parse without raising UnicodeDecodeError."""
+        ofx = self._make_ofx_xml("1 Aufladung(en) für Konto", "utf-8")
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "1 Aufladung(en) für Konto"
+        assert transactions[0].amount == Decimal("10.00")
+        assert transactions[0].type == "debit"
+
+    def test_parse_ofx_xml_format_latin1(self):
+        """OFX 2.x/XML files declaring and using Latin-1 should decode
+        correctly, proving the fix doesn't hardcode UTF-8."""
+        ofx = self._make_ofx_xml("Café Paris", "ISO-8859-1")
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "Café Paris"
+
+    def test_parse_ofx_xml_format_ascii_only(self):
+        """OFX 2.x/XML files with pure-ASCII content should still parse
+        correctly after the SGML header injection."""
+        ofx = self._make_ofx_xml("Grocery Store", "utf-8")
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "Grocery Store"
+        assert transactions[0].amount == Decimal("10.00")
+
+    def test_parse_ofx_xml_format_without_xml_prolog(self):
+        """The XML declaration is optional, so an OFX 2.x file may open with
+        just its <?OFX ?> instruction. It reaches ofxparse with nothing before
+        the first tag, so it hits the same bug and needs the same header."""
+        ofx = self._make_ofx_xml("Aufladung für Konto", "utf-8", prolog=False)
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "Aufladung für Konto"
+
+    def test_parse_ofx_xml_format_bare_ofx_element(self):
+        """Neither declaration is required: a document opening straight on
+        <OFX> is the same headerless case."""
+        ofx = self._make_ofx_xml("Café Paris", "utf-8", prolog=False, ofx_pi=False)
+        transactions = parse_ofx(ofx)
+
+        assert len(transactions) == 1
+        assert transactions[0].description == "Café Paris"
+
+    def test_parse_ofx_sgml_header_is_not_duplicated(self):
+        """A real OFX 1.x file already has a header before its first tag, so it
+        must be left untouched rather than given a second one."""
+        ofx = self._make_ofx_xml("Grocery Store", "utf-8", prolog=False, ofx_pi=False)
+        sgml = (
+            b"OFXHEADER:100\r\nDATA:OFXSGML\r\nVERSION:102\r\nSECURITY:NONE\r\n"
+            b"ENCODING:UTF-8\r\nCHARSET:NONE\r\nCOMPRESSION:NONE\r\n"
+            b"OLDFILEUID:NONE\r\nNEWFILEUID:NONE\r\n\r\n" + ofx
+        )
+        assert _preprocess_ofx(sgml).count(b"OFXHEADER:") == 1
+        assert parse_ofx(sgml)[0].description == "Grocery Store"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MULTI-CURRENCY PARSING TESTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestCsvCurrencyParsing:
+    """Tests for CSV parsing with currency and fx_rate columns."""
+
+    def test_parse_csv_with_currency_column(self):
+        """CSV with a 'currency' column should populate the currency field."""
+        csv_content = (
+            "date,description,amount,currency\n"
+            "2026-01-10,Amazon Purchase,-120.50,USD\n"
+            "2026-01-11,Local Store,-45.00,BRL\n"
+            "2026-01-12,Euro Payment,-80.00,EUR\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 3
+        assert transactions[0].currency == "USD"
+        assert transactions[1].currency == "BRL"
+        assert transactions[2].currency == "EUR"
+
+    def test_parse_csv_with_moeda_column(self):
+        """CSV with Portuguese 'moeda' column should detect currency."""
+        csv_content = (
+            "data,descricao,valor,moeda\n"
+            "10/01/2026,AMAZON,-120.50,USD\n"
+            "11/01/2026,PIX RECEBIDO,500.00,BRL\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+        assert transactions[0].currency == "USD"
+        assert transactions[1].currency == "BRL"
+
+    def test_parse_csv_with_fx_rate_column(self):
+        """CSV with 'fx_rate' column should populate the fx_rate field."""
+        csv_content = (
+            "date,description,amount,currency,fx_rate\n"
+            "2026-01-10,Amazon Purchase,-120.50,USD,5.25\n"
+            "2026-01-11,Local Store,-45.00,BRL,\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+        assert transactions[0].currency == "USD"
+        assert transactions[0].fx_rate == Decimal("5.25")
+        assert transactions[1].currency == "BRL"
+        assert transactions[1].fx_rate is None
+
+    def test_parse_csv_with_taxa_cambio_column(self):
+        """CSV with Portuguese 'taxa_cambio' column should detect fx_rate."""
+        csv_content = (
+            "data,descricao,valor,moeda,taxa_cambio\n"
+            '10/01/2026,COMPRA EXTERIOR,-200.00,USD,"5,30"\n'
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 1
+        assert transactions[0].fx_rate == Decimal("5.30")
+
+    def test_parse_csv_without_currency_column(self):
+        """CSV without currency column should leave currency as None."""
+        csv_content = (
+            "date,description,amount\n"
+            "2026-01-10,GROCERY,-50.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 1
+        assert transactions[0].currency is None
+        assert transactions[0].fx_rate is None
+
+
+class TestCamtCurrencyParsing:
+    """Tests for CAMT parsing with currency extraction."""
+
+    def _make_camt_xml(self, entries_xml: str) -> bytes:
+        return (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">'
+            '<BkToCstmrStmt><Stmt>'
+            f'{entries_xml}'
+            '</Stmt></BkToCstmrStmt>'
+            '</Document>'
+        ).encode('utf-8')
+
+    def test_parse_camt_extracts_currency(self):
+        """CAMT parser should extract currency from Ccy attribute on Amt element."""
+        entries = (
+            '<Ntry>'
+            '<Amt Ccy="USD">500.00</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-01-15</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Wire Transfer</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+            '<Ntry>'
+            '<Amt Ccy="EUR">300.00</Amt>'
+            '<CdtDbtInd>CRDT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-01-16</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Euro Payment</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+        )
+        transactions = parse_camt(self._make_camt_xml(entries))
+
+        assert len(transactions) == 2
+        assert transactions[0].currency == "USD"
+        assert transactions[1].currency == "EUR"
+
+    def test_parse_camt_no_ccy_attribute(self):
+        """CAMT entries without Ccy attribute should have currency=None."""
+        entries = (
+            '<Ntry>'
+            '<Amt>100.00</Amt>'
+            '<CdtDbtInd>DBIT</CdtDbtInd>'
+            '<BookgDt><Dt>2026-01-15</Dt></BookgDt>'
+            '<NtryDtls><TxDtls><RmtInf><Ustrd>Test</Ustrd></RmtInf></TxDtls></NtryDtls>'
+            '</Ntry>'
+        )
+        transactions = parse_camt(self._make_camt_xml(entries))
+
+        assert len(transactions) == 1
+        assert transactions[0].currency is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# IMPORT TRANSACTIONS WITH FX — INTEGRATION TESTS (mocked FX provider)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def _insert_fx_rate(session: AsyncSession, quote_currency: str, rate: Decimal, rate_date: date) -> None:
+    """Insert a test FX rate (base=USD)."""
+    fx = FxRate(base_currency="USD", quote_currency=quote_currency, date=rate_date, rate=rate, source="test")
+    session.add(fx)
+    await session.commit()
+
+
+class TestImportTransactionsFx:
+    """Tests for import_transactions with multi-currency and FX rate handling.
+
+    All tests mock the external OER provider to avoid real API calls.
+    """
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_import_with_fx_rate_from_csv(self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account):
+        """When CSV provides fx_rate, it should be used directly without calling FX service."""
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        txns = [
+            TransactionImport(
+                description="Amazon US",
+                amount=Decimal("100.00"),
+                date=date(2026, 1, 15),
+                type="debit",
+                currency="USD",
+                fx_rate=Decimal("5.25"),
+            ),
+        ]
+
+        imported, skipped, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "csv",
+        )
+
+        assert imported == 1
+        assert skipped == 0
+
+        # Verify the transaction was saved with correct FX fields
+        result = await session.execute(
+            select(Transaction).where(Transaction.description == "Amazon US")
+        )
+        tx = result.scalar_one()
+        assert tx.currency == "USD"
+        assert tx.fx_rate_used == Decimal("5.25")
+        assert tx.amount_primary == Decimal("525.00")  # 100 * 5.25
+
+        # Provider should NOT have been called since fx_rate was provided
+        mock_provider.fetch_latest.assert_not_called()
+        mock_provider.fetch_historical.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_import_raw_payee_uses_workspace(self, session: AsyncSession, test_user: User, test_workspace, test_account: Account):
+        from app.models.payee import Payee
+        from app.models.transaction import Transaction
+        from app.schemas.transaction import TransactionImport
+        from sqlalchemy import select
+
+        txns = [
+            TransactionImport(
+                description="Cafe memo",
+                amount=Decimal("12.00"),
+                date=date(2026, 1, 15),
+                type="debit",
+                currency=test_account.currency,
+                payee_raw="Cafe",
+            ),
+        ]
+
+        imported, skipped, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "ofx",
+        )
+
+        assert imported == 1
+        assert skipped == 0
+        payee = (await session.execute(select(Payee).where(Payee.name == "Cafe"))).scalar_one()
+        tx = (await session.execute(select(Transaction).where(Transaction.payee_id == payee.id))).scalar_one()
+        assert payee.workspace_id == test_workspace.id
+        assert tx.workspace_id == test_workspace.id
+
+    @pytest.mark.asyncio
+    async def test_import_csv_preserves_notes_and_external_id(self, session: AsyncSession, test_user: User, test_workspace, test_account: Account):
+        from app.models.transaction import Transaction
+        from app.schemas.transaction import TransactionImport
+        from sqlalchemy import select
+
+        txns = [
+            TransactionImport(
+                description="Hardware Store",
+                amount=Decimal("50.00"),
+                date=date(2026, 2, 10),
+                type="debit",
+                currency=test_account.currency,
+                external_id="ext_456",
+                notes="Tools for repair",
+            ),
+        ]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "csv",
+        )
+
+        assert imported == 1
+        tx = (await session.execute(select(Transaction).where(Transaction.external_id == "ext_456"))).scalar_one()
+        assert tx.notes == "Tools for repair"
+        assert tx.original_description == "Hardware Store"
+        assert tx.description_is_rule_managed is False
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_import_foreign_currency_without_fx_rate_auto_converts(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """When no fx_rate is provided, stamp_primary_amount should auto-convert using DB rates."""
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        # Insert known FX rates so stamp_primary_amount can convert
+        await _insert_fx_rate(session, "BRL", Decimal("5.0000"), date(2026, 1, 15))
+        await _insert_fx_rate(session, "EUR", Decimal("0.9200"), date(2026, 1, 15))
+
+        # Mock the provider to prevent real API calls during on-demand sync
+        mock_provider.fetch_latest = AsyncMock(return_value={})
+        mock_provider.fetch_historical = AsyncMock(return_value={})
+
+        txns = [
+            TransactionImport(
+                description="Euro Store",
+                amount=Decimal("100.00"),
+                date=date(2026, 1, 15),
+                type="debit",
+                currency="EUR",
+            ),
+        ]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "csv",
+        )
+
+        assert imported == 1
+
+        result = await session.execute(
+            select(Transaction).where(Transaction.description == "Euro Store")
+        )
+        tx = result.scalar_one()
+        assert tx.currency == "EUR"
+        # stamp_primary_amount should have converted EUR -> BRL
+        # Rate: EUR/USD = 0.92, BRL/USD = 5.00 => EUR->BRL = 5.00/0.92 ≈ 5.4348
+        assert tx.amount_primary is not None
+        assert float(tx.amount_primary) > 500  # 100 EUR * ~5.43 = ~543
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_import_uses_account_currency_as_default(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace,
+    ):
+        """When transaction has no currency, the account's currency should be used."""
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        # Create a USD account
+        usd_account = Account(
+            id=uuid.uuid4(),
+            user_id=test_user.id,
+            name="USD Checking",
+            type="checking",
+            balance=Decimal("5000.00"),
+            currency="USD",
+        )
+        session.add(usd_account)
+        await session.commit()
+        await session.refresh(usd_account)
+
+        # Insert FX rates for conversion
+        await _insert_fx_rate(session, "BRL", Decimal("5.0000"), date(2026, 2, 10))
+
+        mock_provider.fetch_latest = AsyncMock(return_value={})
+        mock_provider.fetch_historical = AsyncMock(return_value={})
+
+        txns = [
+            TransactionImport(
+                description="ATM Withdrawal",
+                amount=Decimal("200.00"),
+                date=date(2026, 2, 10),
+                type="debit",
+                # No currency set — should inherit from account
+            ),
+        ]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, usd_account.id, txns, "csv",
+        )
+
+        assert imported == 1
+
+        result = await session.execute(
+            select(Transaction).where(Transaction.description == "ATM Withdrawal")
+        )
+        tx = result.scalar_one()
+        # Should have inherited USD from the account
+        assert tx.currency == "USD"
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_import_brl_into_brl_account_no_fx(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """Importing BRL transactions into a BRL account should not trigger FX conversion."""
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        txns = [
+            TransactionImport(
+                description="Supermercado",
+                amount=Decimal("150.00"),
+                date=date(2026, 3, 1),
+                type="debit",
+                # No currency — account is BRL, user primary is BRL
+            ),
+        ]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "csv",
+        )
+
+        assert imported == 1
+
+        result = await session.execute(
+            select(Transaction).where(Transaction.description == "Supermercado")
+        )
+        tx = result.scalar_one()
+        assert tx.currency == "BRL"
+        # For same-currency (BRL->BRL), amount_primary should equal amount
+        # (stamp_primary_amount returns 1:1 for same currency)
+
+        # Provider should NOT have been called for same-currency import
+        mock_provider.fetch_latest.assert_not_called()
+        mock_provider.fetch_historical.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_import_csv_currency_overrides_account_currency(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """CSV-provided currency should take priority over account currency."""
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        await _insert_fx_rate(session, "BRL", Decimal("5.0000"), date(2026, 3, 5))
+        await _insert_fx_rate(session, "GBP", Decimal("0.7900"), date(2026, 3, 5))
+
+        mock_provider.fetch_latest = AsyncMock(return_value={})
+        mock_provider.fetch_historical = AsyncMock(return_value={})
+
+        txns = [
+            TransactionImport(
+                description="London Hotel",
+                amount=Decimal("300.00"),
+                date=date(2026, 3, 5),
+                type="debit",
+                currency="GBP",  # Explicit currency from CSV, account is BRL
+            ),
+        ]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "csv",
+        )
+
+        assert imported == 1
+
+        result = await session.execute(
+            select(Transaction).where(Transaction.description == "London Hotel")
+        )
+        tx = result.scalar_one()
+        # Currency from CSV should override account currency
+        assert tx.currency == "GBP"
+        assert tx.amount_primary is not None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CSV TYPE COLUMN TESTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestParseCsvTypeColumn:
+    """Tests for explicit 'type' column support in parse_csv.
+
+    Before this fix, parse_csv always derived type from the amount sign.
+    Now, when a 'type' column is present with 'credit' or 'debit', it is
+    used directly — enabling all-positive-amount CSVs (like Securo exports).
+    """
+
+    def test_explicit_type_column_overrides_amount_sign(self):
+        """Positive amounts with type=debit should produce debit transactions."""
+        csv_content = (
+            "date,description,amount,type\n"
+            "2026-01-05,Salario Dia 5,13311.00,credit\n"
+            "2026-01-01,Financiamento Casa,577.00,debit\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+        assert transactions[0].type == "credit"
+        assert transactions[0].amount == Decimal("13311.00")
+        assert transactions[1].type == "debit"
+        assert transactions[1].amount == Decimal("577.00")
+
+    def test_explicit_type_column_all_debit(self):
+        """All-positive CSV with type=debit should not become credit."""
+        csv_content = (
+            "date,description,amount,type\n"
+            "2026-01-01,Rent,1200.00,debit\n"
+            "2026-01-02,Internet,119.00,debit\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert all(t.type == "debit" for t in transactions)
+
+    def test_without_type_column_derives_from_sign(self):
+        """Without a type column, backward-compatible sign-based derivation applies."""
+        csv_content = (
+            "date,description,amount\n"
+            "2026-01-01,Expense,-100.00\n"
+            "2026-01-02,Income,500.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert transactions[0].type == "debit"
+        assert transactions[1].type == "credit"
+
+    def test_unknown_type_value_falls_back_to_sign(self):
+        """Unrecognized type values (not credit/debit) fall back to amount sign."""
+        csv_content = (
+            "date,description,amount,type\n"
+            "2026-01-01,Expense,-100.00,unknown\n"
+            "2026-01-02,Income,500.00,invalid\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert transactions[0].type == "debit"
+        assert transactions[1].type == "credit"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CSV CATEGORY COLUMN TESTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestParseCsvCategoryColumn:
+    """Tests for 'category' column support in parse_csv.
+
+    The category column value is stored as category_name on TransactionImport
+    and later resolved to a UUID by import_transactions.
+    """
+
+    def test_category_column_populates_category_name(self):
+        """CSV with a category column should set category_name on each transaction."""
+        csv_content = (
+            "date,description,amount,type,currency,category\n"
+            "2026-01-05,Salario Dia 5,13311.00,credit,BRL,Salário & Renda\n"
+            "2026-01-01,Financiamento Casa,577.00,debit,BRL,Moradia\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 2
+        assert transactions[0].category_name == "Salário & Renda"
+        assert transactions[1].category_name == "Moradia"
+
+    def test_without_category_column_leaves_none(self):
+        """CSV without category column should leave category_name as None."""
+        csv_content = (
+            "date,description,amount\n"
+            "2026-01-01,Grocery Store,-50.00\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert transactions[0].category_name is None
+
+    def test_empty_category_field_leaves_none(self):
+        """An empty category field should result in category_name = None."""
+        csv_content = (
+            "date,description,amount,type,currency,category\n"
+            "2026-01-01,Some Transaction,100.00,credit,BRL,\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert transactions[0].category_name is None
+
+    def test_portuguese_categoria_column_detected(self):
+        """Portuguese 'categoria' column should also be detected."""
+        csv_content = (
+            "data,descricao,valor,categoria\n"
+            "01/01/2026,Supermercado,-150.00,Alimentação\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert len(transactions) == 1
+        assert transactions[0].category_name == "Alimentação"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# IMPORT TRANSACTIONS WITH CATEGORY RESOLUTION
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestImportTransactionsWithCategory:
+    """Tests for category_name → category_id resolution in import_transactions."""
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_known_category_name_resolved_to_id(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """When category_name matches a user category, category_id should be set."""
+        from app.models.category import Category
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        category = Category(
+            id=uuid.uuid4(), user_id=test_user.id,
+            name="Salário & Renda", icon="banknote", color="#16A34A",
+        )
+        session.add(category)
+        await session.commit()
+
+        from app.schemas.transaction import TransactionImport
+        txns = [TransactionImport(
+            description="Salario Dia 5",
+            amount=Decimal("13311.00"),
+            date=date(2026, 1, 5),
+            type="credit",
+            category_name="Salário & Renda",
+        )]
+
+        imported, skipped, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "import",
+        )
+
+        assert imported == 1
+        assert skipped == 0
+
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Salario Dia 5")
+        )).scalar_one()
+        assert tx.category_id == category.id
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_unknown_category_name_leaves_uncategorized(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """When category_name has no match, category_id should be None."""
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        txns = [TransactionImport(
+            description="Unknown Cat Transaction",
+            amount=Decimal("100.00"),
+            date=date(2026, 1, 10),
+            type="debit",
+            category_name="Categoria Inexistente",
+        )]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "import",
+        )
+
+        assert imported == 1
+
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Unknown Cat Transaction")
+        )).scalar_one()
+        assert tx.category_id is None
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_hidden_category_name_leaves_uncategorized(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """A hidden category is withheld on import, as it is in the preview.
+
+        The preview filters hidden categories out of its suggestion map. The
+        final import used to build its own unfiltered map, so a CSV naming a
+        hidden category still got it persisted, and the imported row disagreed
+        with what the preview showed.
+        """
+        from app.models.category import Category
+        from app.models.transaction import Transaction
+        from app.schemas.transaction import TransactionImport
+        from sqlalchemy import select
+
+        hidden = Category(
+            id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+            name="Categoria Oculta", icon="eye-off", color="#64748B", is_hidden=True,
+        )
+        session.add(hidden)
+        await session.commit()
+
+        txns = [TransactionImport(
+            description="Hidden Cat Transaction",
+            amount=Decimal("42.00"),
+            date=date(2026, 1, 11),
+            type="debit",
+            category_name="Categoria Oculta",
+        )]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "import",
+        )
+
+        assert imported == 1
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Hidden Cat Transaction")
+        )).scalar_one()
+        assert tx.category_id is None
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_category_name_matches_case_insensitively(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """Import matches category names the way the preview does."""
+        from app.models.category import Category
+        from app.models.transaction import Transaction
+        from app.schemas.transaction import TransactionImport
+        from sqlalchemy import select
+
+        category = Category(
+            id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+            name="Alimentação", icon="utensils", color="#F97316",
+        )
+        session.add(category)
+        await session.commit()
+
+        txns = [TransactionImport(
+            description="Case Insensitive Cat",
+            amount=Decimal("18.00"),
+            date=date(2026, 1, 12),
+            type="debit",
+            category_name="  alimentação  ",
+        )]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "import",
+        )
+
+        assert imported == 1
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Case Insensitive Cat")
+        )).scalar_one()
+        assert tx.category_id == category.id
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_no_category_name_leaves_uncategorized(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """When category_name is None, category_id should be None."""
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        txns = [TransactionImport(
+            description="No Cat Transaction",
+            amount=Decimal("50.00"),
+            date=date(2026, 1, 15),
+            type="debit",
+        )]
+
+        imported, _, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "import",
+        )
+
+        assert imported == 1
+
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "No Cat Transaction")
+        )).scalar_one()
+        assert tx.category_id is None
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_multiple_categories_resolved_correctly(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """Multiple transactions with different categories should each resolve correctly."""
+        from app.models.category import Category
+        from app.models.transaction import Transaction
+        from app.schemas.transaction import TransactionImport
+        from sqlalchemy import select
+
+        salary_cat = Category(
+            id=uuid.uuid4(), user_id=test_user.id,
+            name="Salário & Renda", icon="banknote", color="#16A34A",
+        )
+        housing_cat = Category(
+            id=uuid.uuid4(), user_id=test_user.id,
+            name="Moradia", icon="house", color="#8B5CF6",
+        )
+        session.add(salary_cat)
+        session.add(housing_cat)
+        await session.commit()
+
+        txns = [
+            TransactionImport(
+                description="Salario",
+                amount=Decimal("13311.00"),
+                date=date(2026, 1, 5),
+                type="credit",
+                category_name="Salário & Renda",
+            ),
+            TransactionImport(
+                description="Financiamento",
+                amount=Decimal("577.00"),
+                date=date(2026, 1, 1),
+                type="debit",
+                category_name="Moradia",
+            ),
+            TransactionImport(
+                description="Unknown",
+                amount=Decimal("100.00"),
+                date=date(2026, 1, 2),
+                type="debit",
+                category_name="Categoria Inexistente",
+            ),
+        ]
+
+        imported, skipped, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, txns, "import",
+        )
+
+        assert imported == 3
+        assert skipped == 0
+
+        salary_tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Salario")
+        )).scalar_one()
+        housing_tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Financiamento")
+        )).scalar_one()
+        unknown_tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Unknown")
+        )).scalar_one()
+
+        assert salary_tx.category_id == salary_cat.id
+        assert housing_tx.category_id == housing_cat.id
+        assert unknown_tx.category_id is None
+
+    @pytest.mark.asyncio
+    @patch("app.services.fx_rate_service._provider")
+    async def test_end_to_end_parse_and_import_with_type_and_category(
+        self, mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """Full flow: parse_csv reads type+category columns, import_transactions resolves them."""
+        from app.models.category import Category
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        salary_cat = Category(
+            id=uuid.uuid4(), user_id=test_user.id,
+            name="Salário & Renda", icon="banknote", color="#16A34A",
+        )
+        housing_cat = Category(
+            id=uuid.uuid4(), user_id=test_user.id,
+            name="Moradia", icon="house", color="#8B5CF6",
+        )
+        session.add(salary_cat)
+        session.add(housing_cat)
+        await session.commit()
+
+        csv_content = (
+            "date,description,amount,type,currency,category\n"
+            "2026-01-05,Salario Dia 5,13311.00,credit,BRL,Salário & Renda\n"
+            "2026-01-01,Financiamento Casa,577.00,debit,BRL,Moradia\n"
+        )
+        transactions, _ = parse_csv(csv_content.encode("utf-8"))
+
+        assert transactions[0].type == "credit"
+        assert transactions[1].type == "debit"
+        assert transactions[0].category_name == "Salário & Renda"
+        assert transactions[1].category_name == "Moradia"
+
+        imported, skipped, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, transactions, "import",
+        )
+
+        assert imported == 2
+        assert skipped == 0
+
+        salary_tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Salario Dia 5")
+        )).scalar_one()
+        housing_tx = (await session.execute(
+            select(Transaction).where(Transaction.description == "Financiamento Casa")
+        )).scalar_one()
+
+        assert salary_tx.type == "credit"
+        assert salary_tx.category_id == salary_cat.id
+        assert housing_tx.type == "debit"
+        assert housing_tx.category_id == housing_cat.id
+
+
+class TestOfxInstallmentDedup:
+    """Brazilian credit-card installments share one FITID across all monthly
+    statements (issue #98). Deduplication must consider the date so that
+    later monthly imports still register the next installment."""
+
+    @pytest.mark.asyncio
+    async def test_same_external_id_different_dates_both_imported(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+
+        first = [
+            TransactionImport(
+                description="Nimbus Stay - Parcela 1/6",
+                amount=Decimal("100.00"),
+                date=date(2025, 12, 15),
+                type="debit",
+                external_id="PURCHASE_ABC123",
+            ),
+        ]
+        imported, skipped, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, first, "ofx",
+        )
+        assert imported == 1
+        assert skipped == 0
+
+        second = [
+            TransactionImport(
+                description="Nimbus Stay - Parcela 2/6",
+                amount=Decimal("100.00"),
+                date=date(2026, 1, 15),
+                type="debit",
+                external_id="PURCHASE_ABC123",  # bank reuses purchase FITID
+            ),
+        ]
+        imported2, skipped2, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, second, "ofx",
+        )
+        assert imported2 == 1
+        assert skipped2 == 0
+
+        rows = (await session.execute(
+            select(Transaction).where(Transaction.external_id == "PURCHASE_ABC123")
+        )).scalars().all()
+        assert len(rows) == 2
+        assert {tx.date for tx in rows} == {date(2025, 12, 15), date(2026, 1, 15)}
+
+    @pytest.mark.asyncio
+    async def test_same_external_id_same_date_dedups(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        """Re-importing the same OFX file must still dedup — same FITID + same
+        date is the strict duplicate case."""
+        from app.schemas.transaction import TransactionImport
+
+        txn = TransactionImport(
+            description="Padaria",
+            amount=Decimal("12.50"),
+            date=date(2026, 2, 10),
+            type="debit",
+            external_id="DEDUP_ME",
+        )
+        await import_transactions(session, test_workspace.id, test_user.id, test_account.id, [txn], "ofx")
+        imported, skipped, _, _ = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, [txn], "ofx",
+        )
+        assert imported == 0
+        assert skipped == 1
+
+
+class TestCsvDuplicateDetectionToggle:
+    @pytest.mark.asyncio
+    async def test_csv_detect_duplicates_false_allows_duplicates(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        from app.schemas.transaction import TransactionImport
+
+        txn = TransactionImport(
+            description="CSV DUP TOGGLE",
+            amount=Decimal("42.00"),
+            date=date(2026, 3, 10),
+            type="debit",
+        )
+
+        await import_transactions(
+            session,
+            test_workspace.id,
+            test_user.id,
+            test_account.id,
+            [txn],
+            "csv",
+            detected_format="csv",
+            detect_duplicates=False,
+        )
+        imported, skipped, _, _ = await import_transactions(
+            session,
+            test_workspace.id,
+            test_user.id,
+            test_account.id,
+            [txn],
+            "csv",
+            detected_format="csv",
+            detect_duplicates=False,
+        )
+        assert imported == 1
+        assert skipped == 0
+
+    @pytest.mark.asyncio
+    async def test_non_csv_ignores_toggle_and_still_dedups(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+    ):
+        from app.schemas.transaction import TransactionImport
+
+        txn = TransactionImport(
+            description="OFX DUP",
+            amount=Decimal("15.00"),
+            date=date(2026, 3, 11),
+            type="debit",
+            external_id="OFX_DUP_01",
+        )
+
+        await import_transactions(
+            session,
+            test_workspace.id,
+            test_user.id,
+            test_account.id,
+            [txn],
+            "ofx",
+            detected_format="ofx",
+            detect_duplicates=False,
+        )
+        imported, skipped, _, _ = await import_transactions(
+            session,
+            test_workspace.id,
+            test_user.id,
+            test_account.id,
+            [txn],
+            "ofx",
+            detected_format="ofx",
+            detect_duplicates=False,
+        )
+        assert imported == 0
+        assert skipped == 1
+
+
+class TestApplyRuleEngineCorrectly:
+    @pytest.mark.asyncio
+    async def test_should_not_override_category(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account
+    ):
+        from app.schemas.transaction import TransactionImport
+        from app.schemas.rule import RuleCreate, RuleCondition, RuleAction
+        from app.services.rule_service import create_rule
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+        from app.services.category_service import create_default_categories
+
+        test_categories = await create_default_categories(session, test_user.id)
+
+        data = RuleCreate(
+            name="My Rule",
+            conditions_op="or",
+            conditions=[RuleCondition(field="description", op="contains", value="NOOVERRIDE")],
+            actions=[RuleAction(op="set_category", value=str(test_categories[2].id))],
+            priority=10,
+        )
+        await create_rule(session, test_workspace.id, test_user.id, data)
+
+        txn = TransactionImport(
+            description="NOOVERRIDE",
+            amount=Decimal("15.00"),
+            date=date(2026, 3, 11),
+            type="debit",
+            suggested_category_id = test_categories[1].id
+        )
+
+        imported, _, _, import_log_id = await import_transactions(
+            session,
+            test_workspace.id,
+            test_user.id,
+            test_account.id,
+            [txn],
+            "ofx",
+            detected_format="ofx",
+            detect_duplicates=False,
+        )
+
+        result = await session.execute(
+            select(Transaction).where(Transaction.import_id == import_log_id)
+        )
+        txn = result.scalar_one()
+        assert imported == 1
+        assert txn.category_id == test_categories[1].id
+    
+    @pytest.mark.asyncio
+    async def test_should_set_category_from_rule_when_no_suggested(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account
+    ):
+        from app.schemas.transaction import TransactionImport
+        from app.schemas.rule import RuleCreate, RuleCondition, RuleAction
+        from app.services.rule_service import create_rule
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+        from app.services.category_service import create_default_categories
+
+        test_categories = await create_default_categories(session, test_user.id)
+        data = RuleCreate(
+            name="My Rule",
+            conditions_op="or",
+            conditions=[RuleCondition(field="description", op="contains", value="SETCAT")],
+            actions=[RuleAction(op="set_category", value=str(test_categories[1].id))],
+            priority=10,
+        )
+
+        await create_rule(session, test_workspace.id, test_user.id, data)
+
+        txn = TransactionImport(
+            description="SETCAT",
+            amount=Decimal("15.00"),
+            date=date(2026, 3, 11),
+            type="debit",
+            suggested_category_id = None
+        )
+
+        imported, _, _, import_log_id = await import_transactions(
+            session,
+            test_workspace.id,
+            test_user.id,
+            test_account.id,
+            [txn],
+            "ofx",
+            detected_format="ofx",
+            detect_duplicates=False,
+        )
+
+        result = await session.execute(
+            select(Transaction).where(Transaction.import_id == import_log_id)
+        )
+        txn = result.scalar_one()
+
+        assert imported == 1
+        assert txn.category_id == test_categories[1].id
+    
+    @pytest.mark.asyncio
+    async def test_should_set_payee_but_not_override_category(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account
+    ):
+        from app.models.payee import Payee
+        from app.schemas.transaction import TransactionImport
+        from app.schemas.rule import RuleCreate, RuleCondition, RuleAction
+        from app.services.rule_service import create_rule
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+        from app.services.category_service import create_default_categories
+
+        test_categories = await create_default_categories(session, test_user.id)
+        payee = Payee(
+            id=uuid.uuid4(),
+            user_id=test_user.id,
+            name="Uber",
+            type="merchant",
+        )
+
+        session.add(payee)
+        await session.commit()
+        await session.refresh(payee)
+
+        cat_rule = RuleCreate(
+            name="My Rule",
+            conditions_op="or",
+            conditions=[RuleCondition(field="description", op="contains", value="SETCAT")],
+            actions=[RuleAction(op="set_category", value=str(test_categories[1].id))],
+            priority=10,
+        )
+        data = RuleCreate(
+            name="Uber Payee Rule",
+            conditions_op="or",
+            conditions=[RuleCondition(field="description", op="contains", value="PAYEECAT")],
+            actions=[RuleAction(op="set_payee", value=str(payee.id))],
+            priority=10,
+        )
+        await create_rule(session, test_workspace.id, test_user.id, data)
+        await create_rule(session, test_workspace.id, test_user.id, cat_rule)
+
+
+        txn = TransactionImport(
+            description="PAYEECAT",
+            amount=Decimal("25.00"),
+            date=date(2026, 3, 12),
+            type="debit",
+            suggested_category_id=test_categories[2].id,
+        )
+        imported, _, _, import_log_id = await import_transactions(
+            session,
+            test_workspace.id,
+            test_user.id,
+            test_account.id,
+            [txn],
+            "ofx",
+            detected_format="ofx",
+            detect_duplicates=False,
+        )
+
+        result = await session.execute(
+            select(Transaction).where(Transaction.import_id == import_log_id)
+        )
+        tx = result.scalar_one()
+
+        assert imported == 1
+        assert tx.payee_id == payee.id
+        assert tx.category_id == test_categories[2].id
+
+
+class TestForceUncategorized:
+    """Tests for force_uncategorized flag preventing category assignment."""
+
+    @pytest.mark.asyncio
+    async def test_force_uncategorized_ignores_suggestion(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account
+    ):
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from app.models.category import Category
+        from sqlalchemy import select
+
+        cat = Category(
+            id=uuid.uuid4(), user_id=test_user.id,
+            name="Groceries", icon="cart", color="#16A34A",
+        )
+        session.add(cat)
+        await session.commit()
+
+        txn = TransactionImport(
+            description="FORCE UNCATEGORIZED",
+            amount=Decimal("50.00"),
+            date=date(2026, 4, 1),
+            type="debit",
+            suggested_category_id=cat.id,
+            force_uncategorized=True,
+        )
+
+        imported, _, _, import_log_id = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, [txn], "import",
+        )
+
+        assert imported == 1
+
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.import_id == import_log_id)
+        )).scalar_one()
+        assert tx.category_id is None
+
+    @pytest.mark.asyncio
+    async def test_force_uncategorized_prevents_rule_override(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account
+    ):
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+        from app.services.category_service import create_default_categories
+        from app.schemas.rule import RuleCreate, RuleCondition, RuleAction
+        from app.services.rule_service import create_rule
+
+        test_categories = await create_default_categories(session, test_user.id)
+
+        data = RuleCreate(
+            name="Force Cat Rule",
+            conditions_op="or",
+            conditions=[RuleCondition(field="description", op="contains", value="FORCED")],
+            actions=[RuleAction(op="set_category", value=str(test_categories[1].id))],
+            priority=10,
+        )
+        await create_rule(session, test_workspace.id, test_user.id, data)
+
+        txn = TransactionImport(
+            description="FORCED NO CAT",
+            amount=Decimal("30.00"),
+            date=date(2026, 4, 2),
+            type="debit",
+            suggested_category_id=test_categories[0].id,
+            force_uncategorized=True,
+        )
+
+        imported, _, _, import_log_id = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, [txn], "import",
+        )
+
+        assert imported == 1
+
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.import_id == import_log_id)
+        )).scalar_one()
+        assert tx.category_id is None
+
+    @pytest.mark.asyncio
+    async def test_force_uncategorized_still_applies_payee_rules(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account
+    ):
+        from app.models.payee import Payee
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from sqlalchemy import select
+        from app.services.category_service import create_default_categories
+        from app.schemas.rule import RuleCreate, RuleCondition, RuleAction
+        from app.services.rule_service import create_rule
+
+        test_categories = await create_default_categories(session, test_user.id)
+
+        payee = Payee(
+            id=uuid.uuid4(),
+            user_id=test_user.id,
+            name="Test Merchant",
+            type="merchant",
+        )
+        session.add(payee)
+        await session.commit()
+        await session.refresh(payee)
+
+        data = RuleCreate(
+            name="Payee + Cat Rule",
+            conditions_op="or",
+            conditions=[RuleCondition(field="description", op="contains", value="PAYEEFORCE")],
+            actions=[
+                RuleAction(op="set_payee", value=str(payee.id)),
+                RuleAction(op="set_category", value=str(test_categories[1].id)),
+            ],
+            priority=10,
+        )
+        await create_rule(session, test_workspace.id, test_user.id, data)
+
+        txn = TransactionImport(
+            description="PAYEEFORCE TXN",
+            amount=Decimal("75.00"),
+            date=date(2026, 4, 3),
+            type="debit",
+            suggested_category_id=test_categories[0].id,
+            force_uncategorized=True,
+        )
+
+        imported, _, _, import_log_id = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, [txn], "import",
+        )
+
+        assert imported == 1
+
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.import_id == import_log_id)
+        )).scalar_one()
+        assert tx.category_id is None
+        assert tx.payee_id == payee.id
+
+    @pytest.mark.asyncio
+    async def test_without_force_uncategorized_suggestion_is_used(
+        self, session: AsyncSession, test_user: User, test_workspace, test_account: Account
+    ):
+        from app.schemas.transaction import TransactionImport
+        from app.models.transaction import Transaction
+        from app.models.category import Category
+        from sqlalchemy import select
+
+        cat = Category(
+            id=uuid.uuid4(), user_id=test_user.id,
+            name="Transport", icon="car", color="#3B82F6",
+        )
+        session.add(cat)
+        await session.commit()
+
+        txn = TransactionImport(
+            description="NORMAL TXN",
+            amount=Decimal("40.00"),
+            date=date(2026, 4, 4),
+            type="debit",
+            suggested_category_id=cat.id,
+        )
+
+        imported, _, _, import_log_id = await import_transactions(
+            session, test_workspace.id, test_user.id, test_account.id, [txn], "import",
+        )
+
+        assert imported == 1
+
+        tx = (await session.execute(
+            select(Transaction).where(Transaction.import_id == import_log_id)
+        )).scalar_one()
+        assert tx.category_id == cat.id
+
+
+@pytest.mark.asyncio
+@patch("app.services.fx_rate_service._provider")
+async def test_import_tolerates_duplicate_external_id_rows(
+    mock_provider, session: AsyncSession, test_user: User, test_workspace, test_account: Account,
+):
+    """Two existing rows sharing (account_id, external_id, date) must not crash
+    the importer's duplicate check. Regression for the MultipleResultsFound
+    crash: the incoming charge is skipped as a duplicate, no exception raised.
+    """
+    from app.models.transaction import Transaction
+    from app.schemas.transaction import TransactionImport
+    from sqlalchemy import select
+
+    d = date(2026, 1, 15)
+    for _ in range(2):
+        session.add(Transaction(
+            id=uuid.uuid4(), user_id=test_user.id, account_id=test_account.id,
+            external_id="FITID-DUP", description="SPOTIFY", amount=Decimal("23.90"),
+            date=d, type="debit", source="ofx",
+        ))
+    await session.commit()
+
+    txns = [TransactionImport(
+        description="SPOTIFY", amount=Decimal("23.90"), date=d,
+        type="debit", external_id="FITID-DUP",
+    )]
+
+    imported, skipped, _, _ = await import_transactions(
+        session, test_workspace.id, test_user.id, test_account.id, txns, "ofx",
+        detected_format="ofx",
+    )
+
+    assert imported == 0
+    assert skipped == 1
+    remaining = (await session.execute(
+        select(Transaction).where(
+            Transaction.account_id == test_account.id,
+            Transaction.external_id == "FITID-DUP",
+        )
+    )).scalars().all()
+    assert len(remaining) == 2
+
+
+def test_normalize_amount_swiss_single_quotes():
+    from app.services.import_service import normalize_amount
+    assert normalize_amount("1'050.45") == "1050.45"
+    assert normalize_amount("-2'416.70") == "-2416.70"
+    assert normalize_amount("5'400") == "5400"
+
+
+def test_parse_csv_returns_failed_rows():
+    from app.services.import_service import parse_csv
+    csv_content = (
+        "date,description,amount,currency\n"
+        "2026-08-01,Valid,-10.00,CHF\n"
+        "invalid_date,Invalid Date,-10.00,CHF\n"
+        "2026-08-03,Invalid Amount,invalid_val,CHF\n"
+    )
+    transactions, failed_rows = parse_csv(csv_content.encode("utf-8"))
+    assert len(transactions) == 1
+    assert len(failed_rows) == 2
+    assert failed_rows[0].line_number == 3
+    assert failed_rows[0].error_reason == "invalid_date"
+    assert failed_rows[0].raw_value == "invalid_date"
+    assert failed_rows[0].description == "Invalid Date"
+    assert failed_rows[1].line_number == 4
+    assert failed_rows[1].error_reason == "invalid_amount"
+    assert failed_rows[1].raw_value == "invalid_val"
+    assert failed_rows[1].description == "Invalid Amount"
+
+
+def test_parse_csv_reports_short_rows_instead_of_raising():
+    """A row with fewer cells than the header is reported, not fatal.
+
+    csv.DictReader leaves the missing cells as None, so every .strip() on them
+    used to raise and the API turned that into a 400 for the whole file. One
+    malformed row is exactly what failed_rows exists to describe.
+    """
+    from app.services.import_service import parse_csv
+    csv_content = (
+        "date,description,amount\n"
+        "2026-08-01,Valid,-10.00\n"
+        "2026-08-02,Missing amount\n"
+        "2026-08-03\n"
+        "invalid_date\n"
+    )
+    transactions, failed_rows = parse_csv(csv_content.encode("utf-8"))
+
+    assert len(transactions) == 1
+    assert len(failed_rows) == 3
+    assert failed_rows[0].line_number == 3
+    assert failed_rows[0].description == "Missing amount"
+    assert failed_rows[0].error_reason == "invalid_amount"
+    # A cell the row never had reads as empty, never as None.
+    assert failed_rows[1].line_number == 4
+    assert failed_rows[1].description == ""
+    assert failed_rows[2].line_number == 5
+    assert failed_rows[2].error_reason == "invalid_date"
+    assert failed_rows[2].raw_value == "invalid_date"

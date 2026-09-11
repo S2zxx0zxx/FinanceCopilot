@@ -1,9 +1,0 @@
-{$PUBLIC_HOST:localhost} {
-    encode zstd gzip
-    handle /api/v1/* {
-        reverse_proxy localhost:3001
-    }
-    handle {
-        reverse_proxy localhost:3000
-    }
-}
