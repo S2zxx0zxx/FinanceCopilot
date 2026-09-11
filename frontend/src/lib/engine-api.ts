@@ -15,6 +15,16 @@ export function setActiveWorkspaceId(id: string | null): void {
   window.dispatchEvent(new CustomEvent("fincopilot:workspace-change", { detail: id }));
 }
 
+function normalizeEndpoint(endpoint: string): string {
+  let normalized = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  // The browser client is mounted at FinCopilot's historic /api/v1 prefix,
+  // while backend modules declare canonical /api/... routes. Accept either
+  // spelling at call sites without ever producing /api/v1/api/....
+  if (normalized === "/api") return "";
+  if (normalized.startsWith("/api/")) normalized = normalized.slice(4);
+  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
 async function authenticatedResponse(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const token = await getAuthToken();
   const headers = new Headers(options.headers);
@@ -24,9 +34,7 @@ async function authenticatedResponse(endpoint: string, options: RequestInit = {}
   const workspaceId = getActiveWorkspaceId();
   if (workspaceId && !headers.has("X-Workspace-Id")) headers.set("X-Workspace-Id", workspaceId);
 
-  const normalized = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-  const response = await fetch(`${API_BASE}${normalized}`, { ...options, headers, cache: "no-store" });
-
+  const response = await fetch(`${API_BASE}${normalizeEndpoint(endpoint)}`, { ...options, headers, cache: "no-store" });
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
     try {
@@ -46,10 +54,8 @@ export async function engineFetch<T>(endpoint: string, options: RequestInit = {}
   if (response.status === 204) return {} as T;
   return response.json() as Promise<T>;
 }
-
 export async function engineBlob(endpoint: string, options: RequestInit = {}): Promise<Blob> {
-  const response = await authenticatedResponse(endpoint, options);
-  return response.blob();
+  return (await authenticatedResponse(endpoint, options)).blob();
 }
 
 export const engineApi = {
