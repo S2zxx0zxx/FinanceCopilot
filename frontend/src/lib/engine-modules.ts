@@ -27,6 +27,7 @@ export type EngineFieldConfig = {
   defaultValue?: string | boolean;
   options?: EngineFieldOption[];
   createOnly?: boolean;
+  editOnly?: boolean;
 };
 
 export type EngineCrudConfig = {
@@ -133,7 +134,7 @@ export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
         { key: "color", label: "Colour", defaultValue: "#6B7280", placeholder: "#6B7280" },
         { key: "treat_as_transfer", label: "Treat as transfer", type: "checkbox", defaultValue: false },
         { key: "is_ignored", label: "Ignore in analytics", type: "checkbox", defaultValue: false },
-        { key: "is_hidden", label: "Hide category", type: "checkbox", defaultValue: false, createOnly: true },
+        { key: "is_hidden", label: "Hide category", type: "checkbox", defaultValue: false, editOnly: true },
       ],
     },
   },
@@ -168,7 +169,7 @@ export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
         { key: "website", label: "Website", placeholder: "https://…" },
         { key: "address", label: "Address", type: "textarea" },
         { key: "notes", label: "Notes", type: "textarea" },
-        { key: "is_favorite", label: "Favourite", type: "checkbox", defaultValue: false, createOnly: true },
+        { key: "is_favorite", label: "Favourite", type: "checkbox", defaultValue: false, editOnly: true },
       ],
     },
   },
