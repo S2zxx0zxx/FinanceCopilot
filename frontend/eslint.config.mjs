@@ -53,6 +53,14 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
+  // The legacy landing presentation is intentionally frozen. ESLint 9 reports
+  // stale eslint-disable comments before ordinary rules run; suppress only that
+  // meta-warning for this frozen subtree instead of editing the protected UI.
+  files: ["src/components/landing/**/*.{js,jsx,ts,tsx}"],
+  linterOptions: {
+    reportUnusedDisableDirectives: "off",
+  },
+}, {
   ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "scan/**", "mini-services/**", "tests/**"]
 }];
 
