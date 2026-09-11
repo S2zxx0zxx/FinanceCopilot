@@ -33,7 +33,14 @@ jobs:
           echo "Landing tree before migration: ${BEFORE_LANDING_TREE}"
 
           UPSTREAM_DIR="${RUNNER_TEMP}/securo-upstream"
-          rm -rf "${UPSTREAM_DIR}"
+          WORKFLOW_BACKUP="${RUNNER_TEMP}/fincopilot-workflows"
+          rm -rf "${UPSTREAM_DIR}" "${WORKFLOW_BACKUP}"
+
+          # Preserve the branch's current workflow directory so the Actions
+          # token does not need workflow-write permission for the bulk push.
+          mkdir -p "${WORKFLOW_BACKUP}"
+          cp -a .github/workflows/. "${WORKFLOW_BACKUP}/"
+
           git init "${UPSTREAM_DIR}"
           git -C "${UPSTREAM_DIR}" remote add origin "${UPSTREAM_REPO}"
           git -C "${UPSTREAM_DIR}" fetch --depth=1 origin "${UPSTREAM_COMMIT}"
@@ -42,16 +49,24 @@ jobs:
           RESOLVED_UPSTREAM="$(git -C "${UPSTREAM_DIR}" rev-parse HEAD)"
           test "${RESOLVED_UPSTREAM}" = "${UPSTREAM_COMMIT}"
 
-          # Replace the application foundation while preserving the existing
-          # FinCo-Pilot landing page exactly as requested. Never delete .git.
+          # Replace the application foundation while preserving .git and the
+          # existing FinCo-Pilot landing page exactly as requested.
           find . -mindepth 1 -maxdepth 1 \
             ! -name '.git' \
             ! -name 'fincopilot-landing' \
             -exec rm -rf {} +
 
-          rsync -a --exclude='.git' "${UPSTREAM_DIR}/" ./
+          # Import every upstream file except Git metadata and workflows.
+          # Workflows are added separately after this bulk commit succeeds.
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github/workflows/***' \
+            "${UPSTREAM_DIR}/" ./
 
-          # The landing subtree must be identical to the branch base.
+          mkdir -p .github/workflows
+          cp -a "${WORKFLOW_BACKUP}/." .github/workflows/
+
+          # Landing must remain untouched.
           git diff --exit-code HEAD -- fincopilot-landing
 
           cat > UPSTREAM.md <<'EOF'
@@ -81,8 +96,6 @@ jobs:
           EOF
 
           git add -A
-
-          # Strong guard: no staged landing-page modification is allowed.
           git diff --cached --quiet -- fincopilot-landing
           test "$(git rev-parse HEAD:fincopilot-landing)" = "${BEFORE_LANDING_TREE}"
 
