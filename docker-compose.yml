@@ -132,18 +132,18 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     ports:
-      - "${FRONTEND_PORT:-3000}:5173"
+      - "${FRONTEND_PORT:-3000}:3000"
     environment:
       BACKEND_URL: http://backend:8000
-      # Also drives Vite's allowedHosts, so a proxied domain is not blocked.
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}
-      APP_VERSION_ROOT: /workspace
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+      NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
       - backend
     volumes:
       - ./frontend:/app
-      - ./:/workspace:ro
       - /app/node_modules
+      - /app/.next
     restart: unless-stopped
 
   celery-worker:
