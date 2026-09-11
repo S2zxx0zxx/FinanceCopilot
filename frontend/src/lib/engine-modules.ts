@@ -11,6 +11,31 @@ export type EngineModuleKey =
   | "connections"
   | "imports";
 
+export type EngineFieldType = "text" | "number" | "select" | "checkbox" | "date" | "textarea";
+
+export type EngineFieldOption = {
+  label: string;
+  value: string;
+};
+
+export type EngineFieldConfig = {
+  key: string;
+  label: string;
+  type?: EngineFieldType;
+  required?: boolean;
+  placeholder?: string;
+  defaultValue?: string | boolean;
+  options?: EngineFieldOption[];
+  createOnly?: boolean;
+};
+
+export type EngineCrudConfig = {
+  create?: boolean;
+  edit?: boolean;
+  delete?: boolean;
+  fields: EngineFieldConfig[];
+};
+
 export type EngineModuleConfig = {
   key: EngineModuleKey;
   title: string;
@@ -21,6 +46,7 @@ export type EngineModuleConfig = {
   emptyDescription: string;
   titleKeys: string[];
   subtitleKeys: string[];
+  crud?: EngineCrudConfig;
 };
 
 export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
@@ -33,7 +59,48 @@ export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
     emptyTitle: "No assets yet",
     emptyDescription: "Add investments, property or other assets to extend your net-worth picture beyond cash accounts.",
     titleKeys: ["name", "symbol", "ticker"],
-    subtitleKeys: ["asset_type", "valuation_method", "currency"],
+    subtitleKeys: ["type", "valuation_method", "currency"],
+    crud: {
+      create: true,
+      edit: true,
+      delete: true,
+      fields: [
+        { key: "name", label: "Asset name", required: true, placeholder: "Home, Gold, AAPL…" },
+        {
+          key: "type",
+          label: "Asset type",
+          type: "select",
+          required: true,
+          defaultValue: "investment",
+          options: [
+            { label: "Investment", value: "investment" },
+            { label: "Real estate", value: "real_estate" },
+            { label: "Vehicle", value: "vehicle" },
+            { label: "Valuable", value: "valuable" },
+            { label: "Other", value: "other" },
+          ],
+        },
+        { key: "currency", label: "Currency", required: true, defaultValue: "INR", placeholder: "INR" },
+        {
+          key: "valuation_method",
+          label: "Valuation method",
+          type: "select",
+          required: true,
+          defaultValue: "manual",
+          options: [
+            { label: "Manual value", value: "manual" },
+            { label: "Market price", value: "market_price" },
+            { label: "Growth rule", value: "growth_rule" },
+          ],
+        },
+        { key: "current_value", label: "Current value", type: "number", createOnly: true, placeholder: "0" },
+        { key: "units", label: "Units / quantity", type: "number", placeholder: "1" },
+        { key: "ticker", label: "Market ticker", placeholder: "AAPL, BTC-USD, RELIANCE.NS" },
+        { key: "purchase_date", label: "Purchase date", type: "date" },
+        { key: "purchase_price", label: "Purchase price", type: "number" },
+        { key: "is_archived", label: "Archived", type: "checkbox", defaultValue: false },
+      ],
+    },
   },
   rules: {
     key: "rules",
@@ -55,7 +122,20 @@ export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
     emptyTitle: "No categories",
     emptyDescription: "Categories organise your spending and power reporting and rules.",
     titleKeys: ["name", "label"],
-    subtitleKeys: ["type", "group_name", "icon"],
+    subtitleKeys: ["group_name", "icon"],
+    crud: {
+      create: true,
+      edit: true,
+      delete: true,
+      fields: [
+        { key: "name", label: "Category name", required: true, placeholder: "Dining, Salary, Travel…" },
+        { key: "icon", label: "Icon name", defaultValue: "circle-help", placeholder: "utensils" },
+        { key: "color", label: "Colour", defaultValue: "#6B7280", placeholder: "#6B7280" },
+        { key: "treat_as_transfer", label: "Treat as transfer", type: "checkbox", defaultValue: false },
+        { key: "is_ignored", label: "Ignore in analytics", type: "checkbox", defaultValue: false },
+        { key: "is_hidden", label: "Hide category", type: "checkbox", defaultValue: false, createOnly: true },
+      ],
+    },
   },
   payees: {
     key: "payees",
@@ -66,18 +146,53 @@ export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
     emptyTitle: "No payees",
     emptyDescription: "Payees appear as transactions and invoice relationships are created.",
     titleKeys: ["name", "display_name"],
-    subtitleKeys: ["email", "tax_id", "notes"],
+    subtitleKeys: ["email", "type", "notes"],
+    crud: {
+      create: true,
+      edit: true,
+      delete: true,
+      fields: [
+        { key: "name", label: "Payee name", required: true, placeholder: "Amazon, Rahul, Landlord…" },
+        {
+          key: "type",
+          label: "Type",
+          type: "select",
+          options: [
+            { label: "Not specified", value: "" },
+            { label: "Person", value: "person" },
+            { label: "Company", value: "company" },
+          ],
+        },
+        { key: "email", label: "Email", placeholder: "name@example.com" },
+        { key: "phone", label: "Phone", placeholder: "+91…" },
+        { key: "website", label: "Website", placeholder: "https://…" },
+        { key: "address", label: "Address", type: "textarea" },
+        { key: "notes", label: "Notes", type: "textarea" },
+        { key: "is_favorite", label: "Favourite", type: "checkbox", defaultValue: false, createOnly: true },
+      ],
+    },
   },
   collections: {
     key: "collections",
     title: "Collections",
     eyebrow: "Flexible grouping",
-    description: "Group financial records into reusable collections for organisation and reporting.",
+    description: "Group accounts and wallets into reusable collections for organisation and reporting.",
     endpoint: "/collections",
     emptyTitle: "No collections",
     emptyDescription: "Create collections when you want a flexible way to group related financial records.",
     titleKeys: ["name", "title"],
-    subtitleKeys: ["description", "type"],
+    subtitleKeys: ["icon", "color"],
+    crud: {
+      create: true,
+      edit: true,
+      delete: true,
+      fields: [
+        { key: "name", label: "Collection name", required: true, placeholder: "Family, Business, Travel…" },
+        { key: "icon", label: "Icon name", defaultValue: "folder", placeholder: "folder" },
+        { key: "color", label: "Colour", defaultValue: "#6B7280", placeholder: "#6B7280" },
+        { key: "position", label: "Position", type: "number", defaultValue: "0" },
+      ],
+    },
   },
   invoices: {
     key: "invoices",
@@ -87,8 +202,8 @@ export const ENGINE_MODULES: Record<EngineModuleKey, EngineModuleConfig> = {
     endpoint: "/invoices",
     emptyTitle: "No invoices",
     emptyDescription: "Invoices will appear here when invoicing is enabled for the current workspace.",
-    titleKeys: ["number", "invoice_number", "title", "description"],
-    subtitleKeys: ["status", "due_date", "currency"],
+    titleKeys: ["number", "external_number", "description"],
+    subtitleKeys: ["state", "due_date", "currency"],
   },
   workspaces: {
     key: "workspaces",
