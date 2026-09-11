@@ -1,273 +1,156 @@
 <p align="center">
-  <img src="docs/logo.svg" width="200" alt="FinCopilot logo" />
+  <img src="docs/logo.svg" width="210" alt="FinCopilot" />
 </p>
+
 <h1 align="center">FinCopilot</h1>
+<p align="center"><strong>AI Financial Life Manager</strong></p>
+<p align="center">One private workspace for accounts, spending, planning, investments, reporting, automation and AI-assisted money management.</p>
+
 <p align="center">
   <a href="https://github.com/S2zxx0zxx/FinanceCopilot/actions/workflows/ci.yml"><img src="https://github.com/S2zxx0zxx/FinanceCopilot/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/tassionoronha/ae627b744aaa2ba89d850ea541c311be/raw/coverage.json" alt="Coverage" />
-  <a href="https://github.com/S2zxx0zxx/FinanceCopilot/pkgs/container/fincopilot-frontend"><img src="https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/tassionoronha/ae627b744aaa2ba89d850ea541c311be/raw/downloads.json" alt="Downloads" /></a>
-  <br />
-  <a href="https://artifacthub.io/packages/search?repo=fincopilot"><img src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/fincopilot" alt="Artifact Hub" /></a>
-  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
-  <a href="https://discord.gg/rUqTKtQ9S4"><img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white" alt="Join our Discord" /></a>
-  <br />
-  <a href="https://github.com/S2zxx0zxx/FinanceCopilot/">Website</a> · <a href="https://github.com/S2zxx0zxx/FinanceCopilot">Demo</a> · <a href="https://github.com/S2zxx0zxx/FinanceCopilot">Roadmap</a> · <a href="https://github.com/S2zxx0zxx/FinanceCopilot/tree/main/docs/">Docs</a> · <a href="https://discord.gg/rUqTKtQ9S4">Discord</a> · <a href="https://cal.com/tassio/15min">Talk to the maintainer</a>
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="AGPL-3.0" /></a>
 </p>
 
-<h3 align="center">Finance apps want your data. This one doesn't.</h3>
+## What FinCopilot includes
 
-<p align="center">
-We believe personal finance should actually be <em>personal</em>. No corporation should sit between you and your financial data. FinCopilot is an open-source finance manager that runs on your own infrastructure, giving you full visibility into your accounts, spending, and habits, without surrendering a single byte to third parties. Take back control.
-</p>
+### Money core
+- Multi-account management with running balances and account summaries
+- Transaction search, filtering, editing, splitting, transfers and attachments
+- Statement imports for OFX, QIF, CAMT and CSV
+- Payees, categories, category groups and automatic categorization rules
+- Recurring transactions, subscriptions and projected transactions
+- Budgets, goals and savings progress
+- Credit-card bill handling and installment-aware transaction data
+- Multi-currency balances and FX conversion
 
-## Quick Start
+### Wealth and reporting
+- Assets and investments with valuation tracking
+- Asset groups and collections
+- Net-worth and income-vs-expense reporting
+- Dashboard balance history, monthly trends and category breakdowns
+- Fiscal data support and market-price provider architecture
 
-**Linux & macOS** (uses Docker or Podman; installs Docker if neither is present):
+### Operations and accounting
+- Invoice creation and invoice attachments
+- Reconciliation rules, suggestions, groups and reconciliation events
+- Import logs and replayable import workflows
+- Export and backup-oriented data flows
+
+### Connections
+- Bank-provider architecture with Pluggy, Enable Banking and SimpleFIN support
+- Connection management and background synchronization
+- Extensible provider layer for additional regional integrations
+
+### Security and identity
+- FinCopilot Clerk compatibility for the existing product frontend
+- Native local authentication
+- OIDC / SSO
+- Passkeys / WebAuthn
+- TOTP two-factor authentication
+- Multi-user workspaces, roles and administration controls
+
+### FinCopilot experience
+- Existing FinCopilot dashboard and navigation system
+- Personal Hub
+- Profile avatar studio
+- Preferences and density/theme settings
+- Gamification, streak and achievement surfaces
+- Data-confidence and financial-health surfaces
+- Forecasting, planning and Copilot-oriented workflows
+
+### AI and automation
+- Optional AI agents
+- Multiple LLM provider support
+- Tool use through MCP
+- Per-agent knowledge base / RAG
+- Background Celery workers and scheduled tasks
+
+## Architecture
+
+| Layer | Technology |
+|---|---|
+| Product frontend | Next.js, React, TypeScript, Tailwind CSS |
+| Finance API | FastAPI, SQLAlchemy |
+| Database migrations | Alembic |
+| Database | PostgreSQL + pgvector |
+| Background jobs | Redis + Celery |
+| AI tools | MCP + configurable LLM providers |
+| Containers | Docker / Docker Compose |
+| Kubernetes packaging | Helm |
+
+The FinCopilot frontend keeps its `/api/v1` contract. The API compatibility layer maps that contract into the canonical finance-engine `/api` routes so financial logic is not duplicated.
+
+## Quick start
+
+### Docker Compose
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/S2zxx0zxx/FinanceCopilot/main/install.sh | bash
-```
-
-**Windows:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), then:
-
-```bash
-git clone https://github.com/S2zxx0zxx/FinanceCopilot.git && cd fincopilot
+git clone https://github.com/S2zxx0zxx/FinanceCopilot.git
+cd FinanceCopilot
+cp .env.example .env
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and create an account. That's it.
+Frontend: `http://localhost:3000`  
+Backend API docs: `http://localhost:8000/api/docs`
 
-<p align="center">
-  <img src="docs/screenshot.png" width="800" alt="FinCopilot dashboard" />
-</p>
+## FinCopilot Clerk integration
 
-## Features
+The existing FinCopilot frontend uses Clerk session tokens. The backend also retains its native authentication options. To enable the Clerk compatibility path, configure the issuer used by your Clerk instance:
 
-- Multi-account management with running balances
-- Transaction management with search, filters, and CSV export
-- File import (OFX, QIF, CAMT, CSV)
-- Auto-categorization rules engine
-- Recurring transactions and budgets
-- Goals and savings targets with progress tracking
-- Asset management with valuation tracking and growth rules
-- Reports: Net Worth and Income vs Expenses with category sparklines
-- Bank sync via providers (Pluggy for Brazilian banks, Enable Banking for ~2500 European PSD2 banks, SimpleFIN for US and international banks, extensible)
-- Multi-currency support with automatic FX conversion
-- Multi-user support with admin panel and registration controls
-- Two-factor authentication (TOTP) with brute-force protection
-- OIDC login support for Authentik, Pocket ID, and other standard providers
-- AI Agents (optional): self-hosted LLM chat with tool-use over your data, plus a per-agent RAG knowledge base
-
-## Bank Sync (Optional)
-
-Add credentials for any of the supported providers to `.env`, then restart with `docker compose up`. Configure one or both — each provider auto-registers when its credentials are present.
-
-### Pluggy — Brazilian banks
-
-Sign up at [pluggy.ai](https://pluggy.ai) and add:
-
-```
-PLUGGY_CLIENT_ID=your-client-id
-PLUGGY_CLIENT_SECRET=your-client-secret
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_ISSUER=https://your-clerk-issuer.example
+# Optional override; otherwise derived from CLERK_ISSUER
+CLERK_JWKS_URL=https://your-clerk-issuer.example/.well-known/jwks.json
 ```
 
-### Enable Banking — European banks (PSD2)
-
-Sign up at [enablebanking.com](https://enablebanking.com), create a Production application, and download its PEM private key. Save the PEM to `./secrets/` (gitignored), then add:
-
-```
-ENABLE_BANKING_APP_ID=your-application-id
-ENABLE_BANKING_PRIVATE_KEY_FILE=/app/secrets/your-key.pem
-ENABLE_BANKING_OAUTH_REDIRECT_URI=https://your-host/oauth/callback
-```
-
-The redirect URI must match exactly one of the Allowed Redirect URLs in your EB application. Production EB requires HTTPS — for local development, expose your frontend via a tunnel (ngrok, cloudflared) or use the EB sandbox.
-
-> **Free tier — restricted mode.** Enable Banking's free plan requires you to pre-link the accounts you want to import inside the EB portal *before* connecting from FinCopilot. If you skip that step, the connection returns no accounts and FinCopilot will surface a banner with a link to the portal.
-
-### SimpleFIN — US and international banks
-
-[SimpleFIN](https://www.simplefin.org/) is a read-only open protocol. No API key needed — each connection brings its own credentials via a single-use Setup Token from the [SimpleFIN Bridge](https://bridge.simplefin.org/). Just enable the feature:
-
-```
-SIMPLEFIN_ENABLED=true
-SIMPLEFIN_API_URL=https://beta-bridge.simplefin.org   # sandbox; use bridge.simplefin.org for real banks
-```
-
-Then in FinCopilot: **Accounts → Connect Bank → SimpleFIN**, and paste the token. The [developer page](https://beta-bridge.simplefin.org/info/developers) gives out free demo tokens if you want to try it without a real bank.
-
-## OIDC Login (Optional)
-
-FinCopilot can delegate login to any standard OIDC provider, including Authentik and Pocket ID. Create a confidential/web application in your provider and register this redirect URI:
-
-```
-https://your-fincopilot-host/api/auth/oidc/callback
-```
-
-Then add the provider settings to `.env` and restart:
-
-```
-OIDC_ENABLED=true
-OIDC_PROVIDER_NAME=Pocket ID
-OIDC_DISCOVERY_URL=https://id.example.com/.well-known/openid-configuration
-OIDC_CLIENT_ID=fincopilot
-OIDC_CLIENT_SECRET=your-client-secret
-# Optional; defaults to ${FRONTEND_URL}/api/auth/oidc/callback
-OIDC_REDIRECT_URI=https://your-fincopilot-host/api/auth/oidc/callback
-```
-
-To require SSO-only access after OIDC is configured, set `LOCAL_AUTH_ENABLED=false`. FinCopilot will start in this mode only when `OIDC_ENABLED=true`, `OIDC_CLIENT_ID`, and `OIDC_DISCOVERY_URL` are all configured; otherwise startup fails with a validation error instead of leaving the instance with no usable login method. The login page shows an explicit configuration error if the server reports that neither local auth nor OIDC is available. If only the optional OIDC-config request fails, the client keeps local controls available with a warning; the backend remains authoritative and still rejects them in OIDC-only mode.
-
-With local auth disabled, FinCopilot rejects password and passkey login, public registration, first-admin password setup, admin or workspace-invite creation of password-backed users, forgot/reset-password requests, password updates, new passkey registration or verification, and new TOTP setup or enablement. Local credential controls are hidden from login, account, setup, registration, and admin user-management screens. Existing users, password hashes, active sessions, passkeys, and TOTP configuration are not deleted; existing passkeys and TOTP can still be removed as cleanup paths. OIDC user provisioning and existing-account linking remain controlled separately by `OIDC_AUTO_REGISTER` and `OIDC_EXISTING_USER_LINK_MODE`.
-
-On a fresh OIDC-only instance, the first account must be provisioned through OIDC. Keep `OIDC_AUTO_REGISTER=true`, enable `OIDC_SYNC_ROLES=true`, and include one of the values from `OIDC_ADMIN_ROLES` in that identity's configured roles claim so the first login becomes a FinCopilot administrator. Do not disable OIDC auto-registration before at least one matching account exists.
-
-New OIDC users are auto-provisioned by default (`OIDC_AUTO_REGISTER=true`) using verified email addresses. Set `OIDC_AUTO_REGISTER=false` to allow only existing FinCopilot users whose email matches the provider claim.
-
-### Linking existing accounts
-
-An account that already exists in FinCopilot (created with a password) is never linked to an OIDC identity automatically, so the first SSO login of an existing user is rejected by default. `OIDC_EXISTING_USER_LINK_MODE` controls that:
-
-```
-OIDC_EXISTING_USER_LINK_MODE=disabled
-```
-
-| Value | Behavior |
-|-------|----------|
-| `disabled` (default) | Never link. Existing accounts must keep using password login. |
-| `verified_email` | Link the existing account when the provider sends `email_verified=true` for the same email. |
-| `email` | Link on a matching email alone, even without `email_verified`. |
-
-Use `verified_email` to move existing users to SSO without recreating their accounts and data. Only pick `email` if you trust your provider to own every address it asserts, since anyone able to set an email there could claim the matching FinCopilot account. An OIDC identity already linked to another account is always rejected, in every mode.
-
-### Optional OIDC role sync
-
-FinCopilot can also synchronize provider roles/groups into its built-in permissions when `OIDC_SYNC_ROLES=true`. The default claim is `groups`, which works well with Authentik group mappings and Pocket ID role/group assignments.
-
-```
-OIDC_SYNC_ROLES=true
-OIDC_ROLES_CLAIM=groups
-OIDC_ADMIN_ROLES=fincopilot-admins
-OIDC_WORKSPACE_ROLE_MAP={"fincopilot-owners":"owner","fincopilot-editors":"editor","fincopilot-viewers":"viewer"}
-```
-
-`OIDC_ADMIN_ROLES` grants or revokes FinCopilot admin (`is_superuser`) on each OIDC login. `OIDC_WORKSPACE_ROLE_MAP` maps provider roles/groups to the user's Personal workspace role (`owner`, `editor`, or `viewer`); if multiple mapped roles are present, FinCopilot applies the highest permission. Leave `OIDC_SYNC_ROLES=false` to keep all FinCopilot roles managed locally.
-
-## Passkeys (Optional)
-
-Sign in with Touch ID, Face ID, Windows Hello, or a security key. Passkeys are on by default and need no configuration: they follow whatever address you open FinCopilot on.
-
-Two rules come from the WebAuthn standard itself, and no setting can work around them:
-
-- **An IP address is never valid.** `http://192.168.1.10:3000` cannot register passkeys.
-- **Plain HTTP is never valid, except on `localhost`.**
-
-So use passkeys on `http://localhost:3000`, or put FinCopilot on a domain behind an HTTPS reverse proxy. When serving from a domain, point `FRONTEND_URL` at it (this also covers CORS and OAuth callbacks):
-
-```
-FRONTEND_URL=https://fincopilot.example.com
-```
-
-To pin passkeys to one domain, set `WEBAUTHN_RP_ID` (use the parent domain if you reach FinCopilot on several subdomains). Otherwise FinCopilot follows the browser, and requests from an unusable address get an explanation in the UI instead of a silent failure.
-
-## Exchange Rates (Optional)
-
-For automatic currency conversion, add a free [Open Exchange Rates](https://openexchangerates.org/) key to `.env`:
-
-```
-OPENEXCHANGERATES_APP_ID=your-app-id
-```
-
-Rates are fetched on-demand when foreign-currency transactions are created. Without a key, cross-currency amounts default to a 1:1 fallback rate with a visual warning.
-
-## AI Agents (Optional)
-
-Self-hosted AI assistants over your FinCopilot data — multi-provider (OpenAI, Anthropic, Ollama, OpenAI-compatible), tool-use via MCP, per-agent RAG knowledge base, ⌘J global chat panel.
-
-Add to `.env`:
-
-```
-AGENTS_ENABLED=true
-COMPOSE_PROFILES=agents
-```
-
-Then `docker compose up -d`. Settings → AI Agents to add a provider connection. Off by default; zero cost when off.
-
-### Without Docker
-
-`COMPOSE_PROFILES=agents` only tells Docker Compose to start the extra `mcp-server` container, so on a bare-metal or LXC install set `AGENTS_ENABLED=true` alone. The built-in MCP server is a plain uvicorn app in the same virtualenv; run it next to the API and point the backend at it:
-
-```bash
-# alongside the API/worker/beat processes
-uvicorn mcp_server.main:app --host 127.0.0.1 --port 8765
-```
-
-```
-AGENTS_ENABLED=true
-AGENTS_BUILTIN_MCP_URL=http://127.0.0.1:8765/mcp
-```
-
-Without that server the agents still chat, but they have no tools and cannot read your data. The backend log says which MCP server it failed to reach.
-
-## Tech Stack
-
-| Layer | Stack |
-|-------|-------|
-| Backend | FastAPI, SQLAlchemy, Alembic, Celery |
-| Frontend | React, TypeScript, Vite, Tailwind CSS |
-| Database | PostgreSQL |
-| Queue | Redis + Celery |
-
-## AI-Assisted Development
-
-Parts of this codebase were built with help of AI. All code is human-reviewed and no data leaves your environment.
-
-Contributing with AI is welcome. We review the author, not the tool: whatever wrote the diff, you own its quality, its fit with where FinCopilot is going, and everything that happens after it merges. See [Using AI](CONTRIBUTING.md#using-ai).
+A first authenticated Clerk request provisions the matching internal FinCopilot user and Personal workspace. Native API JWT, OIDC, passkey and TOTP functionality remains available.
 
 ## Development
 
+### Backend
+
 ```bash
-# Run backend tests (from backend/, needs Python 3.11+; same as CI)
 cd backend
-pip install -e ".[dev]"   # first time only — installs pytest and dev deps
+pip install -q uv==0.12.10
+uv export --frozen --all-extras --no-emit-project -o /tmp/requirements-dev.txt
+pip install --require-hashes -r /tmp/requirements-dev.txt
+pip install --no-deps -e .
+ruff check .
+ty check .
 pytest
-
-# Rebuild after dependency changes
-docker compose up --build
 ```
 
-If you've [mise](https://mise.jdx.dev/) installed, you can install backend/frontend directly with it:
+### Frontend
 
-```
-# Install the Python version specified in .python-version,
-# and create a project virtual environment using that Python.
-# Install all tools and dependencies (include Python with dedicated venv)
-mise //...:install
-
-# Install only backend tools/deps
-mise backend:install
-
-# Run backend tests
-mise backend:test
-
-# Install frontend dependencies
-mise frontend:install
-
-# Run frontend linting
-mise frontend:lint
-
-# Run frontend build
-mise frontend:build
+```bash
+cd frontend
+npm ci
+npm run lint
+npm run build
+npm run dev
 ```
 
-## Contributing
+### Migration chain
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+```bash
+python3 backend/scripts/check_migration_chain.py
+```
 
-Not sure where to start, or want to talk something through first? [Book 15 minutes](https://cal.com/tassio/15min) — no agenda needed. Something broken, an idea, or just what you think of FinCopilot, all welcome.
+FinCopilot-specific database additions continue after the imported finance-engine migration history, starting with migration `090` for Personal Hub profile data and curated avatars.
 
-## License
+## Deployment
 
-This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+Production images are published as:
 
-This means you can freely use, modify, and distribute this software, but any modifications — including when used as a network service (SaaS) — must also be released under the AGPL-3.0.
+- `ghcr.io/S2zxx0zxx/fincopilot-backend`
+- `ghcr.io/S2zxx0zxx/fincopilot-frontend`
+
+The Helm chart is in `charts/fincopilot/`.
+
+## License and open-source notices
+
+FinCopilot is distributed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. The repository retains the applicable license and open-source provenance records. See `LICENSE` and `UPSTREAM.md` for the legally required source and provenance information.
+
+Product branding, FinCopilot-specific UI/UX and newly authored FinCopilot functionality are maintained in this repository.
