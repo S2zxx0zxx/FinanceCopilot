@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // output: "standalone",  // Only for Docker/self-hosted — remove for Vercel
+  output: "standalone",
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/v1/:path*",
-        destination: `${process.env.BACKEND_URL || "http://localhost:3001"}/api/v1/:path*`,
+        destination: `${process.env.BACKEND_URL || "http://localhost:8000"}/api/v1/:path*`,
       },
     ];
   },
