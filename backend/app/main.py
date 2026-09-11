@@ -44,6 +44,7 @@ from app.api.two_factor import router as two_factor_router
 from app.api.user_lookup import router as user_lookup_router
 from app.api.workspaces import router as workspaces_router
 from app.api.admin import router as admin_router, check_registration_enabled
+from app.core.api_v1_compat import ApiV1CompatibilityMiddleware
 from app.core.auth import fastapi_users
 from app.core.auth_policy import require_local_auth_enabled
 from app.core.config import get_settings
@@ -56,13 +57,7 @@ settings = get_settings()
 
 
 async def _warm_tesouro_cache() -> None:
-    """Pre-load the Tesouro Direto price cache so the first bond search is
-    instant instead of waiting on the cold ~25s CSV download.
-
-    Gated to instances that actually serve Brazilian users (a workspace with
-    BRL as its default currency) so a non-Brazilian deployment never calls the
-    Brazilian government endpoint just because the feature ships on by default.
-    """
+    """Pre-load the Tesouro Direto price cache for BRL workspaces only."""
     try:
         if not get_settings().tesouro_direto_enabled:
             return
@@ -88,19 +83,15 @@ async def _warm_tesouro_cache() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: dispatch sync for all stale bank connections
     try:
-        from app.worker import celery_app  # noqa: F811
+        from app.worker import celery_app
 
         celery_app.send_task("app.tasks.sync_tasks.sync_all_connections")
         logger.info("Startup: dispatched sync_all_connections task to Celery")
     except Exception:
         logger.exception("Startup: failed to dispatch sync task")
-    # Background pre-warm of the Tesouro cache (non-blocking; gated to BRL
-    # instances inside the helper). Kept on app.state so it isn't GC'd.
     app.state.tesouro_warm_task = asyncio.create_task(_warm_tesouro_cache())
     yield
-    # Shutdown
     await close_redis()
 
 
@@ -111,6 +102,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Keep the existing FinCopilot frontend contract while the finance engine owns
+# the canonical /api routes. This runs before routing and does not duplicate
+# domain logic.
+app.add_middleware(ApiV1CompatibilityMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url],
@@ -119,23 +114,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Auth routes — custom login/logout with 2FA support (mounted first to take precedence)
 app.include_router(
     custom_auth_router,
     prefix="/api/auth",
     tags=["auth"],
     dependencies=[Depends(login_rate_limit)],
 )
-app.include_router(
-    two_factor_router,
-    prefix="/api/auth",
-    tags=["auth"],
-)
-app.include_router(
-    passkeys_router,
-    prefix="/api/auth",
-    tags=["auth"],
-)
+app.include_router(two_factor_router, prefix="/api/auth", tags=["auth"])
+app.include_router(passkeys_router, prefix="/api/auth", tags=["auth"])
 app.include_router(oidc_auth_router)
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
@@ -153,9 +139,6 @@ app.include_router(
     tags=["auth"],
     dependencies=[Depends(require_local_auth_enabled), Depends(password_reset_rate_limit)],
 )
-# user_lookup must precede the fastapi-users router below so the
-# `/api/users/lookup` path isn't captured by the catch-all `/{id}`
-# route fastapi-users mounts.
 app.include_router(user_lookup_router)
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
@@ -163,7 +146,6 @@ app.include_router(
     tags=["users"],
 )
 
-# Domain routes
 app.include_router(categories_router)
 app.include_router(category_groups_router)
 app.include_router(rules_router)
@@ -198,10 +180,6 @@ app.include_router(workspaces_router)
 app.include_router(admin_router)
 app.include_router(info_router)
 
-
-# Optional agents/MCP/LLM module — fully gated by AGENTS_ENABLED so users
-# who don't want this feature pay zero cost (no imports, no routes, no
-# background tasks). The module itself is self-contained in app/agents/.
 if os.getenv("AGENTS_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on"):
     try:
         from app.agents.api.info import router as agents_info_router
@@ -212,9 +190,6 @@ if os.getenv("AGENTS_ENABLED", "false").strip().lower() in ("1", "true", "yes", 
         from app.agents.api.knowledge import router as agents_knowledge_router
         from app.agents.api.mcp_tokens import router as agents_mcp_tokens_router
 
-        # Mount literal-prefix routers (conversations, connections,
-        # mcp-tokens) BEFORE the generic agents router so paths like
-        # /api/agents/connections don't get captured by /api/agents/{agent_id}.
         app.include_router(agents_info_router)
         app.include_router(agents_connections_router)
         app.include_router(agents_conversations_router)
