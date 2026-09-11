@@ -43,17 +43,15 @@ jobs:
           test "${RESOLVED_UPSTREAM}" = "${UPSTREAM_COMMIT}"
 
           # Replace the application foundation while preserving the existing
-          # FinCo-Pilot landing page exactly as requested.
+          # FinCo-Pilot landing page exactly as requested. Never delete .git.
           find . -mindepth 1 -maxdepth 1 \
             ! -name '.git' \
             ! -name 'fincopilot-landing' \
             -exec rm -rf {} +
 
-          rsync -a --delete-excluded --exclude='.git' "${UPSTREAM_DIR}/" ./
+          rsync -a --exclude='.git' "${UPSTREAM_DIR}/" ./
 
-          AFTER_LANDING_TREE="$(git hash-object -t tree --stdin </dev/null 2>/dev/null || true)"
-          CURRENT_LANDING_TREE="$(git write-tree --missing-ok >/dev/null 2>&1; git rev-parse HEAD:fincopilot-landing)"
-          test "${CURRENT_LANDING_TREE}" = "${BEFORE_LANDING_TREE}"
+          # The landing subtree must be identical to the branch base.
           git diff --exit-code HEAD -- fincopilot-landing
 
           cat > UPSTREAM.md <<'EOF'
@@ -76,17 +74,17 @@ jobs:
 
           ## Invariants
 
-          1. `fincopilot-landing/` must remain byte-for-byte sourced from the FinCo-Pilot base branch until an explicit landing-page change is requested.
-          2. Securo functionality is treated as the baseline: backend, frontend app, migrations, providers, agents, MCP, tests, docs, deployment and CI are imported together rather than cherry-picked.
-          3. AGPL-3.0 and legally required upstream notices are preserved. Product branding may be replaced with FinCo-Pilot branding, but attribution required by the license is not stripped.
-          4. FinCo-Pilot-specific features should be layered on top without silently deleting upstream capabilities.
+          1. `fincopilot-landing/` remains untouched unless an explicit landing-page change is requested.
+          2. Securo functionality is the baseline: backend, frontend app, migrations, providers, agents, MCP, tests, docs, deployment and CI are imported together rather than cherry-picked.
+          3. AGPL-3.0 and legally required upstream notices are preserved. Product branding may be replaced with FinCo-Pilot branding, but required attribution is not stripped.
+          4. FinCo-Pilot-specific features are layered on top without silently deleting upstream capabilities.
           EOF
 
           git add -A
 
-          # Verify the landing subtree is still exactly the one from the branch base.
-          test "$(git rev-parse HEAD:fincopilot-landing)" = "${BEFORE_LANDING_TREE}"
+          # Strong guard: no staged landing-page modification is allowed.
           git diff --cached --quiet -- fincopilot-landing
+          test "$(git rev-parse HEAD:fincopilot-landing)" = "${BEFORE_LANDING_TREE}"
 
           if git diff --cached --quiet; then
             echo "Nothing to migrate."
