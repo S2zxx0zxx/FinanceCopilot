@@ -2,13 +2,14 @@ import { ApiError, getAuthToken } from "./api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
-export async function engineFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function authenticatedResponse(endpoint: string, options: RequestInit = {}): Promise<Response> {
   const token = await getAuthToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...((options.headers as Record<string, string>) || {}),
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers = new Headers(options.headers);
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+  if (options.body && !isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const normalized = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
   const response = await fetch(`${API_BASE}${normalized}`, {
@@ -20,17 +21,32 @@ export async function engineFetch<T>(endpoint: string, options: RequestInit = {}
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
     try {
-      const payload = await response.json();
+      const payload = await response.clone().json();
       const detail = payload?.detail;
       message = typeof detail === "string"
         ? detail
         : detail?.message || payload?.message || payload?.error || message;
-    } catch {}
+    } catch {
+      try {
+        const text = await response.clone().text();
+        if (text.trim()) message = text.trim();
+      } catch {}
+    }
     throw new ApiError(message, response.status);
   }
 
+  return response;
+}
+
+export async function engineFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const response = await authenticatedResponse(endpoint, options);
   if (response.status === 204) return {} as T;
   return response.json() as Promise<T>;
+}
+
+export async function engineBlob(endpoint: string, options: RequestInit = {}): Promise<Blob> {
+  const response = await authenticatedResponse(endpoint, options);
+  return response.blob();
 }
 
 export const engineApi = {
@@ -42,4 +58,7 @@ export const engineApi = {
   patch: <T = unknown>(endpoint: string, body?: unknown) =>
     engineFetch<T>(endpoint, { method: "PATCH", body: body === undefined ? undefined : JSON.stringify(body) }),
   delete: <T = unknown>(endpoint: string) => engineFetch<T>(endpoint, { method: "DELETE" }),
+  form: <T = unknown>(endpoint: string, formData: FormData, method: "POST" | "PATCH" = "POST") =>
+    engineFetch<T>(endpoint, { method, body: formData }),
+  blob: (endpoint: string, options: RequestInit = {}) => engineBlob(endpoint, options),
 };
