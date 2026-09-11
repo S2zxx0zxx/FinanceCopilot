@@ -35,6 +35,14 @@ def upgrade() -> None:
         sa.Column("avatar_mode", sa.String(length=16), nullable=False, server_default="account"),
     )
     op.add_column("users", sa.Column("preset_avatar_id", sa.String(length=64), nullable=True))
+    op.add_column(
+        "users",
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
+    op.add_column(
+        "users",
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
     op.create_check_constraint(
         "chk_users_avatar_mode",
         "users",
@@ -82,6 +90,8 @@ def downgrade() -> None:
     op.drop_constraint("chk_users_avatar_selection", "users", type_="check")
     op.drop_constraint("fk_users_preset_avatar", "users", type_="foreignkey")
     op.drop_constraint("chk_users_avatar_mode", "users", type_="check")
+    op.drop_column("users", "updated_at")
+    op.drop_column("users", "created_at")
     op.drop_column("users", "preset_avatar_id")
     op.drop_column("users", "avatar_mode")
     op.drop_column("users", "display_name")
