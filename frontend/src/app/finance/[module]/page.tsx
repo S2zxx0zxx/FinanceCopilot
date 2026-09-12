@@ -206,7 +206,7 @@ const hiddenKeys = new Set([
   "updated_by",
 ]);
 
-export default function FinanceEngineModulePage() {
+export default function FinanceModulePage() {
   const params = useParams<{ module: string }>();
   const rawModule = Array.isArray(params?.module) ? params.module[0] : params?.module;
   const moduleKey = rawModule && isEngineModuleKey(rawModule) ? rawModule : null;
@@ -312,7 +312,7 @@ export default function FinanceEngineModulePage() {
         <h1 className="text-2xl font-display font-bold">Finance module not found</h1>
         <p className="mt-2 text-sm text-(--text-secondary)">This FinCopilot module is not registered.</p>
         <Link href="/finance" className="inline-flex mt-5 text-accent">
-          Back to Finance operations
+          Back to Advanced money
         </Link>
       </div>
     );
@@ -326,7 +326,7 @@ export default function FinanceEngineModulePage() {
             href="/finance"
             className="inline-flex items-center gap-2 text-xs text-(--text-secondary) hover:text-accent"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />Finance operations
+            <ArrowLeft className="w-3.5 h-3.5" />Advanced money
           </Link>
           <p className="text-xs uppercase tracking-[.18em] text-accent mt-5">{config.eyebrow}</p>
           <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">{config.title}</h1>
@@ -355,17 +355,17 @@ export default function FinanceEngineModulePage() {
         <div className="premium-card p-5">
           <Database className="w-5 h-5 text-accent" />
           <p className="font-display text-3xl font-semibold mt-3">{state.data?.length ?? 0}</p>
-          <p className="text-xs text-(--text-secondary) mt-1">Live engine records</p>
+          <p className="text-xs text-(--text-secondary) mt-1">Saved records</p>
         </div>
         <div className="premium-card p-5">
           <ShieldCheck className="w-5 h-5 text-accent" />
           <p className="font-display text-lg font-semibold mt-3">Workspace scoped</p>
-          <p className="text-xs text-(--text-secondary) mt-1">Authorisation is enforced by the FastAPI engine</p>
+          <p className="text-xs text-(--text-secondary) mt-1">Access follows your active workspace and role</p>
         </div>
         <div className="premium-card p-5">
           <RefreshCw className="w-5 h-5 text-accent" />
           <p className="font-display text-lg font-semibold mt-3">Live data</p>
-          <p className="text-xs text-(--text-secondary) mt-1">No demo or duplicated frontend store</p>
+          <p className="text-xs text-(--text-secondary) mt-1">Changes stay synced with your financial workspace</p>
         </div>
       </section>
 
@@ -465,7 +465,7 @@ export default function FinanceEngineModulePage() {
         <section className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((record, index) => {
             const title = pick(record, config.titleKeys, `${config.title.replace(/s$/, "")} ${index + 1}`);
-            const subtitle = pick(record, config.subtitleKeys, "Finance engine record");
+            const subtitle = pick(record, config.subtitleKeys, "Financial record");
             const fields = Object.entries(record)
               .filter(
                 ([key, value]) =>
