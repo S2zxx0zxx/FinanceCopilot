@@ -639,13 +639,13 @@ async def create_default_rules(
     # Scope category resolution to the target workspace so rules in a
     # newly-created workspace point at THAT workspace's categories
     # rather than the user's first workspace.
-    cat_query = select(Category.id, Category.name)
+    cat_query = select(Category)
     if workspace_id is not None:
         cat_query = cat_query.where(Category.workspace_id == workspace_id)
     else:
         cat_query = cat_query.where(Category.user_id == user_id)
     result = await session.execute(cat_query)
-    categories = {name: str(category_id) for category_id, name in result.all()}
+    categories = {cat.name: str(cat.id) for cat in result.scalars().all()}
     key_to_id = _resolve_categories_by_internal_key(categories)
 
     resolved, _unresolved = _build_rules_from_templates(UNIVERSAL_RULES, key_to_id)
