@@ -1,0 +1,65 @@
+name: FinCopilot Copy Cleanup
+
+on:
+  push:
+    branches:
+      - feat/securo-foundation-migration
+    paths:
+      - .github/workflows/fincopilot-copy-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/securo-foundation-migration
+          fetch-depth: 0
+      - name: Remove internal implementation wording
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements = {
+              Path("frontend/src/lib/engine-modules.ts"): {
+                  'eyebrow: "Net worth engine"': 'eyebrow: "Net worth & investments"',
+                  'description: "Track holdings, valuations, market-priced assets and investment positions from the finance engine."': 'description: "Track holdings, valuations, market-priced assets and investment positions inside your FinCopilot workspace."',
+                  'description: "Review currencies available to the finance engine and the basis for cross-currency reporting."': 'description: "Review supported currencies and the basis for cross-currency reporting."',
+                  'emptyDescription: "Currency metadata will appear when the finance engine is initialised."': 'emptyDescription: "Supported currency metadata will appear here when available."',
+                  'description: "Review finance-engine bank connections alongside FinCopilot\'s India Account Aggregator connection centre."': 'description: "Review connected banks alongside FinCopilot\'s India Account Aggregator connection centre."',
+                  'emptyTitle: "No engine connections"': 'emptyTitle: "No bank connections"',
+              },
+              Path("frontend/src/app/finance/[module]/page.tsx"): {
+                  'export default function FinanceEngineModulePage()': 'export default function FinanceModulePage()',
+                  'Back to Finance operations': 'Back to Advanced money',
+                  '<ArrowLeft className="w-3.5 h-3.5" />Finance operations': '<ArrowLeft className="w-3.5 h-3.5" />Advanced money',
+                  'Live engine records': 'Saved records',
+                  'Authorisation is enforced by the FastAPI engine': 'Access follows your active workspace and role',
+                  'No demo or duplicated frontend store': 'Changes stay synced with your financial workspace',
+                  '"Finance engine record"': '"Financial record"',
+              },
+          }
+
+          changed = []
+          for path, mapping in replacements.items():
+              text = path.read_text(encoding="utf-8")
+              original = text
+              for old, new in mapping.items():
+                  if old not in text:
+                      raise SystemExit(f"Expected copy not found in {path}: {old}")
+                  text = text.replace(old, new)
+              if text != original:
+                  path.write_text(text, encoding="utf-8")
+                  changed.append(str(path))
+
+          print("Updated:", ", ".join(changed))
+      - name: Commit cleanup
+        run: |
+          git config user.name "FinCopilot Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add frontend/src/lib/engine-modules.ts 'frontend/src/app/finance/[module]/page.tsx'
+          git commit -m "chore(frontend): remove internal implementation wording"
+          git push origin HEAD:feat/securo-foundation-migration
